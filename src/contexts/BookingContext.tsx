@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { Instrument, Booking, BookingStatistics } from "../types";
 import { v4 as uuidv4 } from 'uuid';
@@ -10,6 +11,9 @@ interface BookingContextType {
   updateInstrument: (instrumentData: Instrument) => void;
   deleteInstrument: (instrumentId: string) => void;
   deleteBooking: (bookingId: string) => void;
+  createBooking: (bookingData: Omit<Booking, "id" | "createdAt" | "status"> & { status: "confirmed" | "pending" | "cancelled" }) => Promise<void>;
+  updateBooking: (bookingData: Booking) => Promise<void>;
+  applyDelay: (delayMinutes: number, startDateTime: Date) => Promise<void>;
   statistics: BookingStatistics;
 }
 
@@ -21,6 +25,9 @@ export const BookingContext = createContext<BookingContextType>({
   updateInstrument: () => {},
   deleteInstrument: () => {},
   deleteBooking: () => {},
+  createBooking: async () => {},
+  updateBooking: async () => {},
+  applyDelay: async () => {},
   statistics: {
     totalBookings: 0,
     instrumentUsage: [],
@@ -271,6 +278,72 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
     );
   };
 
+  // Function to create a booking
+  const createBooking = async (bookingData: Omit<Booking, "id" | "createdAt" | "status"> & { status: "confirmed" | "pending" | "cancelled" }) => {
+    return new Promise<void>((resolve) => {
+      const newBooking: Booking = {
+        id: uuidv4(),
+        ...bookingData,
+        createdAt: new Date().toISOString(),
+      };
+      
+      setBookings(prevBookings => [...prevBookings, newBooking]);
+      
+      // Simulate API delay
+      setTimeout(() => {
+        resolve();
+      }, 500);
+    });
+  };
+
+  // Function to update a booking
+  const updateBooking = async (bookingData: Booking) => {
+    return new Promise<void>((resolve) => {
+      setBookings(prevBookings =>
+        prevBookings.map(booking =>
+          booking.id === bookingData.id ? bookingData : booking
+        )
+      );
+      
+      // Simulate API delay
+      setTimeout(() => {
+        resolve();
+      }, 500);
+    });
+  };
+
+  // Function to apply delay to bookings after a certain time
+  const applyDelay = async (delayMinutes: number, startDateTime: Date) => {
+    return new Promise<void>((resolve) => {
+      const startTime = startDateTime.getTime();
+      
+      setBookings(prevBookings =>
+        prevBookings.map(booking => {
+          const bookingStart = new Date(booking.start).getTime();
+          
+          // Only delay bookings that start after the specified time
+          if (bookingStart >= startTime) {
+            const newStart = new Date(bookingStart + delayMinutes * 60 * 1000).toISOString();
+            const newEnd = new Date(new Date(booking.end).getTime() + delayMinutes * 60 * 1000).toISOString();
+            
+            return {
+              ...booking,
+              start: newStart,
+              end: newEnd,
+            };
+          }
+          
+          return booking;
+        })
+      );
+      
+      // Simulate API delay
+      setTimeout(() => {
+        resolve();
+      }, 500);
+    });
+  };
+
   // Function to calculate booking statistics
   const calculateStatistics = (): BookingStatistics => {
     const totalBookings = bookings.length;
@@ -365,6 +438,9 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
       updateInstrument,
       deleteInstrument,
       deleteBooking,
+      createBooking,
+      updateBooking,
+      applyDelay,
       statistics,
     }}>
       {children}
