@@ -32,7 +32,7 @@ const UsageStatistics: React.FC = () => {
               <Tooltip formatter={(value) => [`${value} hours`, "Usage"]} />
               <Bar dataKey="hours" radius={[4, 4, 0, 0]}>
                 {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={`#${9B87F5}`} />
+                  <Cell key={`cell-${index}`} fill="#9B87F5" />
                 ))}
               </Bar>
             </BarChart>
