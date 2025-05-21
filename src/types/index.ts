@@ -1,9 +1,11 @@
 
+export type UserRole = "admin" | "user";
+
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'admin' | 'user';
+  role: UserRole;
   department?: string;
 }
 
@@ -12,7 +14,7 @@ export interface Instrument {
   name: string;
   model: string;
   location: string;
-  status: 'available' | 'maintenance' | 'in-use';
+  status: "available" | "maintenance" | "in-use";
   image?: string;
   description?: string;
   calibrationDue?: string;
@@ -31,7 +33,7 @@ export interface Booking {
   start: string;
   end: string;
   purpose: string;
-  status: 'confirmed' | 'pending' | 'cancelled';
+  status: "Not-Started" | "In-Progress" | "Completed" | "Delayed" | "confirmed" | "pending" | "cancelled";
   createdAt: string;
   details?: string;
 }

@@ -11,7 +11,7 @@ interface BookingContextType {
   updateInstrument: (instrumentData: Instrument) => void;
   deleteInstrument: (instrumentId: string) => void;
   deleteBooking: (bookingId: string) => void;
-  createBooking: (bookingData: Omit<Booking, "id" | "createdAt" | "status"> & { status: "confirmed" | "pending" | "cancelled" }) => Promise<void>;
+  createBooking: (bookingData: Omit<Booking, "id" | "createdAt" | "status"> & { status: "Not-Started" | "In-Progress" | "Completed" | "Delayed" | "confirmed" | "pending" | "cancelled" }) => Promise<void>;
   updateBooking: (bookingData: Booking) => Promise<void>;
   applyDelay: (delayMinutes: number, startDateTime: Date) => Promise<void>;
   statistics: BookingStatistics;

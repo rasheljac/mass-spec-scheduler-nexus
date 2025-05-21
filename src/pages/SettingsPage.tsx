@@ -7,11 +7,17 @@ import { Label } from "../components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Separator } from "../components/ui/separator";
 import { useToast } from "../hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Input } from "../components/ui/input";
 
 const SettingsPage: React.FC = () => {
   const { toast } = useToast();
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [calendarSync, setCalendarSync] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const [language, setLanguage] = useState("en");
+  const [timeZone, setTimeZone] = useState("UTC");
+  const [autoLogout, setAutoLogout] = useState(30);
 
   const handleSave = () => {
     toast({
@@ -29,6 +35,7 @@ const SettingsPage: React.FC = () => {
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
         
         <TabsContent value="notifications" className="space-y-6 mt-6">
@@ -58,6 +65,23 @@ const SettingsPage: React.FC = () => {
               
               <Separator />
               
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="booking-reminders" className="font-medium">
+                    Booking reminders
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Receive reminders before your scheduled bookings
+                  </p>
+                </div>
+                <Switch 
+                  id="booking-reminders" 
+                  defaultChecked
+                />
+              </div>
+              
+              <Separator />
+              
               <div className="flex justify-end">
                 <Button onClick={handleSave}>Save Changes</Button>
               </div>
@@ -73,10 +97,47 @@ const SettingsPage: React.FC = () => {
                 Customize the look and feel of the application
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Appearance settings will be available in a future update.
-              </p>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="dark-mode" className="font-medium">
+                    Dark mode
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Use dark theme for the application
+                  </p>
+                </div>
+                <Switch 
+                  id="dark-mode" 
+                  checked={darkMode}
+                  onCheckedChange={setDarkMode}
+                />
+              </div>
+              
+              <Separator />
+              
+              <div className="space-y-2">
+                <Label htmlFor="language" className="font-medium">
+                  Language
+                </Label>
+                <Select value={language} onValueChange={setLanguage}>
+                  <SelectTrigger id="language">
+                    <SelectValue placeholder="Select language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="fr">Français</SelectItem>
+                    <SelectItem value="es">Español</SelectItem>
+                    <SelectItem value="de">Deutsch</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <Separator />
+              
+              <div className="flex justify-end">
+                <Button onClick={handleSave}>Save Changes</Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -104,6 +165,78 @@ const SettingsPage: React.FC = () => {
                   checked={calendarSync}
                   onCheckedChange={setCalendarSync}
                 />
+              </div>
+              
+              <Separator />
+              
+              <div className="space-y-2">
+                <Label htmlFor="timezone" className="font-medium">
+                  Time Zone
+                </Label>
+                <Select value={timeZone} onValueChange={setTimeZone}>
+                  <SelectTrigger id="timezone">
+                    <SelectValue placeholder="Select time zone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="UTC">UTC</SelectItem>
+                    <SelectItem value="EST">Eastern Time (EST)</SelectItem>
+                    <SelectItem value="CST">Central Time (CST)</SelectItem>
+                    <SelectItem value="MST">Mountain Time (MST)</SelectItem>
+                    <SelectItem value="PST">Pacific Time (PST)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <Separator />
+              
+              <div className="flex justify-end">
+                <Button onClick={handleSave}>Save Changes</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="security" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Security Settings</CardTitle>
+              <CardDescription>
+                Configure your security preferences
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="auto-logout" className="font-medium">
+                  Auto Logout (Minutes)
+                </Label>
+                <div className="flex items-center gap-4">
+                  <Input 
+                    id="auto-logout" 
+                    type="number" 
+                    min="5" 
+                    max="120" 
+                    value={autoLogout}
+                    onChange={(e) => setAutoLogout(Number(e.target.value))}
+                    className="w-24"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    Minutes of inactivity before automatic logout
+                  </span>
+                </div>
+              </div>
+              
+              <Separator />
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label htmlFor="two-factor" className="font-medium">
+                    Two-factor authentication
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Add an additional layer of security to your account
+                  </p>
+                </div>
+                <Switch id="two-factor" />
               </div>
               
               <Separator />
