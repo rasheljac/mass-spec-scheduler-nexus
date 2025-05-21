@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "../ui/avatar";
-import { Calendar, Settings, LayoutDashboard, Settings as SettingsIcon } from "lucide-react";
+import { Calendar, Settings, LayoutDashboard, Settings as SettingsIcon, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../contexts/AuthContext";
 import { Menubar, MenubarContent, MenubarItem, MenubarMenu, MenubarTrigger } from "../ui/menubar";
@@ -33,7 +33,8 @@ const Navbar: React.FC = () => {
     <header className="sticky top-0 z-30 w-full bg-background border-b shadow-sm">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link to="/" className="font-semibold text-lg text-primary">
+          <Link to="/" className="flex items-center gap-2 font-semibold text-lg text-primary">
+            <img src="/lovable-uploads/d3f1ac5d-1898-4abb-b5b1-402db4e21c6b.png" alt="MSLab Logo" className="h-8 w-8" />
             MSLab Scheduler
           </Link>
           
@@ -124,11 +125,17 @@ const Navbar: React.FC = () => {
                   </div>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  Profile
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="flex items-center cursor-pointer w-full">
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  Settings
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="flex items-center cursor-pointer w-full">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Settings
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

@@ -1,336 +1,375 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { Booking, Instrument, BookingStatistics } from "../types";
+import React, { createContext, useState, useContext, useEffect } from "react";
+import { Instrument, Booking, BookingStatistics } from "../types";
+import { v4 as uuidv4 } from 'uuid';
 
-type BookingContextType = {
-  instruments: Instrument[];
+interface BookingContextType {
   bookings: Booking[];
+  setBookings: React.Dispatch<React.SetStateAction<Booking[]>>;
+  instruments: Instrument[];
+  addInstrument: (instrumentData: Omit<Instrument, "id">) => void;
+  updateInstrument: (instrumentData: Instrument) => void;
+  deleteInstrument: (instrumentId: string) => void;
+  deleteBooking: (bookingId: string) => void;
   statistics: BookingStatistics;
-  isLoading: boolean;
-  createBooking: (booking: Omit<Booking, "id" | "createdAt">) => Promise<void>;
-  updateBooking: (booking: Booking) => Promise<void>;
-  cancelBooking: (bookingId: string) => Promise<void>;
-  getInstrumentAvailability: (instrumentId: string, date: Date) => { start: string; end: string }[];
-  addInstrument: (instrument: Omit<Instrument, "id">) => Promise<void>;
-  updateInstrument: (instrument: Instrument) => Promise<void>;
-  applyDelay: (delayMinutes: number, startTime: Date) => Promise<void>;
-};
+}
 
-const BookingContext = createContext<BookingContextType | undefined>(undefined);
-
-// Mock data for demonstration
-const MOCK_INSTRUMENTS: Instrument[] = [
-  {
-    id: "1",
-    name: "Orbitrap Eclipse",
-    model: "Thermo Scientific Orbitrap Eclipse",
-    location: "Lab A, Room 101",
-    status: "available",
-    description: "High-resolution accurate-mass (HRAM) mass spectrometer",
-    calibrationDue: "2023-12-15",
-  },
-  {
-    id: "2",
-    name: "Triple TOF 6600",
-    model: "SCIEX Triple TOF 6600",
-    location: "Lab B, Room 205",
-    status: "available",
-    description: "High-resolution hybrid quadrupole time-of-flight mass spectrometer",
-    calibrationDue: "2023-11-30",
-  },
-  {
-    id: "3",
-    name: "Q Exactive HF",
-    model: "Thermo Scientific Q Exactive HF",
-    location: "Lab A, Room 102",
-    status: "maintenance",
-    description: "Hybrid quadrupole-Orbitrap mass spectrometer",
-    calibrationDue: "2023-10-20",
-  },
-];
-
-// Generate some mock bookings over the next 2 weeks
-const generateMockBookings = (): Booking[] => {
-  const bookings: Booking[] = [];
-  const now = new Date();
-  
-  // Generate a random booking for each day in the next 2 weeks
-  for (let i = 0; i < 14; i++) {
-    const date = new Date(now);
-    date.setDate(now.getDate() + i);
-    
-    // Random instrument
-    const instrumentIndex = Math.floor(Math.random() * MOCK_INSTRUMENTS.length);
-    const instrument = MOCK_INSTRUMENTS[instrumentIndex];
-    
-    // Random start time between 9am and 4pm
-    const startHour = Math.floor(Math.random() * 7) + 9;
-    const start = new Date(date);
-    start.setHours(startHour, 0, 0, 0);
-    
-    // Duration between 1-3 hours
-    const durationHours = Math.floor(Math.random() * 3) + 1;
-    const end = new Date(start);
-    end.setHours(start.getHours() + durationHours);
-    
-    bookings.push({
-      id: `booking-${i + 1}`,
-      userId: Math.random() > 0.5 ? "1" : "2",
-      userName: Math.random() > 0.5 ? "Admin User" : "John Researcher",
-      instrumentId: instrument.id,
-      instrumentName: instrument.name,
-      start: start.toISOString(),
-      end: end.toISOString(),
-      purpose: "Sample analysis",
-      status: "confirmed" as const,
-      createdAt: new Date(start.getTime() - 86400000).toISOString(), // 1 day before
-    });
-  }
-  
-  return bookings;
-};
-
-const MOCK_BOOKINGS = generateMockBookings();
-
-// Generate mock statistics
-const generateMockStatistics = (bookings: Booking[]): BookingStatistics => {
-  // Aggregate data
-  const instrumentUsage: Record<string, { name: string; count: number; hours: number }> = {};
-  const userBookings: Record<string, { name: string; count: number; hours: number }> = {};
-  const weeklyUsage: Record<string, number> = {};
-  
-  bookings.forEach(booking => {
-    // Instrument usage
-    if (!instrumentUsage[booking.instrumentId]) {
-      instrumentUsage[booking.instrumentId] = { name: booking.instrumentName, count: 0, hours: 0 };
-    }
-    instrumentUsage[booking.instrumentId].count += 1;
-    
-    const start = new Date(booking.start);
-    const end = new Date(booking.end);
-    const durationHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
-    
-    instrumentUsage[booking.instrumentId].hours += durationHours;
-    
-    // User bookings
-    if (!userBookings[booking.userId]) {
-      userBookings[booking.userId] = { name: booking.userName, count: 0, hours: 0 };
-    }
-    userBookings[booking.userId].count += 1;
-    userBookings[booking.userId].hours += durationHours;
-    
-    // Weekly usage
-    const weekStart = new Date(start);
-    weekStart.setDate(start.getDate() - start.getDay()); // Start of the week (Sunday)
-    const weekKey = `${weekStart.getFullYear()}-${weekStart.getMonth() + 1}-${weekStart.getDate()}`;
-    
-    if (!weeklyUsage[weekKey]) {
-      weeklyUsage[weekKey] = 0;
-    }
-    weeklyUsage[weekKey] += 1;
-  });
-  
-  return {
-    totalBookings: bookings.length,
-    instrumentUsage: Object.entries(instrumentUsage).map(([id, data]) => ({
-      instrumentId: id,
-      instrumentName: data.name,
-      bookingCount: data.count,
-      totalHours: data.hours
-    })),
-    userBookings: Object.entries(userBookings).map(([id, data]) => ({
-      userId: id,
-      userName: data.name,
-      bookingCount: data.count,
-      totalHours: data.hours
-    })),
-    weeklyUsage: Object.entries(weeklyUsage).map(([week, count]) => ({
-      week,
-      bookingCount: count
-    }))
-  };
-};
-
-export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [instruments, setInstruments] = useState<Instrument[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [statistics, setStatistics] = useState<BookingStatistics>({
+export const BookingContext = createContext<BookingContextType>({
+  bookings: [],
+  setBookings: () => {},
+  instruments: [],
+  addInstrument: () => {},
+  updateInstrument: () => {},
+  deleteInstrument: () => {},
+  deleteBooking: () => {},
+  statistics: {
     totalBookings: 0,
     instrumentUsage: [],
     userBookings: [],
     weeklyUsage: []
-  });
-  const [isLoading, setIsLoading] = useState(true);
+  },
+});
 
-  // Load initial data
-  useEffect(() => {
-    const loadData = async () => {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setInstruments(MOCK_INSTRUMENTS);
-      setBookings(MOCK_BOOKINGS);
-      setStatistics(generateMockStatistics(MOCK_BOOKINGS));
-      setIsLoading(false);
-    };
-    
-    loadData();
-  }, []);
+const initialInstruments: Instrument[] = [
+  {
+    id: "1",
+    name: "Mass Spectrometer A",
+    model: "AB Sciex 6500+",
+    location: "Lab 101",
+    status: "available",
+    image: "/lovable-uploads/mass-spec-1.png",
+    description: "High-resolution mass spectrometer for proteomics and metabolomics.",
+    calibrationDue: "2024-12-31",
+    maintenanceHistory: [
+      { date: "2023-11-15", description: "Replaced ion source." },
+      { date: "2023-06-01", description: "Cleaned mass analyzer." }
+    ]
+  },
+  {
+    id: "2",
+    name: "Flow Cytometer X20",
+    model: "BD FACSAria Fusion",
+    location: "Lab 102",
+    status: "maintenance",
+    image: "/lovable-uploads/flow-cytometer-1.png",
+    description: "Cell analyzer and sorter with multiple lasers.",
+    calibrationDue: "2024-11-30",
+    maintenanceHistory: [
+      { date: "2023-10-20", description: "Laser alignment." },
+      { date: "2023-05-10", description: "Replaced filters." }
+    ]
+  },
+  {
+    id: "3",
+    name: "Confocal Microscope SP8",
+    model: "Leica TCS SP8",
+    location: "Imaging Suite",
+    status: "in-use",
+    image: "/lovable-uploads/confocal-microscope-1.png",
+    description: "Advanced confocal microscope for high-resolution imaging.",
+    calibrationDue: "2025-01-15",
+    maintenanceHistory: [
+      { date: "2023-12-01", description: "Objective lens cleaning." },
+      { date: "2023-07-01", description: "Laser power calibration." }
+    ]
+  },
+  {
+    id: "4",
+    name: "Electron Microscope TEM",
+    model: "Thermo Fisher Talos",
+    location: "EM Facility",
+    status: "available",
+    image: "/lovable-uploads/electron-microscope-1.png",
+    description: "Transmission electron microscope for ultrastructural analysis.",
+    calibrationDue: "2024-10-31",
+    maintenanceHistory: [
+      { date: "2023-09-25", description: "Column alignment." },
+      { date: "2023-04-15", description: "Vacuum system maintenance." }
+    ]
+  },
+  {
+    id: "5",
+    name: "NMR Spectrometer 600",
+    model: "Bruker Avance III",
+    location: "NMR Facility",
+    status: "available",
+    image: "/lovable-uploads/nmr-spectrometer-1.png",
+    description: "600 MHz NMR spectrometer for structural analysis.",
+    calibrationDue: "2024-09-30",
+    maintenanceHistory: [
+      { date: "2023-08-20", description: "Cryostat refill." },
+      { date: "2023-03-10", description: "Probe tuning." }
+    ]
+  }
+];
 
-  const createBooking = async (bookingData: Omit<Booking, "id" | "createdAt">) => {
-    setIsLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const newBooking: Booking = {
-      ...bookingData,
-      id: `booking-${bookings.length + 1}`,
-      createdAt: new Date().toISOString()
-    };
-    
-    const updatedBookings = [...bookings, newBooking];
-    setBookings(updatedBookings);
-    setStatistics(generateMockStatistics(updatedBookings));
-    setIsLoading(false);
-  };
+const initialBookings: Booking[] = [
+  {
+    id: "b1",
+    userId: "2",
+    userName: "John Researcher",
+    instrumentId: "1",
+    instrumentName: "Mass Spectrometer A",
+    start: "2024-08-05T09:00:00",
+    end: "2024-08-05T17:00:00",
+    purpose: "Proteomics sample analysis",
+    status: "confirmed",
+    createdAt: "2024-07-20T14:30:00",
+    details: "Running samples for protein identification."
+  },
+  {
+    id: "b2",
+    userId: "3",
+    userName: "Sarah Scientist",
+    instrumentId: "2",
+    instrumentName: "Flow Cytometer X20",
+    start: "2024-08-06T10:00:00",
+    end: "2024-08-06T14:00:00",
+    purpose: "Cell sorting experiment",
+    status: "pending",
+    createdAt: "2024-07-22T09:15:00",
+    details: "Sorting T-cells for downstream analysis."
+  },
+  {
+    id: "b3",
+    userId: "2",
+    userName: "John Researcher",
+    instrumentId: "3",
+    instrumentName: "Confocal Microscope SP8",
+    start: "2024-08-07T13:00:00",
+    end: "2024-08-07T16:00:00",
+    purpose: "Imaging of fixed cells",
+    status: "confirmed",
+    createdAt: "2024-07-25T16:45:00",
+    details: "High-resolution imaging of stained cells."
+  },
+  {
+    id: "b4",
+    userId: "3",
+    userName: "Sarah Scientist",
+    instrumentId: "4",
+    instrumentName: "Electron Microscope TEM",
+    start: "2024-08-08T09:00:00",
+    end: "2024-08-08T12:00:00",
+    purpose: "TEM analysis of nanoparticles",
+    status: "confirmed",
+    createdAt: "2024-07-28T11:20:00",
+    details: "Analyzing the structure of synthesized nanoparticles."
+  },
+  {
+    id: "b5",
+    userId: "2",
+    userName: "John Researcher",
+    instrumentId: "5",
+    instrumentName: "NMR Spectrometer 600",
+    start: "2024-08-09T14:00:00",
+    end: "2024-08-09T18:00:00",
+    purpose: "NMR analysis of small molecules",
+    status: "confirmed",
+    createdAt: "2024-07-30T18:55:00",
+    details: "Running NMR to determine molecular structure."
+  },
+  {
+    id: "b6",
+    userId: "3",
+    userName: "Sarah Scientist",
+    instrumentId: "1",
+    instrumentName: "Mass Spectrometer A",
+    start: "2024-08-10T10:00:00",
+    end: "2024-08-10T16:00:00",
+    purpose: "Metabolomics profiling",
+    status: "confirmed",
+    createdAt: "2024-08-01T08:40:00",
+    details: "Profiling metabolites in cell culture samples."
+  },
+  {
+    id: "b7",
+    userId: "2",
+    userName: "John Researcher",
+    instrumentId: "2",
+    instrumentName: "Flow Cytometer X20",
+    start: "2024-08-11T11:00:00",
+    end: "2024-08-11T15:00:00",
+    purpose: "Apoptosis assay",
+    status: "confirmed",
+    createdAt: "2024-08-02T15:00:00",
+    details: "Measuring apoptosis in treated cells."
+  },
+  {
+    id: "b8",
+    userId: "3",
+    userName: "Sarah Scientist",
+    instrumentId: "3",
+    instrumentName: "Confocal Microscope SP8",
+    start: "2024-08-12T14:00:00",
+    end: "2024-08-12T17:00:00",
+    purpose: "Live cell imaging",
+    status: "confirmed",
+    createdAt: "2024-08-03T21:30:00",
+    details: "Time-lapse imaging of live cells."
+  },
+  {
+    id: "b9",
+    userId: "2",
+    userName: "John Researcher",
+    instrumentId: "4",
+    instrumentName: "Electron Microscope TEM",
+    start: "2024-08-13T09:00:00",
+    end: "2024-08-13T13:00:00",
+    purpose: "High-resolution imaging",
+    status: "confirmed",
+    createdAt: "2024-08-04T07:00:00",
+    details: "Acquiring high-resolution images of materials."
+  },
+  {
+    id: "b10",
+    userId: "3",
+    userName: "Sarah Scientist",
+    instrumentId: "5",
+    instrumentName: "NMR Spectrometer 600",
+    start: "2024-08-14T15:00:00",
+    end: "2024-08-14T19:00:00",
+    purpose: "Complex mixture analysis",
+    status: "confirmed",
+    createdAt: "2024-08-05T14:45:00",
+    details: "Analyzing complex mixtures using NMR."
+  }
+];
 
-  const updateBooking = async (updatedBooking: Booking) => {
-    setIsLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const updatedBookings = bookings.map(booking => 
-      booking.id === updatedBooking.id ? updatedBooking : booking
-    );
-    
-    setBookings(updatedBookings);
-    setStatistics(generateMockStatistics(updatedBookings.filter(b => b.status !== "cancelled")));
-    setIsLoading(false);
-  };
+export const BookingProvider = ({ children }: { children: React.ReactNode }) => {
+  const [bookings, setBookings] = useState<Booking[]>(initialBookings);
+  const [instruments, setInstruments] = useState<Instrument[]>(initialInstruments);
 
-  const cancelBooking = async (bookingId: string) => {
-    setIsLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const updatedBookings = bookings.map(booking => 
-      booking.id === bookingId ? { ...booking, status: "cancelled" as const } : booking
-    );
-    
-    setBookings(updatedBookings);
-    setStatistics(generateMockStatistics(updatedBookings.filter(b => b.status !== "cancelled")));
-    setIsLoading(false);
-  };
-
-  const getInstrumentAvailability = (instrumentId: string, date: Date) => {
-    // Get bookings for the specified instrument and date
-    const dateStart = new Date(date);
-    dateStart.setHours(0, 0, 0, 0);
-    
-    const dateEnd = new Date(date);
-    dateEnd.setHours(23, 59, 59, 999);
-    
-    const instrumentBookings = bookings.filter(booking => 
-      booking.instrumentId === instrumentId &&
-      booking.status !== "cancelled" &&
-      new Date(booking.start) >= dateStart &&
-      new Date(booking.start) <= dateEnd
-    );
-    
-    // Return the booked time slots
-    return instrumentBookings.map(booking => ({
-      start: booking.start,
-      end: booking.end
-    }));
-  };
-
-  const addInstrument = async (instrumentData: Omit<Instrument, "id">) => {
-    setIsLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+  // Function to add a new instrument
+  const addInstrument = (instrumentData: Omit<Instrument, "id">) => {
     const newInstrument: Instrument = {
-      ...instrumentData,
-      id: `instrument-${instruments.length + 1}`,
+      id: uuidv4(),
+      ...instrumentData
     };
-    
-    setInstruments([...instruments, newInstrument]);
-    setIsLoading(false);
+    setInstruments(prevInstruments => [...prevInstruments, newInstrument]);
   };
 
-  const updateInstrument = async (updatedInstrument: Instrument) => {
-    setIsLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const updatedInstruments = instruments.map(instrument => 
-      instrument.id === updatedInstrument.id ? updatedInstrument : instrument
+  // Function to update an existing instrument
+  const updateInstrument = (instrumentData: Instrument) => {
+    setInstruments(prevInstruments =>
+      prevInstruments.map(instrument =>
+        instrument.id === instrumentData.id ? instrumentData : instrument
+      )
     );
-    
-    setInstruments(updatedInstruments);
-    setIsLoading(false);
   };
 
-  const applyDelay = async (delayMinutes: number, startTime: Date) => {
-    setIsLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const updatedBookings = bookings.map(booking => {
-      const bookingStart = new Date(booking.start);
-      const bookingEnd = new Date(booking.end);
-      
-      // Only delay bookings that start after the startTime
-      if (bookingStart >= startTime) {
-        const newStart = new Date(bookingStart);
-        const newEnd = new Date(bookingEnd);
-        
-        newStart.setMinutes(newStart.getMinutes() + delayMinutes);
-        newEnd.setMinutes(newEnd.getMinutes() + delayMinutes);
-        
-        return {
-          ...booking,
-          start: newStart.toISOString(),
-          end: newEnd.toISOString(),
-        };
-      }
-      return booking;
+  // Add function to delete an instrument
+  const deleteInstrument = (instrumentId: string) => {
+    setInstruments(prevInstruments => 
+      prevInstruments.filter(instrument => instrument.id !== instrumentId)
+    );
+  };
+
+  // Function to delete a booking
+  const deleteBooking = (bookingId: string) => {
+    setBookings(prevBookings =>
+      prevBookings.filter(booking => booking.id !== bookingId)
+    );
+  };
+
+  // Function to calculate booking statistics
+  const calculateStatistics = (): BookingStatistics => {
+    const totalBookings = bookings.length;
+
+    // Instrument Usage
+    const instrumentUsageMap = new Map<string, { instrumentName: string, bookingCount: number, totalHours: number }>();
+    instruments.forEach(instrument => {
+      instrumentUsageMap.set(instrument.id, { instrumentName: instrument.name, bookingCount: 0, totalHours: 0 });
     });
-    
-    setBookings(updatedBookings);
-    setIsLoading(false);
+
+    bookings.forEach(booking => {
+      const instrumentStats = instrumentUsageMap.get(booking.instrumentId);
+      if (instrumentStats) {
+        instrumentStats.bookingCount++;
+        const start = new Date(booking.start);
+        const end = new Date(booking.end);
+        instrumentStats.totalHours += (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      }
+    });
+
+    const instrumentUsage = Array.from(instrumentUsageMap.entries()).map(([instrumentId, data]) => ({
+      instrumentId,
+      instrumentName: data.instrumentName,
+      bookingCount: data.bookingCount,
+      totalHours: data.totalHours
+    })).sort((a, b) => b.totalHours - a.totalHours);
+
+    // User Bookings
+    const userBookingsMap = new Map<string, { userName: string, bookingCount: number, totalHours: number }>();
+    bookings.forEach(booking => {
+      if (!userBookingsMap.has(booking.userId)) {
+        userBookingsMap.set(booking.userId, { userName: booking.userName, bookingCount: 0, totalHours: 0 });
+      }
+      const userStats = userBookingsMap.get(booking.userId);
+      if (userStats) {
+        userStats.bookingCount++;
+        const start = new Date(booking.start);
+        const end = new Date(booking.end);
+        userStats.totalHours += (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      }
+    });
+
+    const userBookings = Array.from(userBookingsMap.entries()).map(([userId, data]) => ({
+      userId,
+      userName: data.userName,
+      bookingCount: data.bookingCount,
+      totalHours: data.totalHours
+    })).sort((a, b) => b.totalHours - a.totalHours);
+
+    // Weekly Usage
+    const weeklyUsageMap = new Map<string, number>();
+    bookings.forEach(booking => {
+      const start = new Date(booking.start);
+      const week = `${start.getFullYear()}-W${getWeek(start)}`;
+      weeklyUsageMap.set(week, (weeklyUsageMap.get(week) || 0) + 1);
+    });
+
+    const weeklyUsage = Array.from(weeklyUsageMap.entries()).map(([week, bookingCount]) => ({
+      week,
+      bookingCount
+    })).sort((a, b) => a.week.localeCompare(b.week));
+
+    return {
+      totalBookings,
+      instrumentUsage,
+      userBookings,
+      weeklyUsage
+    };
   };
 
+  // Helper function to get week number
+  const getWeek = (date: Date): number => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+  };
+
+  const [statistics, setStatistics] = useState<BookingStatistics>(calculateStatistics());
+
+  useEffect(() => {
+    setStatistics(calculateStatistics());
+  }, [bookings, instruments]);
+  
   return (
-    <BookingContext.Provider
-      value={{
-        instruments,
-        bookings,
-        statistics,
-        isLoading,
-        createBooking,
-        updateBooking,
-        cancelBooking,
-        getInstrumentAvailability,
-        addInstrument,
-        updateInstrument,
-        applyDelay
-      }}
-    >
+    <BookingContext.Provider value={{
+      bookings,
+      setBookings,
+      instruments,
+      addInstrument,
+      updateInstrument,
+      deleteInstrument,
+      deleteBooking,
+      statistics,
+    }}>
       {children}
     </BookingContext.Provider>
   );
 };
 
-export const useBooking = () => {
-  const context = useContext(BookingContext);
-  if (context === undefined) {
-    throw new Error("useBooking must be used within a BookingProvider");
-  }
-  return context;
-};
+export const useBooking = () => useContext(BookingContext);

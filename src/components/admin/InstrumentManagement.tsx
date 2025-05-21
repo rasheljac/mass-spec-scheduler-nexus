@@ -1,10 +1,9 @@
-
 import React, { useState } from "react";
 import { Card } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,6 +18,8 @@ import { Calendar } from "../ui/calendar";
 import { cn } from "@/lib/utils";
 import { useBooking } from "../../contexts/BookingContext";
 import { Instrument } from "../../types";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
+import { useToast } from "../../hooks/use-toast";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -32,10 +33,12 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const InstrumentManagement: React.FC = () => {
-  const { instruments, addInstrument, updateInstrument } = useBooking();
+  const { instruments, addInstrument, updateInstrument, deleteInstrument } = useBooking();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedInstrument, setSelectedInstrument] = useState<Instrument | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -70,6 +73,11 @@ const InstrumentManagement: React.FC = () => {
     });
     setIsAddDialogOpen(false);
     form.reset();
+    
+    toast({
+      title: "Instrument added",
+      description: `${data.name} has been added successfully.`
+    });
   };
 
   const handleEditInstrument = (data: FormValues) => {
@@ -86,6 +94,25 @@ const InstrumentManagement: React.FC = () => {
     });
     setIsEditDialogOpen(false);
     setSelectedInstrument(null);
+    
+    toast({
+      title: "Instrument updated",
+      description: `${data.name} has been updated successfully.`
+    });
+  };
+
+  const handleDeleteInstrument = () => {
+    if (!selectedInstrument) return;
+    
+    deleteInstrument(selectedInstrument.id);
+    setIsDeleteDialogOpen(false);
+    setSelectedInstrument(null);
+    
+    toast({
+      title: "Instrument deleted",
+      description: `${selectedInstrument.name} has been deleted.`,
+      variant: "destructive"
+    });
   };
 
   const handleEditClick = (instrument: Instrument) => {
@@ -106,6 +133,11 @@ const InstrumentManagement: React.FC = () => {
     });
     
     setIsEditDialogOpen(true);
+  };
+  
+  const handleDeleteClick = (instrument: Instrument) => {
+    setSelectedInstrument(instrument);
+    setIsDeleteDialogOpen(true);
   };
 
   const renderStatusBadge = (status: string) => {
@@ -148,13 +180,20 @@ const InstrumentManagement: React.FC = () => {
                 <TableCell>{instrument.location}</TableCell>
                 <TableCell>{renderStatusBadge(instrument.status)}</TableCell>
                 <TableCell>{instrument.calibrationDue || "-"}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right space-x-2">
                   <Button 
                     variant="outline" 
                     size="sm"
                     onClick={() => handleEditClick(instrument)}
                   >
                     Edit
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => handleDeleteClick(instrument)}
+                  >
+                    Delete
                   </Button>
                 </TableCell>
               </TableRow>
@@ -438,6 +477,24 @@ const InstrumentManagement: React.FC = () => {
           </Form>
         </DialogContent>
       </Dialog>
+      
+      {/* Delete Instrument Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Instrument</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {selectedInstrument?.name}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteInstrument} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };

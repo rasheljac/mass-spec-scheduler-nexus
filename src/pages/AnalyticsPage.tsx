@@ -15,7 +15,9 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
+import { Button } from "../components/ui/button";
 import { useBooking } from "../contexts/BookingContext";
+import { exportAnalyticsToPDF } from "../utils/pdfExport";
 
 const AnalyticsPage: React.FC = () => {
   const { statistics } = useBooking();
@@ -40,10 +42,19 @@ const AnalyticsPage: React.FC = () => {
     week: item.week,
     bookings: item.bookingCount
   }));
+  
+  const handleExportPDF = () => {
+    exportAnalyticsToPDF(statistics, "MSLab Analytics Report");
+  };
 
   return (
     <div className="container py-6 space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold tracking-tight">Analytics</h1>
+        <Button onClick={handleExportPDF}>
+          Export as PDF
+        </Button>
+      </div>
       
       <Tabs defaultValue="usage" className="w-full">
         <TabsList>

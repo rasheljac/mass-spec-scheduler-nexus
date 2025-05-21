@@ -12,6 +12,8 @@ import CalendarPage from "./pages/CalendarPage";
 import InstrumentsPage from "./pages/InstrumentsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import AdminPage from "./pages/AdminPage";
+import ProfilePage from "./pages/ProfilePage";
+import SettingsPage from "./pages/SettingsPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 
@@ -35,6 +37,8 @@ const App = () => (
                 <Route path="/instruments" element={<InstrumentsPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/admin" element={<AdminPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Route>
               
               {/* Catch-all route */}
