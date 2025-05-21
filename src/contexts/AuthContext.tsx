@@ -9,6 +9,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  updateUserProfile: (userData: Partial<User>) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -88,6 +89,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   };
 
+  const updateUserProfile = async (userData: Partial<User>) => {
+    setIsLoading(true);
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    if (user) {
+      // Update the user data
+      const updatedUser = { ...user, ...userData };
+      setUser(updatedUser);
+      
+      // Update in mock database for demonstration
+      const userIndex = MOCK_USERS.findIndex(u => u.id === user.id);
+      if (userIndex >= 0) {
+        MOCK_USERS[userIndex] = updatedUser;
+      }
+      
+      // Update in local storage
+      localStorage.setItem("mslab_user", JSON.stringify(updatedUser));
+    }
+    
+    setIsLoading(false);
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem("mslab_user");
@@ -101,7 +126,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         login,
         signup,
-        logout
+        logout,
+        updateUserProfile
       }}
     >
       {children}

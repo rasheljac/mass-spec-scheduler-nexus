@@ -23,6 +23,7 @@ const ProfilePage: React.FC = () => {
   const { user, updateUserProfile } = useAuth();
   const { toast } = useToast();
   const [changePassword, setChangePassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -33,14 +34,29 @@ const ProfilePage: React.FC = () => {
     },
   });
 
-  const onSubmit = (data: FormValues) => {
-    toast({
-      title: "Profile updated",
-      description: "Your profile has been updated successfully.",
-    });
+  const onSubmit = async (data: FormValues) => {
+    if (!user) return;
     
-    // In a real application, this would call the updateUserProfile function
-    console.log("Profile update:", data);
+    setIsSubmitting(true);
+    try {
+      await updateUserProfile({
+        name: data.name,
+        department: data.department
+      });
+      
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully.",
+      });
+    } catch (error) {
+      toast({
+        title: "Update failed",
+        description: "There was an error updating your profile.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -101,7 +117,9 @@ const ProfilePage: React.FC = () => {
                 />
                 
                 <div className="flex justify-end">
-                  <Button type="submit">Save Changes</Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? "Saving..." : "Save Changes"}
+                  </Button>
                 </div>
               </form>
             </Form>

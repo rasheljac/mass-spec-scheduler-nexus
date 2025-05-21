@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { format, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay } from "date-fns";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Pencil } from "lucide-react";
@@ -16,7 +15,7 @@ import { useAuth } from "../../contexts/AuthContext";
 type ViewMode = "day" | "week" | "month";
 
 const CalendarView: React.FC = () => {
-  const { bookings } = useBooking();
+  const { bookings, updateBooking } = useBooking();
   const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("week");
@@ -79,6 +78,20 @@ const CalendarView: React.FC = () => {
   const handleEditBooking = (booking: Booking) => {
     setSelectedBooking(booking);
     setIsEditModalOpen(true);
+  };
+
+  const handleUpdateBooking = async (bookingData: Partial<Booking>) => {
+    if (selectedBooking && bookingData) {
+      try {
+        await updateBooking({
+          ...selectedBooking,
+          ...bookingData
+        });
+        setIsEditModalOpen(false);
+      } catch (error) {
+        console.error("Error updating booking:", error);
+      }
+    }
   };
 
   // Check if user can edit a booking
@@ -302,6 +315,7 @@ const CalendarView: React.FC = () => {
         open={isEditModalOpen} 
         onOpenChange={setIsEditModalOpen}
         booking={selectedBooking}
+        onSubmit={handleUpdateBooking}
       />
     </div>
   );
