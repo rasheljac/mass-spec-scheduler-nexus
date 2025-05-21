@@ -72,7 +72,7 @@ const generateMockBookings = (): Booking[] => {
       start: start.toISOString(),
       end: end.toISOString(),
       purpose: "Sample analysis",
-      status: "confirmed",
+      status: "confirmed" as const,
       createdAt: new Date(start.getTime() - 86400000).toISOString(), // 1 day before
     });
   }
@@ -192,7 +192,7 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     const updatedBookings = bookings.map(booking => 
-      booking.id === bookingId ? { ...booking, status: "cancelled" } : booking
+      booking.id === bookingId ? { ...booking, status: "cancelled" as const } : booking
     );
     
     setBookings(updatedBookings);
