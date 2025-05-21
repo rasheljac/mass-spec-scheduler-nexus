@@ -1,7 +1,7 @@
 
 import React, { useState } from "react";
 import { format, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay } from "date-fns";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Pencil } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -10,14 +10,19 @@ import { cn } from "@/lib/utils";
 import { useBooking } from "../../contexts/BookingContext";
 import { Booking } from "../../types";
 import BookingForm from "./BookingForm";
+import EditBookingForm from "./EditBookingForm";
+import { useAuth } from "../../contexts/AuthContext";
 
 type ViewMode = "day" | "week" | "month";
 
 const CalendarView: React.FC = () => {
   const { bookings } = useBooking();
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   // Helper to get the week range displayed
   const weekRange = {
@@ -71,6 +76,17 @@ const CalendarView: React.FC = () => {
     return format(date, "h:mm a");
   };
 
+  const handleEditBooking = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setIsEditModalOpen(true);
+  };
+
+  // Check if user can edit a booking
+  const canEditBooking = (booking: Booking) => {
+    if (!user) return false;
+    return user.role === "admin" || booking.userId === user.id;
+  };
+
   // Generate time slots for day view (9am to 5pm)
   const renderDayView = () => {
     const dayBookings = visibleBookings.sort((a, b) => 
@@ -90,8 +106,20 @@ const CalendarView: React.FC = () => {
                   <h3 className="font-medium">{booking.instrumentName}</h3>
                   <p className="text-sm text-muted-foreground">{booking.userName}</p>
                   <p className="text-sm">{formatTime(booking.start)} - {formatTime(booking.end)}</p>
+                  {booking.details && <p className="text-sm mt-1">{booking.details}</p>}
                 </div>
-                <div className="text-sm">{booking.purpose}</div>
+                <div className="flex items-center gap-3">
+                  <div className="text-sm">{booking.purpose}</div>
+                  {canEditBooking(booking) && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={() => handleEditBooking(booking)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </Card>
           ))
@@ -161,8 +189,20 @@ const CalendarView: React.FC = () => {
                           <div>
                             <h4 className="font-medium">{booking.instrumentName}</h4>
                             <p className="text-xs text-muted-foreground">{formatTime(booking.start)} - {formatTime(booking.end)}</p>
+                            {booking.details && <p className="text-xs mt-1">{booking.details}</p>}
                           </div>
-                          <div className="text-sm">{booking.userName}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm">{booking.userName}</div>
+                            {canEditBooking(booking) && (
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={() => handleEditBooking(booking)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </Card>
                     ))}
@@ -256,6 +296,12 @@ const CalendarView: React.FC = () => {
         open={isBookingModalOpen} 
         onOpenChange={setIsBookingModalOpen}
         selectedDate={selectedDate}
+      />
+
+      <EditBookingForm
+        open={isEditModalOpen} 
+        onOpenChange={setIsEditModalOpen}
+        booking={selectedBooking}
       />
     </div>
   );

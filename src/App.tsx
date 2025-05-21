@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import CalendarPage from "./pages/CalendarPage";
 import InstrumentsPage from "./pages/InstrumentsPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
+import AdminPage from "./pages/AdminPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 
@@ -33,6 +34,7 @@ const App = () => (
                 <Route path="/calendar" element={<CalendarPage />} />
                 <Route path="/instruments" element={<InstrumentsPage />} />
                 <Route path="/analytics" element={<AnalyticsPage />} />
+                <Route path="/admin" element={<AdminPage />} />
               </Route>
               
               {/* Catch-all route */}

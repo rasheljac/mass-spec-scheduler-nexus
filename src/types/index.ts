@@ -14,6 +14,12 @@ export interface Instrument {
   location: string;
   status: 'available' | 'maintenance' | 'in-use';
   image?: string;
+  description?: string;
+  calibrationDue?: string;
+  maintenanceHistory?: {
+    date: string;
+    description: string;
+  }[];
 }
 
 export interface Booking {
@@ -27,6 +33,7 @@ export interface Booking {
   purpose: string;
   status: 'confirmed' | 'pending' | 'cancelled';
   createdAt: string;
+  details?: string;
 }
 
 export interface BookingStatistics {

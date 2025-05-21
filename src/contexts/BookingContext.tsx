@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { Booking, Instrument, BookingStatistics } from "../types";
 
@@ -8,8 +7,12 @@ type BookingContextType = {
   statistics: BookingStatistics;
   isLoading: boolean;
   createBooking: (booking: Omit<Booking, "id" | "createdAt">) => Promise<void>;
+  updateBooking: (booking: Booking) => Promise<void>;
   cancelBooking: (bookingId: string) => Promise<void>;
   getInstrumentAvailability: (instrumentId: string, date: Date) => { start: string; end: string }[];
+  addInstrument: (instrument: Omit<Instrument, "id">) => Promise<void>;
+  updateInstrument: (instrument: Instrument) => Promise<void>;
+  applyDelay: (delayMinutes: number, startTime: Date) => Promise<void>;
 };
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
@@ -22,6 +25,8 @@ const MOCK_INSTRUMENTS: Instrument[] = [
     model: "Thermo Scientific Orbitrap Eclipse",
     location: "Lab A, Room 101",
     status: "available",
+    description: "High-resolution accurate-mass (HRAM) mass spectrometer",
+    calibrationDue: "2023-12-15",
   },
   {
     id: "2",
@@ -29,6 +34,8 @@ const MOCK_INSTRUMENTS: Instrument[] = [
     model: "SCIEX Triple TOF 6600",
     location: "Lab B, Room 205",
     status: "available",
+    description: "High-resolution hybrid quadrupole time-of-flight mass spectrometer",
+    calibrationDue: "2023-11-30",
   },
   {
     id: "3",
@@ -36,6 +43,8 @@ const MOCK_INSTRUMENTS: Instrument[] = [
     model: "Thermo Scientific Q Exactive HF",
     location: "Lab A, Room 102",
     status: "maintenance",
+    description: "Hybrid quadrupole-Orbitrap mass spectrometer",
+    calibrationDue: "2023-10-20",
   },
 ];
 
@@ -185,6 +194,21 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsLoading(false);
   };
 
+  const updateBooking = async (updatedBooking: Booking) => {
+    setIsLoading(true);
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const updatedBookings = bookings.map(booking => 
+      booking.id === updatedBooking.id ? updatedBooking : booking
+    );
+    
+    setBookings(updatedBookings);
+    setStatistics(generateMockStatistics(updatedBookings.filter(b => b.status !== "cancelled")));
+    setIsLoading(false);
+  };
+
   const cancelBooking = async (bookingId: string) => {
     setIsLoading(true);
     
@@ -222,6 +246,66 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }));
   };
 
+  const addInstrument = async (instrumentData: Omit<Instrument, "id">) => {
+    setIsLoading(true);
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const newInstrument: Instrument = {
+      ...instrumentData,
+      id: `instrument-${instruments.length + 1}`,
+    };
+    
+    setInstruments([...instruments, newInstrument]);
+    setIsLoading(false);
+  };
+
+  const updateInstrument = async (updatedInstrument: Instrument) => {
+    setIsLoading(true);
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const updatedInstruments = instruments.map(instrument => 
+      instrument.id === updatedInstrument.id ? updatedInstrument : instrument
+    );
+    
+    setInstruments(updatedInstruments);
+    setIsLoading(false);
+  };
+
+  const applyDelay = async (delayMinutes: number, startTime: Date) => {
+    setIsLoading(true);
+    
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const updatedBookings = bookings.map(booking => {
+      const bookingStart = new Date(booking.start);
+      const bookingEnd = new Date(booking.end);
+      
+      // Only delay bookings that start after the startTime
+      if (bookingStart >= startTime) {
+        const newStart = new Date(bookingStart);
+        const newEnd = new Date(bookingEnd);
+        
+        newStart.setMinutes(newStart.getMinutes() + delayMinutes);
+        newEnd.setMinutes(newEnd.getMinutes() + delayMinutes);
+        
+        return {
+          ...booking,
+          start: newStart.toISOString(),
+          end: newEnd.toISOString(),
+        };
+      }
+      return booking;
+    });
+    
+    setBookings(updatedBookings);
+    setIsLoading(false);
+  };
+
   return (
     <BookingContext.Provider
       value={{
@@ -230,8 +314,12 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         statistics,
         isLoading,
         createBooking,
+        updateBooking,
         cancelBooking,
-        getInstrumentAvailability
+        getInstrumentAvailability,
+        addInstrument,
+        updateInstrument,
+        applyDelay
       }}
     >
       {children}

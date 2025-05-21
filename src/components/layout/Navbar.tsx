@@ -1,87 +1,152 @@
 
 import React from "react";
-import { Link } from "react-router-dom";
-import { useAuth } from "../../contexts/AuthContext";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "../ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "../ui/avatar";
+import { Calendar, Settings, LayoutDashboard, Settings as SettingsIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useAuth } from "../../contexts/AuthContext";
+import { Menubar, MenubarContent, MenubarItem, MenubarMenu, MenubarTrigger } from "../ui/menubar";
 
 const Navbar: React.FC = () => {
+  const location = useLocation();
   const { user, logout } = useAuth();
+  
+  const isActive = (path: string) => location.pathname === path;
+  
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map(part => part[0])
+      .join("")
+      .toUpperCase();
+  };
 
   return (
-    <div className="border-b">
-      <div className="flex items-center justify-between px-6 h-16">
-        <div className="flex items-center">
-          <Link to="/" className="text-xl font-bold text-mslab-400">
-            MS Lab Scheduler
+    <header className="sticky top-0 z-30 w-full bg-background border-b shadow-sm">
+      <div className="container flex h-16 items-center justify-between">
+        <div className="flex items-center gap-6">
+          <Link to="/" className="font-semibold text-lg text-primary">
+            MSLab Scheduler
           </Link>
           
-          {user && (
-            <nav className="hidden md:flex ml-6 space-x-4">
-              <Link to="/" className="px-3 py-2 text-sm font-medium rounded-md hover:bg-muted">
-                Dashboard
-              </Link>
-              <Link to="/calendar" className="px-3 py-2 text-sm font-medium rounded-md hover:bg-muted">
-                Calendar
-              </Link>
-              <Link to="/instruments" className="px-3 py-2 text-sm font-medium rounded-md hover:bg-muted">
-                Instruments
-              </Link>
-              <Link to="/analytics" className="px-3 py-2 text-sm font-medium rounded-md hover:bg-muted">
-                Analytics
-              </Link>
-            </nav>
-          )}
+          <Menubar className="hidden md:flex border-none bg-transparent">
+            <MenubarMenu>
+              <MenubarTrigger className={cn(
+                "cursor-pointer",
+                isActive("/") && "bg-muted text-foreground"
+              )}>
+                <Link to="/" className="flex items-center gap-2">
+                  <LayoutDashboard className="h-4 w-4" />
+                  Dashboard
+                </Link>
+              </MenubarTrigger>
+            </MenubarMenu>
+            
+            <MenubarMenu>
+              <MenubarTrigger className={cn(
+                "cursor-pointer",
+                isActive("/calendar") && "bg-muted text-foreground"
+              )}>
+                <Link to="/calendar" className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4" />
+                  Calendar
+                </Link>
+              </MenubarTrigger>
+            </MenubarMenu>
+            
+            <MenubarMenu>
+              <MenubarTrigger className={cn(
+                "cursor-pointer",
+                isActive("/instruments") && "bg-muted text-foreground"
+              )}>
+                <Link to="/instruments" className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  Instruments
+                </Link>
+              </MenubarTrigger>
+            </MenubarMenu>
+            
+            <MenubarMenu>
+              <MenubarTrigger className={cn(
+                "cursor-pointer",
+                isActive("/analytics") && "bg-muted text-foreground"
+              )}>
+                <Link to="/analytics" className="flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  Analytics
+                </Link>
+              </MenubarTrigger>
+            </MenubarMenu>
+            
+            {user?.role === "admin" && (
+              <MenubarMenu>
+                <MenubarTrigger className={cn(
+                  "cursor-pointer",
+                  isActive("/admin") && "bg-muted text-foreground"
+                )}>
+                  <Link to="/admin" className="flex items-center gap-2">
+                    <SettingsIcon className="h-4 w-4" />
+                    Admin
+                  </Link>
+                </MenubarTrigger>
+              </MenubarMenu>
+            )}
+          </Menubar>
         </div>
-
-        <div className="flex items-center space-x-4">
+        
+        <div className="flex items-center gap-4">
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-mslab-400 text-white">
-                      {user.name.charAt(0)}
+                    <AvatarFallback className="bg-primary text-primary-foreground">
+                      {getInitials(user.name)}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <div className="flex items-center justify-start gap-2 p-2">
+                  <div className="flex flex-col space-y-1 leading-none">
+                    <p className="font-medium">{user.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
-                  <span className="text-sm font-medium">{user.name}</span>
+                  Profile
                 </DropdownMenuItem>
                 <DropdownMenuItem>
-                  <span className="text-xs text-muted-foreground">{user.email}</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <span className="text-xs capitalize bg-mslab-300 text-white px-2 py-1 rounded-full">
-                    {user.role}
-                  </span>
+                  Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer" onClick={logout}>
-                  Logout
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={logout}
+                >
+                  Log Out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button asChild>
-              <Link to="/login">Login</Link>
+            <Button variant="default" asChild>
+              <Link to="/login">Log In</Link>
             </Button>
           )}
         </div>
       </div>
-    </div>
+    </header>
   );
 };
 
