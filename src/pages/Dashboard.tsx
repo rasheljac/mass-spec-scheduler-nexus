@@ -5,9 +5,10 @@ import UpcomingBookings from "../components/dashboard/UpcomingBookings";
 import UsageStatistics from "../components/dashboard/UsageStatistics";
 import { supabase } from "../integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "../contexts/AuthContext";
 
 const Dashboard: React.FC = () => {
-  console.log("Dashboard component rendering"); // Keep the debug log
+  const { user } = useAuth();
   
   useEffect(() => {
     // Check Supabase connection when dashboard loads
@@ -26,8 +27,10 @@ const Dashboard: React.FC = () => {
       }
     };
     
-    checkConnection();
-  }, []);
+    if (user) {
+      checkConnection();
+    }
+  }, [user]);
   
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">

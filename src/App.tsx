@@ -24,8 +24,9 @@ function App() {
   useEffect(() => {
     const checkSupabase = async () => {
       try {
-        const { data, error } = await supabase.from('instruments').select('count').limit(1);
-        if (error) {
+        // Just check if Supabase is accessible
+        const { error } = await supabase.from('profiles').select('count').limit(1);
+        if (error && error.code !== 'PGRST116') {  // PGRST116 is 'JWT role claim invalid' which is normal when not logged in
           console.error('Supabase connection error:', error);
           toast.error('Failed to connect to database');
         } else {

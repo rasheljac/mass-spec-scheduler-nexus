@@ -10,7 +10,7 @@ import { User } from "../../types";
 interface AddUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (userData: Omit<User, "id">) => void;
+  onSave: (userData: Omit<User, "id">) => Promise<void>;
 }
 
 const AddUserDialog: React.FC<AddUserDialogProps> = ({ 
@@ -25,28 +25,33 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({
   const [role, setRole] = useState<"admin" | "user">("user");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     
-    const userData: Omit<User, "id"> = {
-      name,
-      email,
-      password,
-      department,
-      role,
-      profileImage: ""
-    };
-    
-    onSave(userData);
-    
-    // Reset form
-    setName("");
-    setEmail("");
-    setPassword("");
-    setDepartment("");
-    setRole("user");
-    setIsSubmitting(false);
+    try {
+      const userData: Omit<User, "id"> = {
+        name,
+        email,
+        password,
+        department,
+        role,
+        profileImage: ""
+      };
+      
+      await onSave(userData);
+      
+      // Reset form
+      setName("");
+      setEmail("");
+      setPassword("");
+      setDepartment("");
+      setRole("user");
+    } catch (error) {
+      console.error("Error adding user:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

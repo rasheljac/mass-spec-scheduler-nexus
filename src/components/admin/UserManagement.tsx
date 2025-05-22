@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
 import { useAuth } from "../../contexts/AuthContext";
@@ -9,6 +9,7 @@ import UserTable from "./UserTable";
 import EditUserDialog from "./EditUserDialog";
 import PasswordDialog from "./PasswordDialog";
 import AddUserDialog from "./AddUserDialog";
+import { supabase } from "../../integrations/supabase/client";
 
 const UserManagement: React.FC = () => {
   const { user: currentUser, updateUserProfile, updateUserPassword, users, setUsers, createUser, deleteUser } = useAuth();
@@ -29,21 +30,97 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const handleSaveEdit = (updatedUser: User) => {
-    updateUserProfile(updatedUser);
-    setIsDialogOpen(false);
-    setEditUser(null);
-  };
-
-  const handleDelete = (userId: string) => {
-    deleteUser(userId);
-  };
-
-  const handleChangeRole = (userId: string, newRole: 'admin' | 'user') => {
-    const userToUpdate = users.find(u => u.id === userId);
-    if (userToUpdate) {
-      const updatedUser = { ...userToUpdate, role: newRole };
+  const handleSaveEdit = async (updatedUser: User) => {
+    try {
+      // Update the user profile in Supabase
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: updatedUser.name,
+          email: updatedUser.email,
+          department: updatedUser.department,
+          role: updatedUser.role,
+          profile_image: updatedUser.profileImage
+        })
+        .eq('id', updatedUser.id);
+        
+      if (error) {
+        throw error;
+      }
+      
       updateUserProfile(updatedUser);
+      setIsDialogOpen(false);
+      setEditUser(null);
+      toast({
+        title: "User updated",
+        description: "User profile has been updated successfully"
+      });
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      toast({
+        title: "Update failed",
+        description: "Failed to update user profile",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDelete = async (userId: string) => {
+    try {
+      // When a user is deleted from Auth, the profile is automatically deleted
+      // due to RLS cascade policies, but we'll delete it explicitly to be safe
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+        
+      if (error) {
+        throw error;
+      }
+      
+      deleteUser(userId);
+      toast({
+        title: "User deleted",
+        description: "User has been deleted successfully"
+      });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: "Delete failed",
+        description: "Failed to delete user",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleChangeRole = async (userId: string, newRole: 'admin' | 'user') => {
+    try {
+      const userToUpdate = users.find(u => u.id === userId);
+      if (userToUpdate) {
+        // Update the user role in Supabase
+        const { error } = await supabase
+          .from('profiles')
+          .update({ role: newRole })
+          .eq('id', userId);
+          
+        if (error) {
+          throw error;
+        }
+        
+        const updatedUser = { ...userToUpdate, role: newRole };
+        updateUserProfile(updatedUser);
+        toast({
+          title: "Role updated",
+          description: `User role changed to ${newRole}`
+        });
+      }
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      toast({
+        title: "Role update failed",
+        description: "Failed to update user role",
+        variant: "destructive"
+      });
     }
   };
 
@@ -95,9 +172,22 @@ const UserManagement: React.FC = () => {
     }
   };
 
-  const handleAddUser = (userData: Omit<User, "id">) => {
-    createUser(userData);
-    setIsAddUserDialogOpen(false);
+  const handleAddUser = async (userData: Omit<User, "id">) => {
+    try {
+      await createUser(userData);
+      setIsAddUserDialogOpen(false);
+      toast({
+        title: "User added",
+        description: "New user has been created successfully"
+      });
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast({
+        title: "User creation failed",
+        description: "Failed to create new user",
+        variant: "destructive"
+      });
+    }
   };
 
   return (

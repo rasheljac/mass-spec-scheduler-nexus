@@ -1,17 +1,20 @@
+
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { Instrument, Booking, BookingStatistics, Comment } from "../types";
 import { v4 as uuidv4 } from 'uuid';
 import { sendEmail, createBookingNotification, createStatusUpdateNotification, createDelayNotification } from "../utils/emailNotifications";
 import { useAuth } from "./AuthContext";
+import { supabase } from "../integrations/supabase/client";
+import { toast } from "sonner";
 
 interface BookingContextType {
   bookings: Booking[];
   setBookings: React.Dispatch<React.SetStateAction<Booking[]>>;
   instruments: Instrument[];
-  addInstrument: (instrumentData: Omit<Instrument, "id">) => void;
-  updateInstrument: (instrumentData: Instrument) => void;
-  deleteInstrument: (instrumentId: string) => void;
-  deleteBooking: (bookingId: string) => void;
+  addInstrument: (instrumentData: Omit<Instrument, "id">) => Promise<void>;
+  updateInstrument: (instrumentData: Instrument) => Promise<void>;
+  deleteInstrument: (instrumentId: string) => Promise<void>;
+  deleteBooking: (bookingId: string) => Promise<void>;
   createBooking: (bookingData: Omit<Booking, "id" | "createdAt"> & { status: "pending" | "confirmed" | "cancelled" | "Not-Started" | "In-Progress" | "Completed" | "Delayed" }) => Promise<void>;
   updateBooking: (bookingData: Booking) => Promise<void>;
   applyDelay: (delayMinutes: number, startDateTime: Date) => Promise<void>;
@@ -24,10 +27,10 @@ export const BookingContext = createContext<BookingContextType>({
   bookings: [],
   setBookings: () => {},
   instruments: [],
-  addInstrument: () => {},
-  updateInstrument: () => {},
-  deleteInstrument: () => {},
-  deleteBooking: () => {},
+  addInstrument: async () => {},
+  updateInstrument: async () => {},
+  deleteInstrument: async () => {},
+  deleteBooking: async () => {},
   createBooking: async () => {},
   updateBooking: async () => {},
   applyDelay: async () => {},
@@ -41,255 +44,12 @@ export const BookingContext = createContext<BookingContextType>({
   deleteCommentFromBooking: async () => {},
 });
 
-const initialInstruments: Instrument[] = [
-  {
-    id: "1",
-    name: "Mass Spectrometer A",
-    type: "Mass Spectrometer",
-    model: "AB Sciex 6500+",
-    location: "Lab 101",
-    status: "available",
-    image: "/lovable-uploads/mass-spec-1.png",
-    description: "High-resolution mass spectrometer for proteomics and metabolomics.",
-    specifications: "Resolution: 40,000 FWHM, Mass Range: 5-40,000 Da",
-    calibrationDue: "2024-12-31",
-    maintenanceHistory: [
-      { date: "2023-11-15", description: "Replaced ion source." },
-      { date: "2023-06-01", description: "Cleaned mass analyzer." }
-    ]
-  },
-  {
-    id: "2",
-    name: "Flow Cytometer X20",
-    type: "Flow Cytometer",
-    model: "BD FACSAria Fusion",
-    location: "Lab 102",
-    status: "maintenance",
-    image: "/lovable-uploads/flow-cytometer-1.png",
-    description: "Cell analyzer and sorter with multiple lasers.",
-    specifications: "4 lasers, 16 parameters, 70,000 events/second",
-    calibrationDue: "2024-11-30",
-    maintenanceHistory: [
-      { date: "2023-10-20", description: "Laser alignment." },
-      { date: "2023-05-10", description: "Replaced filters." }
-    ]
-  },
-  {
-    id: "3",
-    name: "Confocal Microscope SP8",
-    type: "Microscope",
-    model: "Leica TCS SP8",
-    location: "Imaging Suite",
-    status: "in_use",
-    image: "/lovable-uploads/confocal-microscope-1.png",
-    description: "Advanced confocal microscope for high-resolution imaging.",
-    specifications: "Resolution: 180 nm (xy), 500 nm (z), 5 laser lines",
-    calibrationDue: "2025-01-15",
-    maintenanceHistory: [
-      { date: "2023-12-01", description: "Objective lens cleaning." },
-      { date: "2023-07-01", description: "Laser power calibration." }
-    ]
-  },
-  {
-    id: "4",
-    name: "Electron Microscope TEM",
-    type: "Microscope",
-    model: "Thermo Fisher Talos",
-    location: "EM Facility",
-    status: "available",
-    image: "/lovable-uploads/electron-microscope-1.png",
-    description: "Transmission electron microscope for ultrastructural analysis.",
-    specifications: "Resolution: 0.12 nm, Magnification: 1,000,000x",
-    calibrationDue: "2024-10-31",
-    maintenanceHistory: [
-      { date: "2023-09-25", description: "Column alignment." },
-      { date: "2023-04-15", description: "Vacuum system maintenance." }
-    ]
-  },
-  {
-    id: "5",
-    name: "NMR Spectrometer 600",
-    type: "NMR Spectrometer",
-    model: "Bruker Avance III",
-    location: "NMR Facility",
-    status: "available",
-    image: "/lovable-uploads/nmr-spectrometer-1.png",
-    description: "600 MHz NMR spectrometer for structural analysis.",
-    specifications: "Field strength: 14.1 Tesla, Resolution: 0.1 Hz",
-    calibrationDue: "2024-09-30",
-    maintenanceHistory: [
-      { date: "2023-08-20", description: "Cryostat refill." },
-      { date: "2023-03-10", description: "Probe tuning." }
-    ]
-  }
-];
-
-const initialBookings: Booking[] = [
-  {
-    id: "b1",
-    userId: "2",
-    userName: "John Researcher",
-    instrumentId: "1",
-    instrumentName: "Mass Spectrometer A",
-    start: "2024-08-05T09:00:00",
-    end: "2024-08-05T17:00:00",
-    purpose: "Proteomics sample analysis",
-    status: "confirmed",
-    createdAt: "2024-07-20T14:30:00",
-    details: "Running samples for protein identification.",
-    comments: []
-  },
-  {
-    id: "b2",
-    userId: "3",
-    userName: "Sarah Scientist",
-    instrumentId: "2",
-    instrumentName: "Flow Cytometer X20",
-    start: "2024-08-06T10:00:00",
-    end: "2024-08-06T14:00:00",
-    purpose: "Cell sorting experiment",
-    status: "pending",
-    createdAt: "2024-07-22T09:15:00",
-    details: "Sorting T-cells for downstream analysis.",
-    comments: []
-  },
-  {
-    id: "b3",
-    userId: "2",
-    userName: "John Researcher",
-    instrumentId: "3",
-    instrumentName: "Confocal Microscope SP8",
-    start: "2024-08-07T13:00:00",
-    end: "2024-08-07T16:00:00",
-    purpose: "Imaging of fixed cells",
-    status: "confirmed",
-    createdAt: "2024-07-25T16:45:00",
-    details: "High-resolution imaging of stained cells.",
-    comments: []
-  },
-  {
-    id: "b4",
-    userId: "3",
-    userName: "Sarah Scientist",
-    instrumentId: "4",
-    instrumentName: "Electron Microscope TEM",
-    start: "2024-08-08T09:00:00",
-    end: "2024-08-08T12:00:00",
-    purpose: "TEM analysis of nanoparticles",
-    status: "confirmed",
-    createdAt: "2024-07-28T11:20:00",
-    details: "Analyzing the structure of synthesized nanoparticles.",
-    comments: []
-  },
-  {
-    id: "b5",
-    userId: "2",
-    userName: "John Researcher",
-    instrumentId: "5",
-    instrumentName: "NMR Spectrometer 600",
-    start: "2024-08-09T14:00:00",
-    end: "2024-08-09T18:00:00",
-    purpose: "NMR analysis of small molecules",
-    status: "confirmed",
-    createdAt: "2024-07-30T18:55:00",
-    details: "Running NMR to determine molecular structure.",
-    comments: []
-  },
-  {
-    id: "b6",
-    userId: "3",
-    userName: "Sarah Scientist",
-    instrumentId: "1",
-    instrumentName: "Mass Spectrometer A",
-    start: "2024-08-10T10:00:00",
-    end: "2024-08-10T16:00:00",
-    purpose: "Metabolomics profiling",
-    status: "confirmed",
-    createdAt: "2024-08-01T08:40:00",
-    details: "Profiling metabolites in cell culture samples.",
-    comments: []
-  },
-  {
-    id: "b7",
-    userId: "2",
-    userName: "John Researcher",
-    instrumentId: "2",
-    instrumentName: "Flow Cytometer X20",
-    start: "2024-08-11T11:00:00",
-    end: "2024-08-11T15:00:00",
-    purpose: "Apoptosis assay",
-    status: "confirmed",
-    createdAt: "2024-08-02T15:00:00",
-    details: "Measuring apoptosis in treated cells.",
-    comments: []
-  },
-  {
-    id: "b8",
-    userId: "3",
-    userName: "Sarah Scientist",
-    instrumentId: "3",
-    instrumentName: "Confocal Microscope SP8",
-    start: "2024-08-12T14:00:00",
-    end: "2024-08-12T17:00:00",
-    purpose: "Live cell imaging",
-    status: "confirmed",
-    createdAt: "2024-08-03T21:30:00",
-    details: "Time-lapse imaging of live cells.",
-    comments: []
-  },
-  {
-    id: "b9",
-    userId: "2",
-    userName: "John Researcher",
-    instrumentId: "4",
-    instrumentName: "Electron Microscope TEM",
-    start: "2024-08-13T09:00:00",
-    end: "2024-08-13T13:00:00",
-    purpose: "High-resolution imaging",
-    status: "confirmed",
-    createdAt: "2024-08-04T07:00:00",
-    details: "Acquiring high-resolution images of materials.",
-    comments: []
-  },
-  {
-    id: "b10",
-    userId: "3",
-    userName: "Sarah Scientist",
-    instrumentId: "5",
-    instrumentName: "NMR Spectrometer 600",
-    start: "2024-08-14T15:00:00",
-    end: "2024-08-14T19:00:00",
-    purpose: "Complex mixture analysis",
-    status: "confirmed",
-    createdAt: "2024-08-05T14:45:00",
-    details: "Analyzing complex mixtures using NMR.",
-    comments: []
-  }
-];
-
 export const BookingProvider = ({ children }: { children: React.ReactNode }) => {
-  const { users } = useAuth();
+  const { user, users } = useAuth();
   
-  // Load bookings and instruments from localStorage on initialization or use defaults
-  const [bookings, setBookings] = useState<Booking[]>(() => {
-    const savedBookings = localStorage.getItem('mslab_bookings');
-    return savedBookings ? JSON.parse(savedBookings) : initialBookings;
-  });
-  
-  const [instruments, setInstruments] = useState<Instrument[]>(() => {
-    const savedInstruments = localStorage.getItem('mslab_instruments');
-    return savedInstruments ? JSON.parse(savedInstruments) : initialInstruments;
-  });
-
-  // Save bookings to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('mslab_bookings', JSON.stringify(bookings));
-  }, [bookings]);
-
-  // Save instruments to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('mslab_instruments', JSON.stringify(instruments));
-  }, [instruments]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [instruments, setInstruments] = useState<Instrument[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Helper function to find user email by userId
   const getUserEmailById = (userId: string): string => {
@@ -297,83 +57,367 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
     return user?.email || "";
   };
 
-  // Function to add a new instrument
-  const addInstrument = (instrumentData: Omit<Instrument, "id">) => {
-    const newInstrument: Instrument = {
-      id: uuidv4(),
-      ...instrumentData
+  // Load instruments and bookings from Supabase on initialization
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        await loadInstruments();
+        await loadBookings();
+      } catch (error) {
+        console.error("Error loading initial data:", error);
+        toast.error("Failed to load scheduling data");
+      } finally {
+        setIsLoading(false);
+      }
     };
-    setInstruments(prevInstruments => [...prevInstruments, newInstrument]);
+
+    if (user) {
+      loadData();
+    }
+  }, [user]);
+
+  // Load instruments from Supabase
+  const loadInstruments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('instruments')
+        .select('*');
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        // Transform Supabase data to match our Instrument type
+        const formattedInstruments: Instrument[] = data.map(item => ({
+          id: item.id,
+          name: item.name,
+          type: item.type || "",
+          model: item.model || "",
+          location: item.location,
+          status: item.status,
+          image: item.image || "",
+          description: item.description,
+          specifications: item.specifications,
+          calibrationDue: item.calibration_due ? new Date(item.calibration_due).toISOString() : undefined,
+          maintenanceHistory: []
+        }));
+        
+        // Load maintenance history for each instrument
+        for (const instrument of formattedInstruments) {
+          const { data: maintenanceData, error: maintenanceError } = await supabase
+            .from('maintenance_history')
+            .select('*')
+            .eq('instrument_id', instrument.id);
+            
+          if (maintenanceError) {
+            console.error("Error fetching maintenance history:", maintenanceError);
+          } else if (maintenanceData) {
+            instrument.maintenanceHistory = maintenanceData.map(item => ({
+              date: new Date(item.date).toISOString().split('T')[0],
+              description: item.description
+            }));
+          }
+        }
+        
+        setInstruments(formattedInstruments);
+      }
+    } catch (error) {
+      console.error("Error loading instruments:", error);
+      toast.error("Failed to load instruments");
+    }
+  };
+  
+  // Load bookings from Supabase
+  const loadBookings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('*');
+
+      if (error) {
+        throw error;
+      }
+      
+      // Transform Supabase data to match our Booking type
+      if (data) {
+        const bookingsWithComments: Booking[] = [];
+        
+        for (const booking of data) {
+          // Get the instrument name for each booking
+          const { data: instrumentData } = await supabase
+            .from('instruments')
+            .select('name')
+            .eq('id', booking.instrument_id)
+            .single();
+            
+          // Get the user name for each booking
+          const { data: userData } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', booking.user_id)
+            .single();
+            
+          // Get comments for this booking
+          const { data: commentsData, error: commentsError } = await supabase
+            .from('comments')
+            .select('*')
+            .eq('booking_id', booking.id);
+            
+          if (commentsError) {
+            console.error("Error fetching comments:", commentsError);
+          }
+            
+          const formattedBooking: Booking = {
+            id: booking.id,
+            userId: booking.user_id,
+            userName: userData ? userData.name : "Unknown User",
+            instrumentId: booking.instrument_id,
+            instrumentName: instrumentData ? instrumentData.name : "Unknown Instrument",
+            start: new Date(booking.start_time).toISOString(),
+            end: new Date(booking.end_time).toISOString(),
+            purpose: booking.purpose,
+            status: booking.status,
+            createdAt: new Date(booking.created_at).toISOString(),
+            details: booking.details || "",
+            comments: commentsData ? commentsData.map(comment => ({
+              id: comment.id,
+              userId: comment.user_id,
+              content: comment.content,
+              createdAt: new Date(comment.created_at).toISOString()
+            })) : []
+          };
+          
+          bookingsWithComments.push(formattedBooking);
+        }
+        
+        setBookings(bookingsWithComments);
+      }
+    } catch (error) {
+      console.error("Error loading bookings:", error);
+      toast.error("Failed to load bookings");
+    }
+  };
+
+  // Function to add a new instrument
+  const addInstrument = async (instrumentData: Omit<Instrument, "id">) => {
+    try {
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from('instruments')
+        .insert({
+          name: instrumentData.name,
+          type: instrumentData.type,
+          model: instrumentData.model,
+          location: instrumentData.location,
+          status: instrumentData.status,
+          image: instrumentData.image,
+          description: instrumentData.description,
+          specifications: instrumentData.specifications,
+          calibration_due: instrumentData.calibrationDue
+        })
+        .select();
+
+      if (error) {
+        throw error;
+      }
+      
+      if (data && data[0]) {
+        // Add maintenance history if present
+        if (instrumentData.maintenanceHistory && instrumentData.maintenanceHistory.length > 0) {
+          for (const maintenance of instrumentData.maintenanceHistory) {
+            await supabase
+              .from('maintenance_history')
+              .insert({
+                instrument_id: data[0].id,
+                date: maintenance.date,
+                description: maintenance.description
+              });
+          }
+        }
+
+        // Reload instruments to get the updated list
+        await loadInstruments();
+        toast.success("Instrument added successfully");
+      }
+    } catch (error) {
+      console.error("Error adding instrument:", error);
+      toast.error("Failed to add instrument");
+    }
   };
 
   // Function to update an existing instrument
-  const updateInstrument = (instrumentData: Instrument) => {
-    setInstruments(prevInstruments =>
-      prevInstruments.map(instrument =>
-        instrument.id === instrumentData.id ? instrumentData : instrument
-      )
-    );
+  const updateInstrument = async (instrumentData: Instrument) => {
+    try {
+      // Update in Supabase
+      const { error } = await supabase
+        .from('instruments')
+        .update({
+          name: instrumentData.name,
+          type: instrumentData.type,
+          model: instrumentData.model,
+          location: instrumentData.location,
+          status: instrumentData.status,
+          image: instrumentData.image,
+          description: instrumentData.description,
+          specifications: instrumentData.specifications,
+          calibration_due: instrumentData.calibrationDue
+        })
+        .eq('id', instrumentData.id);
+
+      if (error) {
+        throw error;
+      }
+      
+      // Update maintenance history
+      if (instrumentData.maintenanceHistory) {
+        // Delete existing maintenance history
+        await supabase
+          .from('maintenance_history')
+          .delete()
+          .eq('instrument_id', instrumentData.id);
+          
+        // Add updated maintenance history
+        for (const maintenance of instrumentData.maintenanceHistory) {
+          await supabase
+            .from('maintenance_history')
+            .insert({
+              instrument_id: instrumentData.id,
+              date: maintenance.date,
+              description: maintenance.description
+            });
+        }
+      }
+
+      // Reload instruments to get the updated list
+      await loadInstruments();
+      toast.success("Instrument updated successfully");
+    } catch (error) {
+      console.error("Error updating instrument:", error);
+      toast.error("Failed to update instrument");
+    }
   };
 
-  // Add function to delete an instrument
-  const deleteInstrument = (instrumentId: string) => {
-    setInstruments(prevInstruments => 
-      prevInstruments.filter(instrument => instrument.id !== instrumentId)
-    );
+  // Function to delete an instrument
+  const deleteInstrument = async (instrumentId: string) => {
+    try {
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('instruments')
+        .delete()
+        .eq('id', instrumentId);
+
+      if (error) {
+        throw error;
+      }
+
+      // Reload instruments to get the updated list
+      await loadInstruments();
+      toast.success("Instrument deleted successfully");
+    } catch (error) {
+      console.error("Error deleting instrument:", error);
+      toast.error("Failed to delete instrument");
+    }
   };
 
   // Function to delete a booking
-  const deleteBooking = (bookingId: string) => {
-    setBookings(prevBookings =>
-      prevBookings.filter(booking => booking.id !== bookingId)
-    );
+  const deleteBooking = async (bookingId: string) => {
+    try {
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', bookingId);
+
+      if (error) {
+        throw error;
+      }
+
+      // Reload bookings to get the updated list
+      await loadBookings();
+      toast.success("Booking deleted successfully");
+    } catch (error) {
+      console.error("Error deleting booking:", error);
+      toast.error("Failed to delete booking");
+    }
   };
 
   // Function to create a booking
-  const createBooking = async (bookingData: Omit<Booking, "id" | "createdAt"> & { status: "Not-Started" | "In-Progress" | "Completed" | "Delayed" | "confirmed" | "pending" | "cancelled" }) => {
-    return new Promise<void>((resolve) => {
-      const newBooking: Booking = {
-        id: uuidv4(),
-        ...bookingData,
-        createdAt: new Date().toISOString(),
-        comments: bookingData.comments || []
-      };
-      
-      setBookings(prevBookings => [...prevBookings, newBooking]);
-      
-      // Send email notification for new booking
-      const userEmail = getUserEmailById(bookingData.userId);
-      if (userEmail) {
-        const notification = createBookingNotification(
-          userEmail,
-          bookingData.userName,
-          bookingData.instrumentName,
-          bookingData.start,
-          bookingData.end
-        );
-        sendEmail(notification).catch(error => console.error("Failed to send booking notification:", error));
+  const createBooking = async (bookingData: Omit<Booking, "id" | "createdAt"> & { status: "pending" | "confirmed" | "cancelled" | "Not-Started" | "In-Progress" | "Completed" | "Delayed" }) => {
+    try {
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert({
+          user_id: bookingData.userId,
+          instrument_id: bookingData.instrumentId,
+          start_time: bookingData.start,
+          end_time: bookingData.end,
+          purpose: bookingData.purpose,
+          status: bookingData.status,
+          details: bookingData.details || null
+        })
+        .select();
+
+      if (error) {
+        throw error;
       }
       
-      // Simulate API delay
-      setTimeout(() => {
-        resolve();
-      }, 500);
-    });
+      if (data && data[0]) {
+        // Reload bookings to get the updated list
+        await loadBookings();
+        
+        // Send email notification for new booking
+        const userEmail = getUserEmailById(bookingData.userId);
+        if (userEmail) {
+          const notification = createBookingNotification(
+            userEmail,
+            bookingData.userName,
+            bookingData.instrumentName,
+            bookingData.start,
+            bookingData.end
+          );
+          sendEmail(notification).catch(error => console.error("Failed to send booking notification:", error));
+        }
+        
+        toast.success("Booking created successfully");
+      }
+    } catch (error) {
+      console.error("Error creating booking:", error);
+      toast.error("Failed to create booking");
+      throw error;
+    }
   };
 
   // Function to update a booking
   const updateBooking = async (bookingData: Booking) => {
-    return new Promise<void>((resolve) => {
+    try {
       // Find the existing booking to compare status
       const existingBooking = bookings.find(booking => booking.id === bookingData.id);
       const statusChanged = existingBooking && existingBooking.status !== bookingData.status;
       
-      setBookings(prevBookings =>
-        prevBookings.map(booking =>
-          booking.id === bookingData.id ? bookingData : booking
-        )
-      );
+      // Update in Supabase
+      const { error } = await supabase
+        .from('bookings')
+        .update({
+          user_id: bookingData.userId,
+          instrument_id: bookingData.instrumentId,
+          start_time: bookingData.start,
+          end_time: bookingData.end,
+          purpose: bookingData.purpose,
+          status: bookingData.status,
+          details: bookingData.details || null
+        })
+        .eq('id', bookingData.id);
 
+      if (error) {
+        throw error;
+      }
+
+      // Reload bookings to get the updated list
+      await loadBookings();
+      
       // Send status update notification if status has changed
       if (statusChanged) {
         const userEmail = getUserEmailById(bookingData.userId);
@@ -388,93 +432,101 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
         }
       }
       
-      // Simulate API delay
-      setTimeout(() => {
-        resolve();
-      }, 500);
-    });
+      toast.success("Booking updated successfully");
+    } catch (error) {
+      console.error("Error updating booking:", error);
+      toast.error("Failed to update booking");
+      throw error;
+    }
   };
 
   // Function to add a comment to a booking
   const addCommentToBooking = async (bookingId: string, comment: Omit<Comment, "id">) => {
-    return new Promise<void>((resolve) => {
-      const newComment: Comment = {
-        id: uuidv4(),
-        ...comment
-      };
-      
-      setBookings(prevBookings =>
-        prevBookings.map(booking =>
-          booking.id === bookingId 
-            ? { 
-                ...booking, 
-                comments: [...(booking.comments || []), newComment]
-              }
-            : booking
-        )
-      );
-      
-      // Simulate API delay
-      setTimeout(() => {
-        resolve();
-      }, 500);
-    });
+    try {
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from('comments')
+        .insert({
+          booking_id: bookingId,
+          user_id: comment.userId,
+          content: comment.content
+        })
+        .select();
+
+      if (error) {
+        throw error;
+      }
+
+      if (data && data[0]) {
+        // Reload bookings to get the updated comments
+        await loadBookings();
+        toast.success("Comment added successfully");
+      }
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      toast.error("Failed to add comment");
+      throw error;
+    }
   };
 
-  // New function to delete a comment from a booking
+  // Function to delete a comment from a booking
   const deleteCommentFromBooking = async (bookingId: string, commentId: string) => {
-    return new Promise<void>((resolve) => {
-      setBookings(prevBookings =>
-        prevBookings.map(booking =>
-          booking.id === bookingId 
-            ? { 
-                ...booking, 
-                comments: (booking.comments || []).filter(comment => comment.id !== commentId)
-              }
-            : booking
-        )
-      );
-      
-      // Simulate API delay
-      setTimeout(() => {
-        resolve();
-      }, 500);
-    });
+    try {
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId);
+
+      if (error) {
+        throw error;
+      }
+
+      // Reload bookings to get the updated comments
+      await loadBookings();
+      toast.success("Comment deleted successfully");
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      toast.error("Failed to delete comment");
+      throw error;
+    }
   };
 
   // Function to apply delay to bookings after a certain time
   const applyDelay = async (delayMinutes: number, startDateTime: Date) => {
-    return new Promise<void>((resolve) => {
+    try {
       const startTime = startDateTime.getTime();
       
       // Get bookings that will be affected by the delay
-      const affectedBookings = bookings.filter(booking => {
+      const affectedBookingsData = bookings.filter(booking => {
         const bookingStart = new Date(booking.start).getTime();
         return bookingStart >= startTime;
       });
       
-      setBookings(prevBookings =>
-        prevBookings.map(booking => {
-          const bookingStart = new Date(booking.start).getTime();
+      // Update all affected bookings
+      for (const booking of affectedBookingsData) {
+        const bookingStart = new Date(booking.start).getTime();
+        const bookingEnd = new Date(booking.end).getTime();
+        
+        if (bookingStart >= startTime) {
+          const newStart = new Date(bookingStart + delayMinutes * 60 * 1000).toISOString();
+          const newEnd = new Date(bookingEnd + delayMinutes * 60 * 1000).toISOString();
           
-          // Only delay bookings that start after the specified time
-          if (bookingStart >= startTime) {
-            const newStart = new Date(bookingStart + delayMinutes * 60 * 1000).toISOString();
-            const newEnd = new Date(new Date(booking.end).getTime() + delayMinutes * 60 * 1000).toISOString();
-            
-            return {
-              ...booking,
-              start: newStart,
-              end: newEnd,
-            };
-          }
-          
-          return booking;
-        })
-      );
+          await supabase
+            .from('bookings')
+            .update({
+              start_time: newStart,
+              end_time: newEnd,
+            })
+            .eq('id', booking.id);
+        }
+      }
+      
+      // Reload bookings to get the updated list
+      await loadBookings();
       
       // Send delay notifications to affected users
-      affectedBookings.forEach(booking => {
+      affectedBookingsData.forEach(booking => {
         const userEmail = getUserEmailById(booking.userId);
         if (userEmail) {
           const notification = createDelayNotification(
@@ -487,11 +539,12 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
         }
       });
       
-      // Simulate API delay
-      setTimeout(() => {
-        resolve();
-      }, 500);
-    });
+      toast.success(`Successfully applied ${delayMinutes} minute delay to ${affectedBookingsData.length} bookings`);
+    } catch (error) {
+      console.error("Error applying delay:", error);
+      toast.error("Failed to apply delay to bookings");
+      throw error;
+    }
   };
 
   // Function to calculate booking statistics
@@ -595,7 +648,13 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
       addCommentToBooking,
       deleteCommentFromBooking,
     }}>
-      {children}
+      {isLoading ? (
+        <div className="flex justify-center items-center h-full">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mslab-400"></div>
+        </div>
+      ) : (
+        children
+      )}
     </BookingContext.Provider>
   );
 };
