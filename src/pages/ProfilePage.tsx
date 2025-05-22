@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +18,7 @@ import { Upload, Image } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
 
 const ProfilePage: React.FC = () => {
-  const { user, updateUserProfile } = useAuth();
+  const { user, updateUserProfile, updateUserPassword } = useAuth();
   const { toast } = useToast();
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
@@ -31,6 +30,8 @@ const ProfilePage: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(
     user?.profileImage || null
   );
+  const [newPassword, setNewPassword] = useState("");
+  const [isSubmittingPassword, setIsSubmittingPassword] = useState(false);
 
   if (!user) {
     return (
@@ -109,6 +110,47 @@ const ProfilePage: React.FC = () => {
         setImagePreview(e.target?.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!newPassword.trim()) {
+      toast({
+        title: "Password not updated",
+        description: "Please provide a valid password.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmittingPassword(true);
+    
+    try {
+      await updateUserPassword(user.id, newPassword);
+      
+      toast({
+        title: "Password updated",
+        description: "Your password has been updated successfully."
+      });
+      setIsPasswordDialogOpen(false);
+      setNewPassword("");
+    } catch (error) {
+      toast({
+        title: "Error updating password",
+        description: "There was an error updating the password.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmittingPassword(false);
     }
   };
 
@@ -253,9 +295,12 @@ const ProfilePage: React.FC = () => {
       </div>
 
       <PasswordDialog
-        open={isPasswordDialogOpen}
-        onOpenChange={setIsPasswordDialogOpen}
-        userId={user.id}
+        isOpen={isPasswordDialogOpen}
+        onClose={() => setIsPasswordDialogOpen(false)}
+        onSave={handleChangePassword}
+        newPassword={newPassword}
+        setNewPassword={setNewPassword}
+        isSubmitting={isSubmittingPassword}
       />
     </div>
   );

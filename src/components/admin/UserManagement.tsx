@@ -10,48 +10,14 @@ import EditUserDialog from "./EditUserDialog";
 import PasswordDialog from "./PasswordDialog";
 
 const UserManagement: React.FC = () => {
-  const { user: currentUser, updateUserInStorage, updateCurrentUser, changePassword } = useAuth();
+  const { user: currentUser, updateUserProfile, updateUserPassword, users, setUsers } = useAuth();
   const { toast } = useToast();
-  const [users, setUsers] = useState<User[]>(() => {
-    const savedUsers = localStorage.getItem("mslab_users");
-    return savedUsers 
-      ? JSON.parse(savedUsers) 
-      : [
-        {
-          id: "1",
-          name: "Admin User",
-          email: "admin@mslab.com",
-          role: "admin",
-          department: "Core Facility"
-        },
-        {
-          id: "2",
-          name: "John Researcher",
-          email: "john@mslab.com",
-          role: "user",
-          department: "Proteomics"
-        },
-        {
-          id: "3",
-          name: "Sarah Scientist",
-          email: "sarah@mslab.com",
-          role: "user",
-          department: "Metabolomics"
-        }
-      ];
-  });
-
   const [editUser, setEditUser] = useState<User | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Save users to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem("mslab_users", JSON.stringify(users));
-  }, [users]);
 
   const handleEdit = (userId: string) => {
     const userToEdit = users.find(u => u.id === userId);
@@ -66,12 +32,7 @@ const UserManagement: React.FC = () => {
     setUsers(updatedUsers);
     
     // Update user in storage
-    updateUserInStorage(updatedUser);
-    
-    // If the edited user is the current user, update current user as well
-    if (currentUser && currentUser.id === updatedUser.id) {
-      updateCurrentUser(updatedUser);
-    }
+    updateUserProfile(updatedUser);
     
     setIsDialogOpen(false);
     setEditUser(null);
@@ -96,7 +57,7 @@ const UserManagement: React.FC = () => {
         
         // If the edited user is the current user, update current user as well
         if (currentUser && currentUser.id === userId) {
-          updateCurrentUser(updatedUser);
+          updateUserProfile(updatedUser);
         }
         
         return updatedUser;
@@ -105,7 +66,6 @@ const UserManagement: React.FC = () => {
     });
     
     setUsers(updatedUsers);
-    localStorage.setItem("mslab_users", JSON.stringify(updatedUsers));
     
     toast({
       title: "Role updated",
@@ -141,7 +101,7 @@ const UserManagement: React.FC = () => {
     setIsSubmitting(true);
     
     try {
-      await changePassword(userId, newPassword);
+      await updateUserPassword(userId, newPassword);
       
       toast({
         title: "Password updated",

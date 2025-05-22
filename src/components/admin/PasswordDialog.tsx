@@ -12,6 +12,9 @@ interface PasswordDialogProps {
   newPassword: string;
   setNewPassword: (password: string) => void;
   isSubmitting?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  userId?: string;
 }
 
 const PasswordDialog: React.FC<PasswordDialogProps> = ({
@@ -20,10 +23,17 @@ const PasswordDialog: React.FC<PasswordDialogProps> = ({
   onSave,
   newPassword,
   setNewPassword,
-  isSubmitting = false
+  isSubmitting = false,
+  open,
+  onOpenChange,
+  userId
 }) => {
+  // Use either open/onOpenChange or isOpen/onClose based on what's provided
+  const dialogOpen = open !== undefined ? open : isOpen;
+  const handleOpenChange = onOpenChange || onClose;
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={dialogOpen} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Change Password</DialogTitle>
@@ -43,7 +53,7 @@ const PasswordDialog: React.FC<PasswordDialogProps> = ({
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={() => handleOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel
