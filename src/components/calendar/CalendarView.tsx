@@ -101,6 +101,7 @@ const CalendarView: React.FC = () => {
   };
 
   const handleEditBooking = (booking: Booking) => {
+    console.log("Opening edit modal for booking:", booking);
     setSelectedBooking(booking);
     setIsEditModalOpen(true);
   };
@@ -113,6 +114,7 @@ const CalendarView: React.FC = () => {
           ...bookingData
         });
         setIsEditModalOpen(false);
+        setSelectedBooking(null); // Clear the selected booking after update
       } catch (error) {
         console.error("Error updating booking:", error);
       }
@@ -337,12 +339,14 @@ const CalendarView: React.FC = () => {
         selectedDate={selectedDate}
       />
 
-      <EditBookingForm
-        open={isEditModalOpen} 
-        onOpenChange={setIsEditModalOpen}
-        booking={selectedBooking}
-        onSubmit={handleUpdateBooking}
-      />
+      {selectedBooking && (
+        <EditBookingForm
+          open={isEditModalOpen} 
+          onOpenChange={setIsEditModalOpen}
+          booking={selectedBooking}
+          onSubmit={handleUpdateBooking}
+        />
+      )}
     </div>
   );
 };
