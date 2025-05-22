@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User } from '../types';
 import { useToast } from '../hooks/use-toast';
@@ -53,7 +52,7 @@ const defaultUsers: User[] = [
     name: 'Eddy Kapelczak',
     email: 'eddy@kapelczak.com',
     password: 'Eddie#12',
-    role: 'user',
+    role: 'admin', // Changed from 'user' to 'admin'
     department: 'Research',
     profileImage: ''
   }
@@ -83,27 +82,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const storedUsers = localStorage.getItem('mslab_users');
       
-      // If there are stored users, but the eddy@kapelczak.com user is missing, add it
+      // If there are stored users, but the eddy@kapelczak.com user is missing or not admin, update it
       if (storedUsers) {
         const parsedUsers = JSON.parse(storedUsers);
-        const userExists = parsedUsers.some((u: User) => u.email.toLowerCase() === 'eddy@kapelczak.com');
+        const eddyIndex = parsedUsers.findIndex((u: User) => 
+          u.email.toLowerCase() === 'eddy@kapelczak.com'
+        );
         
-        if (!userExists) {
-          // Add the missing user
+        if (eddyIndex === -1) {
+          // Add the missing user with admin role
           parsedUsers.push({
             id: '4',
             name: 'Eddy Kapelczak',
             email: 'eddy@kapelczak.com',
             password: 'Eddie#12',
-            role: 'user',
+            role: 'admin',
             department: 'Research',
             profileImage: ''
           });
-          
-          // Update localStorage with the fixed users array
-          localStorage.setItem('mslab_users', JSON.stringify(parsedUsers));
+        } else if (parsedUsers[eddyIndex].role !== 'admin') {
+          // Update existing user to admin
+          parsedUsers[eddyIndex].role = 'admin';
         }
         
+        // Update localStorage with the fixed users array
+        localStorage.setItem('mslab_users', JSON.stringify(parsedUsers));
         return parsedUsers;
       }
       
@@ -120,7 +123,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(() => {
     try {
       const storedUser = localStorage.getItem('mslab_current_user');
-      return storedUser ? JSON.parse(storedUser) : null;
+      
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        // If the stored user is Eddy, make sure role is admin
+        if (parsedUser.email.toLowerCase() === 'eddy@kapelczak.com' && parsedUser.role !== 'admin') {
+          parsedUser.role = 'admin';
+          localStorage.setItem('mslab_current_user', JSON.stringify(parsedUser));
+        }
+        return parsedUser;
+      }
+      
+      return null;
     } catch (error) {
       console.error("Error loading current user from localStorage:", error);
       return null;
