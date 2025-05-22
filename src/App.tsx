@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
 import { BookingProvider } from "./contexts/BookingContext";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -16,8 +16,27 @@ import NotFound from "./pages/NotFound";
 import "./App.css";
 import Index from "./pages/Index";
 import { Toaster } from "./components/ui/sonner";
+import { supabase } from "./integrations/supabase/client";
 
 function App() {
+  // Log Supabase connection on app init
+  useEffect(() => {
+    const checkSupabase = async () => {
+      try {
+        const { data, error } = await supabase.from('profiles').select('count').limit(1);
+        if (error) {
+          console.error('Supabase connection error:', error);
+        } else {
+          console.log('Supabase connected successfully');
+        }
+      } catch (e) {
+        console.error('Supabase initialization error:', e);
+      }
+    };
+    
+    checkSupabase();
+  }, []);
+
   return (
     <AuthProvider>
       <BookingProvider>

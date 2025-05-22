@@ -9,13 +9,192 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      bookings: {
+        Row: {
+          created_at: string
+          details: string | null
+          end_time: string
+          id: string
+          instrument_id: string
+          purpose: string
+          start_time: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          end_time: string
+          id?: string
+          instrument_id: string
+          purpose: string
+          start_time: string
+          status: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          end_time?: string
+          id?: string
+          instrument_id?: string
+          purpose?: string
+          start_time?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comments: {
+        Row: {
+          booking_id: string
+          content: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          booking_id: string
+          content: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          booking_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instruments: {
+        Row: {
+          calibration_due: string | null
+          created_at: string
+          description: string
+          id: string
+          image: string | null
+          location: string
+          model: string | null
+          name: string
+          specifications: string
+          status: string
+          type: string | null
+        }
+        Insert: {
+          calibration_due?: string | null
+          created_at?: string
+          description: string
+          id?: string
+          image?: string | null
+          location: string
+          model?: string | null
+          name: string
+          specifications: string
+          status: string
+          type?: string | null
+        }
+        Update: {
+          calibration_due?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          image?: string | null
+          location?: string
+          model?: string | null
+          name?: string
+          specifications?: string
+          status?: string
+          type?: string | null
+        }
+        Relationships: []
+      }
+      maintenance_history: {
+        Row: {
+          created_at: string
+          date: string
+          description: string
+          id: string
+          instrument_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          description: string
+          id?: string
+          instrument_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          instrument_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_history_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          department: string | null
+          email: string
+          id: string
+          name: string
+          profile_image: string | null
+          role: string
+        }
+        Insert: {
+          department?: string | null
+          email: string
+          id: string
+          name: string
+          profile_image?: string | null
+          role: string
+        }
+        Update: {
+          department?: string | null
+          email?: string
+          id?: string
+          name?: string
+          profile_image?: string | null
+          role?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

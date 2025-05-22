@@ -1,11 +1,32 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import InstrumentStatus from "../components/dashboard/InstrumentStatus";
 import UpcomingBookings from "../components/dashboard/UpcomingBookings";
 import UsageStatistics from "../components/dashboard/UsageStatistics";
+import { supabase } from "../integrations/supabase/client";
+import { toast } from "sonner";
 
 const Dashboard: React.FC = () => {
   console.log("Dashboard component rendering"); // Keep the debug log
+  
+  useEffect(() => {
+    // Check Supabase connection when dashboard loads
+    const checkConnection = async () => {
+      try {
+        const { data, error } = await supabase.from('instruments').select('count');
+        if (error) {
+          console.error('Error connecting to Supabase:', error);
+          toast.error('Error connecting to database');
+        } else {
+          console.log('Successfully connected to Supabase');
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err);
+      }
+    };
+    
+    checkConnection();
+  }, []);
   
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
