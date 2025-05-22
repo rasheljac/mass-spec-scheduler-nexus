@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AuthModal from "../components/auth/AuthModal";
@@ -11,9 +11,18 @@ const LoginPage: React.FC = () => {
   
   // Get the redirect path from location state, or default to dashboard
   const from = (location.state as { from?: string })?.from || "/";
+  
+  // Effect to handle authentication state changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log("User is authenticated, redirecting to:", from);
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, from, navigate]);
 
   // Redirect to dashboard if already authenticated
   if (isAuthenticated) {
+    console.log("User is already authenticated on initial render, redirecting to:", from);
     return <Navigate to={from} replace />;
   }
 

@@ -34,8 +34,10 @@ const LoginForm: React.FC = () => {
   const onSubmit = async (values: FormValues) => {
     try {
       setIsLoading(true);
-      console.log("Attempting login with:", values.email); // Debug
+      console.log("Attempting login with:", values.email, "Password:", values.password); // Debug
       const success = await login(values.email, values.password);
+      console.log("Login success:", success); // Debug
+      
       if (success) {
         toast({
           title: "Login successful!",
@@ -45,8 +47,10 @@ const LoginForm: React.FC = () => {
         navigate("/", { replace: true });
       } else {
         // The toast for failure is handled in the AuthContext
+        console.log("Login failed in form component"); // Debug
       }
     } catch (error) {
+      console.error("Login error:", error); // Debug
       toast({
         title: "Login failed",
         description: error instanceof Error ? error.message : "Please check your credentials",

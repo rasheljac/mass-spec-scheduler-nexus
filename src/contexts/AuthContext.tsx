@@ -108,12 +108,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Simulate API call delay
     return new Promise((resolve) => {
       setTimeout(() => {
-        const foundUser = users.find(u => u.email === email && u.password === password);
+        console.log("Login attempt with:", email, "Password length:", password.length);
+        console.log("Available users:", users.map(u => u.email));
+        
+        const foundUser = users.find(u => {
+          const emailMatch = u.email === email;
+          const passwordMatch = u.password === password;
+          console.log(`Checking ${u.email}: email match = ${emailMatch}, password match = ${passwordMatch}`);
+          return emailMatch && passwordMatch;
+        });
         
         if (foundUser) {
+          console.log("User found, logging in:", foundUser.name);
           setUser(foundUser);
           resolve(true);
         } else {
+          console.log("Login failed: user not found or password mismatch");
           toast({
             title: "Login Failed",
             description: "Invalid email or password. Please try again.",
