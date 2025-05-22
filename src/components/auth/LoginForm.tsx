@@ -1,5 +1,6 @@
 
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,6 +20,7 @@ type FormValues = z.infer<typeof formSchema>;
 const LoginForm: React.FC = () => {
   const { login } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<FormValues>({
@@ -32,11 +34,17 @@ const LoginForm: React.FC = () => {
   const onSubmit = async (values: FormValues) => {
     try {
       setIsLoading(true);
-      await login(values.email, values.password);
-      toast({
-        title: "Login successful!",
-        description: "Welcome back to the Mass Spec Lab",
-      });
+      const success = await login(values.email, values.password);
+      if (success) {
+        toast({
+          title: "Login successful!",
+          description: "Welcome back to the Mass Spec Lab",
+        });
+        // Explicitly navigate to dashboard after successful login
+        navigate("/", { replace: true });
+      } else {
+        // The toast for failure is handled in the AuthContext
+      }
     } catch (error) {
       toast({
         title: "Login failed",

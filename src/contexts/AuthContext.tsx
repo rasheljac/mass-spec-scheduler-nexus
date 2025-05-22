@@ -27,7 +27,8 @@ const defaultUsers: User[] = [
     email: 'admin@example.com', 
     password: 'admin123', 
     role: 'admin',
-    department: 'IT Administration'
+    department: 'IT Administration',
+    profileImage: ''
   },
   { 
     id: '2', 
@@ -35,7 +36,8 @@ const defaultUsers: User[] = [
     email: 'john@example.com', 
     password: 'john123', 
     role: 'user',
-    department: 'Research'
+    department: 'Research',
+    profileImage: ''
   },
   { 
     id: '3', 
@@ -43,7 +45,8 @@ const defaultUsers: User[] = [
     email: 'sarah@example.com', 
     password: 'sarah123', 
     role: 'user',
-    department: 'Laboratory'
+    department: 'Laboratory',
+    profileImage: ''
   }
 ];
 

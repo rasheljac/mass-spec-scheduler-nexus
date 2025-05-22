@@ -1,11 +1,12 @@
 
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AuthModal from "../components/auth/AuthModal";
 
 const LoginPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
 
   // Redirect to dashboard if already authenticated
   if (isAuthenticated) {

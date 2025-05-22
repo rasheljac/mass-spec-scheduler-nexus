@@ -3,7 +3,7 @@ import React from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import Navbar from "./Navbar";
 import { useAuth } from "../../contexts/AuthContext";
-import Footer from "./Footer"; // Import the Footer component
+import Footer from "./Footer";
 
 const AppLayout: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -19,7 +19,7 @@ const AppLayout: React.FC = () => {
       <main className="flex-1">
         <Outlet />
       </main>
-      <Footer /> {/* Add the Footer component */}
+      <Footer />
     </div>
   );
 };
