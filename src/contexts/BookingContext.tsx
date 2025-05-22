@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { Instrument, Booking, BookingStatistics, Comment } from "../types";
 import { v4 as uuidv4 } from 'uuid';
@@ -48,6 +47,7 @@ const initialInstruments: Instrument[] = [
     status: "available",
     image: "/lovable-uploads/mass-spec-1.png",
     description: "High-resolution mass spectrometer for proteomics and metabolomics.",
+    specifications: "Resolution: 40,000 FWHM, Mass Range: 5-40,000 Da",
     calibrationDue: "2024-12-31",
     maintenanceHistory: [
       { date: "2023-11-15", description: "Replaced ion source." },
@@ -63,6 +63,7 @@ const initialInstruments: Instrument[] = [
     status: "maintenance",
     image: "/lovable-uploads/flow-cytometer-1.png",
     description: "Cell analyzer and sorter with multiple lasers.",
+    specifications: "4 lasers, 16 parameters, 70,000 events/second",
     calibrationDue: "2024-11-30",
     maintenanceHistory: [
       { date: "2023-10-20", description: "Laser alignment." },
@@ -75,9 +76,10 @@ const initialInstruments: Instrument[] = [
     type: "Microscope",
     model: "Leica TCS SP8",
     location: "Imaging Suite",
-    status: "in-use",
+    status: "in_use",
     image: "/lovable-uploads/confocal-microscope-1.png",
     description: "Advanced confocal microscope for high-resolution imaging.",
+    specifications: "Resolution: 180 nm (xy), 500 nm (z), 5 laser lines",
     calibrationDue: "2025-01-15",
     maintenanceHistory: [
       { date: "2023-12-01", description: "Objective lens cleaning." },
@@ -93,6 +95,7 @@ const initialInstruments: Instrument[] = [
     status: "available",
     image: "/lovable-uploads/electron-microscope-1.png",
     description: "Transmission electron microscope for ultrastructural analysis.",
+    specifications: "Resolution: 0.12 nm, Magnification: 1,000,000x",
     calibrationDue: "2024-10-31",
     maintenanceHistory: [
       { date: "2023-09-25", description: "Column alignment." },
@@ -108,6 +111,7 @@ const initialInstruments: Instrument[] = [
     status: "available",
     image: "/lovable-uploads/nmr-spectrometer-1.png",
     description: "600 MHz NMR spectrometer for structural analysis.",
+    specifications: "Field strength: 14.1 Tesla, Resolution: 0.1 Hz",
     calibrationDue: "2024-09-30",
     maintenanceHistory: [
       { date: "2023-08-20", description: "Cryostat refill." },
@@ -128,7 +132,8 @@ const initialBookings: Booking[] = [
     purpose: "Proteomics sample analysis",
     status: "confirmed",
     createdAt: "2024-07-20T14:30:00",
-    details: "Running samples for protein identification."
+    details: "Running samples for protein identification.",
+    comments: []
   },
   {
     id: "b2",
@@ -141,7 +146,8 @@ const initialBookings: Booking[] = [
     purpose: "Cell sorting experiment",
     status: "pending",
     createdAt: "2024-07-22T09:15:00",
-    details: "Sorting T-cells for downstream analysis."
+    details: "Sorting T-cells for downstream analysis.",
+    comments: []
   },
   {
     id: "b3",
@@ -154,7 +160,8 @@ const initialBookings: Booking[] = [
     purpose: "Imaging of fixed cells",
     status: "confirmed",
     createdAt: "2024-07-25T16:45:00",
-    details: "High-resolution imaging of stained cells."
+    details: "High-resolution imaging of stained cells.",
+    comments: []
   },
   {
     id: "b4",
@@ -167,7 +174,8 @@ const initialBookings: Booking[] = [
     purpose: "TEM analysis of nanoparticles",
     status: "confirmed",
     createdAt: "2024-07-28T11:20:00",
-    details: "Analyzing the structure of synthesized nanoparticles."
+    details: "Analyzing the structure of synthesized nanoparticles.",
+    comments: []
   },
   {
     id: "b5",
@@ -180,7 +188,8 @@ const initialBookings: Booking[] = [
     purpose: "NMR analysis of small molecules",
     status: "confirmed",
     createdAt: "2024-07-30T18:55:00",
-    details: "Running NMR to determine molecular structure."
+    details: "Running NMR to determine molecular structure.",
+    comments: []
   },
   {
     id: "b6",
@@ -193,7 +202,8 @@ const initialBookings: Booking[] = [
     purpose: "Metabolomics profiling",
     status: "confirmed",
     createdAt: "2024-08-01T08:40:00",
-    details: "Profiling metabolites in cell culture samples."
+    details: "Profiling metabolites in cell culture samples.",
+    comments: []
   },
   {
     id: "b7",
@@ -206,7 +216,8 @@ const initialBookings: Booking[] = [
     purpose: "Apoptosis assay",
     status: "confirmed",
     createdAt: "2024-08-02T15:00:00",
-    details: "Measuring apoptosis in treated cells."
+    details: "Measuring apoptosis in treated cells.",
+    comments: []
   },
   {
     id: "b8",
@@ -219,7 +230,8 @@ const initialBookings: Booking[] = [
     purpose: "Live cell imaging",
     status: "confirmed",
     createdAt: "2024-08-03T21:30:00",
-    details: "Time-lapse imaging of live cells."
+    details: "Time-lapse imaging of live cells.",
+    comments: []
   },
   {
     id: "b9",
@@ -232,7 +244,8 @@ const initialBookings: Booking[] = [
     purpose: "High-resolution imaging",
     status: "confirmed",
     createdAt: "2024-08-04T07:00:00",
-    details: "Acquiring high-resolution images of materials."
+    details: "Acquiring high-resolution images of materials.",
+    comments: []
   },
   {
     id: "b10",
@@ -245,7 +258,8 @@ const initialBookings: Booking[] = [
     purpose: "Complex mixture analysis",
     status: "confirmed",
     createdAt: "2024-08-05T14:45:00",
-    details: "Analyzing complex mixtures using NMR."
+    details: "Analyzing complex mixtures using NMR.",
+    comments: []
   }
 ];
 
@@ -304,13 +318,13 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
   };
 
   // Function to create a booking
-  const createBooking = async (bookingData: Omit<Booking, "id" | "createdAt" | "status"> & { status: "Not-Started" | "In-Progress" | "Completed" | "Delayed" | "confirmed" | "pending" | "cancelled" }) => {
+  const createBooking = async (bookingData: Omit<Booking, "id" | "createdAt"> & { status: "Not-Started" | "In-Progress" | "Completed" | "Delayed" | "confirmed" | "pending" | "cancelled" }) => {
     return new Promise<void>((resolve) => {
       const newBooking: Booking = {
         id: uuidv4(),
         ...bookingData,
         createdAt: new Date().toISOString(),
-        comments: []
+        comments: bookingData.comments || []
       };
       
       setBookings(prevBookings => [...prevBookings, newBooking]);
