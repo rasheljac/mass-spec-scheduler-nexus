@@ -81,7 +81,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // Initialize users state from localStorage or use default
   const [users, setUsers] = useState<User[]>(() => {
     const storedUsers = localStorage.getItem('mslab_users');
-    return storedUsers ? JSON.parse(storedUsers) : defaultUsers;
+    
+    // If there are stored users, but the eddy@kapelczak.com user is missing, add it
+    if (storedUsers) {
+      const parsedUsers = JSON.parse(storedUsers);
+      const userExists = parsedUsers.some((u: User) => u.email === 'eddy@kapelczak.com');
+      
+      if (!userExists) {
+        // Add the missing user
+        parsedUsers.push({
+          id: '4',
+          name: 'Eddy Kapelczak',
+          email: 'eddy@kapelczak.com',
+          password: 'Eddie#12',
+          role: 'user',
+          department: 'Research',
+          profileImage: ''
+        });
+        
+        // Update localStorage with the fixed users array
+        localStorage.setItem('mslab_users', JSON.stringify(parsedUsers));
+        return parsedUsers;
+      }
+      
+      return parsedUsers;
+    }
+    
+    return defaultUsers;
   });
   
   // Initialize user state from localStorage
@@ -105,16 +131,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [user]);
   
   const login = async (email: string, password: string): Promise<boolean> => {
+    console.log(`Login attempt for: ${email} with password: ${password}`);
+    console.log(`Available users: ${JSON.stringify(users.map(u => ({ email: u.email, password: u.password })))}`);
+    
+    // Clear case-sensitivity issues - normalize email for comparison
+    const normalizedEmail = email.toLowerCase().trim();
+    
     // Simulate API call delay
     return new Promise((resolve) => {
       setTimeout(() => {
-        console.log("Login attempt with:", email, "Password length:", password.length);
-        console.log("Available users:", users.map(u => u.email));
+        // Debug output
+        console.log("Normalized email for login:", normalizedEmail);
         
         const foundUser = users.find(u => {
-          const emailMatch = u.email === email;
+          // Normalize stored email for comparison
+          const storedEmail = u.email.toLowerCase().trim();
+          const emailMatch = storedEmail === normalizedEmail;
           const passwordMatch = u.password === password;
+          
           console.log(`Checking ${u.email}: email match = ${emailMatch}, password match = ${passwordMatch}`);
+          
           return emailMatch && passwordMatch;
         });
         
