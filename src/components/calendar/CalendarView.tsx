@@ -1,5 +1,6 @@
+
 import React, { useState } from "react";
-import { format, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay } from "date-fns";
+import { format, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay, parseISO } from "date-fns";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Pencil } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
@@ -29,18 +30,30 @@ const CalendarView: React.FC = () => {
     end: endOfWeek(selectedDate, { weekStartsOn: 0 })       // Saturday
   };
 
+  // Helper function to safely parse ISO date strings
+  const safeParseISO = (dateStr: string | Date): Date => {
+    if (dateStr instanceof Date) return dateStr;
+    try {
+      return parseISO(dateStr);
+    } catch (error) {
+      console.error("Error parsing date:", error);
+      return new Date(dateStr); // Fallback
+    }
+  };
+
   // Get bookings for the current view (day or week)
   const getVisibleBookings = (): Booking[] => {
     if (viewMode === "day") {
-      return bookings.filter(booking => 
-        isSameDay(new Date(booking.start), selectedDate) && booking.status !== "cancelled"
-      );
+      return bookings.filter(booking => {
+        const bookingDate = safeParseISO(booking.start);
+        return isSameDay(bookingDate, selectedDate) && booking.status !== "cancelled";
+      });
     } else if (viewMode === "week") {
       const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
       const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 0 });
       
       return bookings.filter(booking => {
-        const bookingDate = new Date(booking.start);
+        const bookingDate = safeParseISO(booking.start);
         return bookingDate >= weekStart && bookingDate <= weekEnd && booking.status !== "cancelled";
       });
     }
@@ -71,8 +84,20 @@ const CalendarView: React.FC = () => {
 
   // Format time for display
   const formatTime = (dateStr: string | Date) => {
-    const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+    const date = typeof dateStr === 'string' ? safeParseISO(dateStr) : dateStr;
     return format(date, "h:mm a");
+  };
+
+  // Format date range for display
+  const formatDateRange = (start: string | Date, end: string | Date) => {
+    const startDate = safeParseISO(start);
+    const endDate = safeParseISO(end);
+    
+    if (isSameDay(startDate, endDate)) {
+      return `${formatTime(start)} - ${formatTime(end)}`;
+    } else {
+      return `${format(startDate, "MMM d")} ${formatTime(startDate)} - ${format(endDate, "MMM d")} ${formatTime(end)}`;
+    }
   };
 
   const handleEditBooking = (booking: Booking) => {
@@ -103,7 +128,7 @@ const CalendarView: React.FC = () => {
   // Generate time slots for day view (9am to 5pm)
   const renderDayView = () => {
     const dayBookings = visibleBookings.sort((a, b) => 
-      new Date(a.start).getTime() - new Date(b.start).getTime()
+      safeParseISO(a.start).getTime() - safeParseISO(b.start).getTime()
     );
 
     return (
@@ -118,7 +143,7 @@ const CalendarView: React.FC = () => {
                 <div>
                   <h3 className="font-medium">{booking.instrumentName}</h3>
                   <p className="text-sm text-muted-foreground">{booking.userName}</p>
-                  <p className="text-sm">{formatTime(booking.start)} - {formatTime(booking.end)}</p>
+                  <p className="text-sm">{formatDateRange(booking.start, booking.end)}</p>
                   {booking.details && <p className="text-sm mt-1">{booking.details}</p>}
                 </div>
                 <div className="flex items-center gap-3">
@@ -181,9 +206,10 @@ const CalendarView: React.FC = () => {
         
         <div className="space-y-2">
           {days.map((day) => {
-            const dayBookings = bookings.filter(
-              booking => isSameDay(new Date(booking.start), day) && booking.status !== "cancelled"
-            );
+            const dayBookings = bookings.filter(booking => {
+              const bookingDate = safeParseISO(booking.start);
+              return isSameDay(bookingDate, day) && booking.status !== "cancelled";
+            });
             
             return (
               <div key={day.toString()} className="border-t pt-2">
@@ -201,7 +227,7 @@ const CalendarView: React.FC = () => {
                         <div className="flex justify-between items-center">
                           <div>
                             <h4 className="font-medium">{booking.instrumentName}</h4>
-                            <p className="text-xs text-muted-foreground">{formatTime(booking.start)} - {formatTime(booking.end)}</p>
+                            <p className="text-xs text-muted-foreground">{formatDateRange(booking.start, booking.end)}</p>
                             {booking.details && <p className="text-xs mt-1">{booking.details}</p>}
                           </div>
                           <div className="flex items-center gap-2">

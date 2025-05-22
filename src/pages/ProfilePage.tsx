@@ -1,274 +1,262 @@
-import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
+
+import React, { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useAuth } from "../contexts/AuthContext";
+import { Badge } from "@/components/ui/badge";
+import PasswordDialog from "../components/admin/PasswordDialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Upload, Image } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
-
-const formSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  department: z.string().optional(),
-});
-
-type FormValues = z.infer<typeof formSchema>;
 
 const ProfilePage: React.FC = () => {
-  const { user, updateUserProfile, changePassword } = useAuth();
+  const { user, updateUserProfile } = useAuth();
   const { toast } = useToast();
-  const [showChangePassword, setShowChangePassword] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: user?.name || "",
-      email: user?.email || "",
-      department: user?.department || "",
-    },
-  });
-  
-  // Update form when user changes (e.g., after admin edit)
-  useEffect(() => {
-    if (user) {
-      form.reset({
-        name: user.name,
-        email: user.email,
-        department: user.department || "",
-      });
-    }
-  }, [user, form]);
+  const [name, setName] = useState(user?.name || "");
+  const [email, setEmail] = useState(user?.email || "");
+  const [department, setDepartment] = useState(user?.department || "");
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    user?.profileImage || null
+  );
 
-  const onSubmit = async (data: FormValues) => {
+  if (!user) {
+    return (
+      <div className="container py-8 text-center">
+        <h1 className="text-2xl font-bold mb-4">Please log in to view your profile</h1>
+      </div>
+    );
+  }
+
+  const handleSaveProfile = async () => {
     if (!user) return;
-    
-    setIsSubmitting(true);
+
     try {
+      setIsUpdating(true);
+      
+      // Handle file upload
+      let profileImageUrl = user.profileImage;
+      
+      if (selectedFile) {
+        // Normally we'd upload to a server, but for this demo, we'll create a data URL
+        profileImageUrl = await readFileAsDataURL(selectedFile);
+      }
+
       await updateUserProfile({
-        name: data.name,
-        email: data.email,
-        department: data.department
+        ...user,
+        name,
+        email,
+        department,
+        profileImage: profileImageUrl
       });
       
+      setIsEditing(false);
       toast({
         title: "Profile updated",
-        description: "Your profile has been updated successfully.",
+        description: "Your profile information has been updated successfully.",
       });
     } catch (error) {
       toast({
         title: "Update failed",
-        description: "There was an error updating your profile.",
+        description: "There was a problem updating your profile.",
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
-    }
-  };
-  
-  const handlePasswordChange = async () => {
-    // Basic validation
-    if (!user) return;
-    
-    if (currentPassword !== user.password && currentPassword !== "password") {
-      toast({
-        title: "Incorrect password",
-        description: "Your current password is incorrect.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (newPassword.length < 6) {
-      toast({
-        title: "Password too short",
-        description: "Your new password must be at least 6 characters long.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (newPassword !== confirmPassword) {
-      toast({
-        title: "Passwords do not match",
-        description: "Your new password and confirmation do not match.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    setIsChangingPassword(true);
-    
-    try {
-      await changePassword(user.id, newPassword);
-      
-      toast({
-        title: "Password updated",
-        description: "Your password has been updated successfully.",
-      });
-      
-      // Reset the form
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setShowChangePassword(false);
-    } catch (error) {
-      toast({
-        title: "Error updating password",
-        description: "There was an error updating your password.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsChangingPassword(false);
+      setIsUpdating(false);
     }
   };
 
-  return (
-    <div className="container py-6 space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid file type",
+          description: "Please upload an image file (JPEG, PNG, etc.).",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please upload an image smaller than 5MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSelectedFile(file);
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
+      // Create a preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Helper function to read a file as data URL
+  const readFileAsDataURL = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  return (
+    <div className="container py-6">
+      <h1 className="text-3xl font-bold tracking-tight mb-6">My Profile</h1>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle>Personal Information</CardTitle>
-            <CardDescription>Update your personal details</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Full Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Email</FormLabel>
-                        <FormControl>
-                          <Input type="email" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <FormField
-                  control={form.control}
-                  name="department"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Department</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <div className="flex justify-end">
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? "Saving..." : "Save Changes"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Account</CardTitle>
-            <CardDescription>Manage your account settings</CardDescription>
+            <CardTitle>Profile Information</CardTitle>
+            <CardDescription>
+              View and edit your personal information.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <h3 className="text-sm font-medium">Role</h3>
-              <p className="text-sm text-muted-foreground capitalize">{user?.role}</p>
+            <div className="space-y-2">
+              <Label htmlFor="name">Full Name</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={!isEditing || isUpdating}
+              />
             </div>
-            
-            <div>
-              <h3 className="text-sm font-medium">Password</h3>
-              {!showChangePassword ? (
-                <div className="flex items-center gap-2 mt-1">
-                  <Button variant="outline" size="sm" onClick={() => setShowChangePassword(true)}>
-                    Change Password
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-3 mt-2">
-                  <div className="space-y-1">
-                    <Label htmlFor="current-password">Current Password</Label>
-                    <Input 
-                      id="current-password" 
-                      type="password" 
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={!isEditing || isUpdating}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="department">Department</Label>
+              <Input
+                id="department"
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                disabled={!isEditing || isUpdating}
+                placeholder="e.g., Research, Chemistry, Biology"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <div>
+                <Badge variant="outline">{user.role === "admin" ? "Administrator" : "User"}</Badge>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Profile Image</Label>
+              <div className="flex items-center space-x-4">
+                <Avatar className="w-20 h-20">
+                  <AvatarImage src={imagePreview || undefined} alt={name} />
+                  <AvatarFallback>{name.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                {isEditing && (
+                  <div className="space-y-2">
+                    <Input
+                      id="profileImage"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
                     />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="new-password">New Password</Label>
-                    <Input 
-                      id="new-password" 
-                      type="password" 
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="confirm-password">Confirm New Password</Label>
-                    <Input 
-                      id="confirm-password" 
-                      type="password" 
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
-                      onClick={handlePasswordChange} 
-                      disabled={isChangingPassword}
+                    <Label 
+                      htmlFor="profileImage" 
+                      className="inline-flex items-center px-4 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm font-medium cursor-pointer hover:bg-gray-200"
                     >
-                      {isChangingPassword ? "Updating..." : "Update Password"}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => setShowChangePassword(false)}
-                      disabled={isChangingPassword}
-                    >
-                      Cancel
-                    </Button>
+                      <Upload className="h-4 w-4 mr-2" /> Choose photo
+                    </Label>
+                    {selectedFile && (
+                      <p className="text-xs text-muted-foreground">{selectedFile.name}</p>
+                    )}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </CardContent>
+          <CardFooter className="flex justify-between">
+            {isEditing ? (
+              <div className="flex space-x-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setName(user?.name || "");
+                    setEmail(user?.email || "");
+                    setDepartment(user?.department || "");
+                    setImagePreview(user?.profileImage || null);
+                    setSelectedFile(null);
+                  }}
+                  disabled={isUpdating}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveProfile} disabled={isUpdating}>
+                  {isUpdating ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            ) : (
+              <Button onClick={() => setIsEditing(true)}>Edit Profile</Button>
+            )}
+          </CardFooter>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Account Security</CardTitle>
+            <CardDescription>
+              Manage your account password and security settings.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Change Password</Label>
+              <p className="text-sm text-muted-foreground">
+                Update your password to maintain account security.
+              </p>
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsPasswordDialogOpen(true)}
+            >
+              Change Password
+            </Button>
+          </CardFooter>
         </Card>
       </div>
+
+      <PasswordDialog
+        open={isPasswordDialogOpen}
+        onOpenChange={setIsPasswordDialogOpen}
+        userId={user.id}
+      />
     </div>
   );
 };

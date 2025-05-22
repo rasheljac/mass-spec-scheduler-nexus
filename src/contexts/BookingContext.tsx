@@ -1,6 +1,6 @@
 
 import React, { createContext, useState, useContext, useEffect } from "react";
-import { Instrument, Booking, BookingStatistics } from "../types";
+import { Instrument, Booking, BookingStatistics, Comment } from "../types";
 import { v4 as uuidv4 } from 'uuid';
 
 interface BookingContextType {
@@ -15,6 +15,7 @@ interface BookingContextType {
   updateBooking: (bookingData: Booking) => Promise<void>;
   applyDelay: (delayMinutes: number, startDateTime: Date) => Promise<void>;
   statistics: BookingStatistics;
+  addCommentToBooking: (bookingId: string, comment: Omit<Comment, "id">) => Promise<void>;
 }
 
 export const BookingContext = createContext<BookingContextType>({
@@ -34,13 +35,14 @@ export const BookingContext = createContext<BookingContextType>({
     userBookings: [],
     weeklyUsage: []
   },
+  addCommentToBooking: async () => {},
 });
 
 const initialInstruments: Instrument[] = [
   {
     id: "1",
     name: "Mass Spectrometer A",
-    type: "Mass Spectrometer", // Added type property
+    type: "Mass Spectrometer",
     model: "AB Sciex 6500+",
     location: "Lab 101",
     status: "available",
@@ -55,7 +57,7 @@ const initialInstruments: Instrument[] = [
   {
     id: "2",
     name: "Flow Cytometer X20",
-    type: "Flow Cytometer", // Added type property
+    type: "Flow Cytometer",
     model: "BD FACSAria Fusion",
     location: "Lab 102",
     status: "maintenance",
@@ -70,7 +72,7 @@ const initialInstruments: Instrument[] = [
   {
     id: "3",
     name: "Confocal Microscope SP8",
-    type: "Microscope", // Added type property
+    type: "Microscope",
     model: "Leica TCS SP8",
     location: "Imaging Suite",
     status: "in-use",
@@ -85,7 +87,7 @@ const initialInstruments: Instrument[] = [
   {
     id: "4",
     name: "Electron Microscope TEM",
-    type: "Microscope", // Added type property
+    type: "Microscope",
     model: "Thermo Fisher Talos",
     location: "EM Facility",
     status: "available",
@@ -100,7 +102,7 @@ const initialInstruments: Instrument[] = [
   {
     id: "5",
     name: "NMR Spectrometer 600",
-    type: "NMR Spectrometer", // Added type property
+    type: "NMR Spectrometer",
     model: "Bruker Avance III",
     location: "NMR Facility",
     status: "available",
@@ -308,6 +310,7 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
         id: uuidv4(),
         ...bookingData,
         createdAt: new Date().toISOString(),
+        comments: []
       };
       
       setBookings(prevBookings => [...prevBookings, newBooking]);
@@ -325,6 +328,32 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
       setBookings(prevBookings =>
         prevBookings.map(booking =>
           booking.id === bookingData.id ? bookingData : booking
+        )
+      );
+      
+      // Simulate API delay
+      setTimeout(() => {
+        resolve();
+      }, 500);
+    });
+  };
+
+  // Function to add a comment to a booking
+  const addCommentToBooking = async (bookingId: string, comment: Omit<Comment, "id">) => {
+    return new Promise<void>((resolve) => {
+      const newComment: Comment = {
+        id: uuidv4(),
+        ...comment
+      };
+      
+      setBookings(prevBookings =>
+        prevBookings.map(booking =>
+          booking.id === bookingId 
+            ? { 
+                ...booking, 
+                comments: [...(booking.comments || []), newComment]
+              }
+            : booking
         )
       );
       
@@ -465,6 +494,7 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
       updateBooking,
       applyDelay,
       statistics,
+      addCommentToBooking,
     }}>
       {children}
     </BookingContext.Provider>

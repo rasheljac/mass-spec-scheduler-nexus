@@ -6,12 +6,13 @@ export type User = {
   role: "admin" | "user";
   department?: string;
   password?: string;
+  profileImage?: string;
 };
 
 export type Instrument = {
   id: string;
   name: string;
-  type: string; // Making sure this is required
+  type: string;
   status: "available" | "in-use" | "maintenance" | "offline";
   location: string;
   description?: string;
@@ -19,6 +20,14 @@ export type Instrument = {
   model?: string;
   calibrationDue?: string;
   maintenanceHistory?: Array<{date: string, description: string}>;
+};
+
+export type Comment = {
+  id: string;
+  userId: string;
+  userName: string;
+  content: string;
+  createdAt: string;
 };
 
 export type Booking = {
@@ -35,6 +44,7 @@ export type Booking = {
   purpose?: string;
   details?: string;
   createdAt: Date | string;
+  comments?: Comment[];
 };
 
 export type BookingFormData = {
@@ -45,7 +55,6 @@ export type BookingFormData = {
   description?: string;
 };
 
-// Added BookingStatistics type
 export type BookingStatistics = {
   totalBookings: number;
   instrumentUsage: Array<{

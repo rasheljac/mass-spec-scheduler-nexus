@@ -11,7 +11,7 @@ const AuthModal: React.FC = () => {
   return (
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
-        <CardTitle className="text-2xl font-bold text-mslab-400">Mass Spec Lab</CardTitle>
+        <CardTitle className="text-2xl font-bold text-mslab-400">Access Portal</CardTitle>
         <CardDescription>
           Please log in to access the scheduling system
         </CardDescription>

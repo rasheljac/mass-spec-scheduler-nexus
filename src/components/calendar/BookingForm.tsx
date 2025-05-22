@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format, addHours, setHours, setMinutes, addMinutes } from "date-fns";
+import { format, addHours, setHours, setMinutes, addMinutes, isSameDay, addDays } from "date-fns";
 import { CalendarIcon, Clock } from "lucide-react";
 import { useToast } from "../../hooks/use-toast";
 import { Button } from "../ui/button";
@@ -40,7 +41,8 @@ interface BookingFormProps {
 
 const formSchema = z.object({
   instrumentId: z.string({ required_error: "Please select an instrument" }),
-  date: z.date({ required_error: "Please select a date" }),
+  startDate: z.date({ required_error: "Please select a date" }),
+  endDate: z.date({ required_error: "Please select an end date" }),
   startTime: z.string({ required_error: "Please select a start time" }),
   endTime: z.string({ required_error: "Please select an end time" }),
   purpose: z.string().min(5, { message: "Purpose must be at least 5 characters" }),
@@ -71,7 +73,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
     resolver: zodResolver(formSchema),
     defaultValues: {
       instrumentId: "",
-      date: selectedDate || new Date(),
+      startDate: selectedDate || new Date(),
+      endDate: selectedDate || new Date(),
       startTime: "9:00 AM",
       endTime: "10:00 AM",
       purpose: "",
@@ -84,7 +87,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
   // Reset form when selected date changes
   React.useEffect(() => {
     if (selectedDate) {
-      form.setValue("date", selectedDate);
+      form.setValue("startDate", selectedDate);
+      form.setValue("endDate", selectedDate);
     }
   }, [selectedDate, form]);
 
@@ -94,8 +98,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
     const sampleCount = form.watch("sampleCount");
     const timePerSample = form.watch("timePerSample");
     const startTime = form.watch("startTime");
+    const startDate = form.watch("startDate");
     
-    if (autoDuration && sampleCount && timePerSample && startTime) {
+    if (autoDuration && sampleCount && timePerSample && startTime && startDate) {
       // Parse the start time
       const parseTime = (timeStr: string) => {
         const [timePart, ampm] = timeStr.split(" ");
@@ -131,19 +136,24 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
         const totalMinutes = Number(sampleCount) * Number(timePerSample);
         
         // Create a date with the start time and add the calculated duration
-        const startDate = new Date(form.getValues("date"));
-        startDate.setHours(hour, minute, 0, 0);
-        const endDate = new Date(startDate.getTime() + totalMinutes * 60 * 1000);
+        const startDateTime = new Date(startDate);
+        startDateTime.setHours(hour, minute, 0, 0);
+        const endDateTime = new Date(startDateTime.getTime() + totalMinutes * 60 * 1000);
         
         // Find the closest 30-minute time slot
-        const roundedMinutes = Math.ceil(endDate.getMinutes() / 30) * 30;
-        endDate.setMinutes(roundedMinutes % 60);
+        const roundedMinutes = Math.ceil(endDateTime.getMinutes() / 30) * 30;
+        endDateTime.setMinutes(roundedMinutes % 60);
         if (roundedMinutes >= 60) {
-          endDate.setHours(endDate.getHours() + Math.floor(roundedMinutes / 60));
+          endDateTime.setHours(endDateTime.getHours() + Math.floor(roundedMinutes / 60));
+        }
+        
+        // Set the end date if it's different from the start date
+        if (!isSameDay(startDateTime, endDateTime)) {
+          form.setValue("endDate", endDateTime);
         }
         
         // Format and set the end time
-        const endTimeStr = formatTimeOption(endDate);
+        const endTimeStr = formatTimeOption(endDateTime);
         if (timeOptions.includes(endTimeStr)) {
           form.setValue("endTime", endTimeStr);
         }
@@ -156,7 +166,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
     form.watch("sampleCount"),
     form.watch("timePerSample"),
     form.watch("startTime"),
-    form.watch("date")
+    form.watch("startDate")
   ]);
 
   const onSubmit = async (values: FormValues) => {
@@ -191,8 +201,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
         return result;
       };
 
-      const start = parseTime(values.date, values.startTime);
-      const end = parseTime(values.date, values.endTime);
+      const start = parseTime(values.startDate, values.startTime);
+      const end = parseTime(values.endDate, values.endTime);
 
       // Validate that end time is after start time
       if (end <= start) {
@@ -228,7 +238,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
 
       toast({
         title: "Booking successful",
-        description: `You've booked ${selectedInstrument.name} on ${format(values.date, "MMMM d, yyyy")}`,
+        description: `You've booked ${selectedInstrument.name} from ${format(start, "PPP p")} to ${format(end, "PPP p")}`,
       });
       
       onOpenChange(false);
@@ -285,46 +295,93 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
               )}
             />
             
-            <FormField
-              control={form.control}
-              name="date"
-              render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Date</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? (
-                            format(field.value, "PPP")
-                          ) : (
-                            <span>Pick a date</span>
-                          )}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        mode="single"
-                        selected={field.value}
-                        onSelect={(date) => date && field.onChange(date)}
-                        disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                        initialFocus
-                        className={cn("p-3 pointer-events-auto")}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="startDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Start Date</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={(date) => date && field.onChange(date)}
+                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="endDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>End Date</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                            disabled={form.watch("useAutoDuration")}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP")
+                            ) : (
+                              <span>Pick a date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={(date) => date && field.onChange(date)}
+                          disabled={(date) => 
+                            date < form.getValues("startDate") || 
+                            date < new Date(new Date().setHours(0, 0, 0, 0))
+                          }
+                          initialFocus
+                          className={cn("p-3 pointer-events-auto")}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             
             <div className="grid grid-cols-2 gap-4">
               <FormField

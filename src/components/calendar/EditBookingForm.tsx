@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -16,23 +16,31 @@ import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
-import { CalendarIcon } from "lucide-react";
-import { format, addHours } from "date-fns";
+import { CalendarIcon, MessageSquare, User } from "lucide-react";
+import { format, addHours, isSameDay } from "date-fns";
 import { cn } from "@/lib/utils";
-import { Booking } from "../../types";
+import { Booking, Comment } from "../../types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { useAuth } from "../../contexts/AuthContext";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { Separator } from "../ui/separator";
+import { v4 as uuidv4 } from 'uuid';
 
 const formSchema = z.object({
   instrumentId: z.string(),
   instrumentName: z.string(),
-  start: z.date(),
-  end: z.date(),
+  startDate: z.date(),
+  endDate: z.date(),
+  startTime: z.string(),
+  endTime: z.string(),
   purpose: z.string().min(2, {
     message: "Purpose must be at least 2 characters.",
   }),
   details: z.string().optional(),
   status: z.enum(["Not-Started", "In-Progress", "Completed", "Delayed", "confirmed", "pending", "cancelled"]),
+  newComment: z.string().optional(),
 });
 
 interface EditBookingFormProps {
@@ -52,7 +60,10 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   onCancel,
   isSubmitting = false,
 }) => {
-  if (!booking) return null;
+  const { user } = useAuth();
+  const [comments, setComments] = useState<Comment[]>(booking?.comments || []);
+  
+  if (!booking || !user) return null;
 
   // Convert "completed" to "Completed" if needed
   const normalizeStatus = (status: string) => {
@@ -60,25 +71,90 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
     return status;
   };
 
+  // Parse the date and time
+  const parseDateTime = (dateTimeStr: string | Date) => {
+    const dateTime = new Date(dateTimeStr);
+    return {
+      date: dateTime,
+      time: format(dateTime, "h:mm a")
+    };
+  };
+
+  const startDateTime = parseDateTime(booking.start);
+  const endDateTime = parseDateTime(booking.end);
+
+  // Generate time options in 30-minute increments
+  const timeOptions = Array.from({ length: 24 * 2 }, (_, i) => {
+    const hour = Math.floor(i / 2);
+    const minute = i % 2 === 0 ? "00" : "30";
+    const ampm = hour < 12 ? "AM" : "PM";
+    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${hour12}:${minute} ${ampm}`;
+  });
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       instrumentId: booking.instrumentId,
       instrumentName: booking.instrumentName,
-      start: new Date(booking.start),
-      end: new Date(booking.end),
+      startDate: startDateTime.date,
+      endDate: endDateTime.date,
+      startTime: startDateTime.time,
+      endTime: endDateTime.time,
       purpose: booking.purpose || "",
       details: booking.details || "",
       status: normalizeStatus(booking.status) as any,
+      newComment: "",
     },
   });
 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
     if (onSubmit) {
+      const parseTime = (date: Date, timeStr: string) => {
+        const [timePart, ampm] = timeStr.split(" ");
+        const [hourStr, minuteStr] = timePart.split(":");
+        let hour = parseInt(hourStr, 10);
+        const minute = parseInt(minuteStr, 10);
+        
+        // Convert to 24-hour format
+        if (ampm === "PM" && hour !== 12) {
+          hour += 12;
+        } else if (ampm === "AM" && hour === 12) {
+          hour = 0;
+        }
+        
+        const result = new Date(date);
+        result.setHours(hour, minute, 0, 0);
+        return result;
+      };
+
+      const start = parseTime(values.startDate, values.startTime);
+      const end = parseTime(values.endDate, values.endTime);
+
+      // Filter out the empty comment if there is one
+      const newComment = values.newComment?.trim();
+      let updatedComments = [...comments];
+      
+      if (newComment) {
+        updatedComments.push({
+          id: uuidv4(),
+          userId: user.id,
+          userName: user.name,
+          content: newComment,
+          createdAt: new Date().toISOString()
+        });
+      }
+
       onSubmit({
-        ...values,
-        start: values.start.toISOString(),
-        end: values.end.toISOString(),
+        ...booking,
+        instrumentId: values.instrumentId,
+        instrumentName: values.instrumentName,
+        start: start.toISOString(),
+        end: end.toISOString(),
+        purpose: values.purpose,
+        details: values.details,
+        status: values.status,
+        comments: updatedComments
       });
     }
     onOpenChange(false);
@@ -91,9 +167,24 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
     onOpenChange(false);
   };
 
+  const addComment = (comment: string) => {
+    if (!comment.trim()) return;
+
+    const newComment: Comment = {
+      id: uuidv4(),
+      userId: user.id,
+      userName: user.name,
+      content: comment.trim(),
+      createdAt: new Date().toISOString()
+    };
+
+    setComments([...comments, newComment]);
+    form.setValue("newComment", "");
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Booking</DialogTitle>
         </DialogHeader>
@@ -114,123 +205,147 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
             />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="start"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Start Date & Time</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP HH:mm")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={(date) => {
-                            if (date) {
-                              const currentDate = field.value;
-                              date.setHours(currentDate.getHours());
-                              date.setMinutes(currentDate.getMinutes());
-                              field.onChange(date);
-                            }
-                          }}
-                          initialFocus
-                        />
-                        <div className="p-3 border-t border-border">
-                          <Input
-                            type="time"
-                            value={format(field.value, "HH:mm")}
-                            onChange={(e) => {
-                              const [hours, minutes] = e.target.value.split(":");
-                              const newDate = new Date(field.value);
-                              newDate.setHours(parseInt(hours, 10));
-                              newDate.setMinutes(parseInt(minutes, 10));
-                              field.onChange(newDate);
+              <div>
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem className="mb-4">
+                      <FormLabel>Start Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={(date) => {
+                              if (date) {
+                                field.onChange(date);
+                              }
                             }}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
                           />
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <FormField
-                control={form.control}
-                name="end"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>End Date & Time</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
+                <FormField
+                  control={form.control}
+                  name="startTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Start Time</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP HH:mm")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select time" />
+                          </SelectTrigger>
                         </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={(date) => {
-                            if (date) {
-                              const currentDate = field.value;
-                              date.setHours(currentDate.getHours());
-                              date.setMinutes(currentDate.getMinutes());
-                              field.onChange(date);
-                            }
-                          }}
-                          initialFocus
-                        />
-                        <div className="p-3 border-t border-border">
-                          <Input
-                            type="time"
-                            value={format(field.value, "HH:mm")}
-                            onChange={(e) => {
-                              const [hours, minutes] = e.target.value.split(":");
-                              const newDate = new Date(field.value);
-                              newDate.setHours(parseInt(hours, 10));
-                              newDate.setMinutes(parseInt(minutes, 10));
-                              field.onChange(newDate);
+                        <SelectContent>
+                          {timeOptions.map(time => (
+                            <SelectItem key={`start-${time}`} value={time}>
+                              {time}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div>
+                <FormField
+                  control={form.control}
+                  name="endDate"
+                  render={({ field }) => (
+                    <FormItem className="mb-4">
+                      <FormLabel>End Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={(date) => {
+                              if (date) {
+                                field.onChange(date);
+                              }
                             }}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
                           />
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="endTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>End Time</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select time" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {timeOptions.map(time => (
+                            <SelectItem key={`end-${time}`} value={time}>
+                              {time}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
 
             <FormField
@@ -287,6 +402,60 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
                 </FormItem>
               )}
             />
+
+            <div className="pt-4">
+              <h3 className="text-lg font-medium flex items-center mb-2">
+                <MessageSquare className="h-5 w-5 mr-2" />
+                Comments
+              </h3>
+              <Card className="mb-4">
+                <CardContent className="pt-4">
+                  {(comments && comments.length > 0) ? (
+                    <div className="space-y-4">
+                      {comments.map((comment) => (
+                        <div key={comment.id} className="flex space-x-3">
+                          <Avatar>
+                            <AvatarFallback>{comment.userName.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2">
+                              <h4 className="font-medium">{comment.userName}</h4>
+                              <span className="text-xs text-muted-foreground">
+                                {format(new Date(comment.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                              </span>
+                            </div>
+                            <p className="text-sm mt-1">{comment.content}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm text-center py-4">No comments yet</p>
+                  )}
+
+                  <Separator className="my-4" />
+                  
+                  <FormField
+                    control={form.control}
+                    name="newComment"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex space-x-2">
+                          <FormControl>
+                            <Textarea 
+                              placeholder="Add a comment..." 
+                              className="min-h-[60px] flex-1"
+                              {...field}
+                            />
+                          </FormControl>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+            </div>
 
             <div className="flex justify-end space-x-2">
               <Button type="button" variant="outline" onClick={handleCancel}>

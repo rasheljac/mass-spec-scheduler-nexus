@@ -1,201 +1,238 @@
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { User } from "../types";
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import { User } from '../types';
+import { useToast } from '../hooks/use-toast';
+import { v4 as uuidv4 } from 'uuid';
 
-type AuthContextType = {
+interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  updateUserProfile: (userData: Partial<User>) => Promise<void>;
-  updateUserInStorage: (updatedUser: User) => void;
-  updateCurrentUser: (updatedUser: User) => void;
-  changePassword: (userId: string, newPassword: string) => Promise<void>;
-};
+  signup: (name: string, email: string, password: string) => Promise<boolean>;
+  updateUserProfile: (userData: User) => Promise<void>;
+  updateUserPassword: (userId: string, newPassword: string) => Promise<boolean>;
+  getUserById: (userId: string) => User | undefined;
+  users: User[];
+  setUsers: React.Dispatch<React.SetStateAction<User[]>>;
+  createUser: (userData: Omit<User, "id">) => void;
+  updateUser: (userData: User) => void;
+  deleteUser: (userId: string) => void;
+}
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-// Mock users for demonstration
-const MOCK_USERS: User[] = [
-  {
-    id: "1",
-    name: "Admin User",
-    email: "admin@mslab.com",
-    role: "admin",
-    department: "Core Facility",
-    password: "password"
+const defaultUsers: User[] = [
+  { 
+    id: '1', 
+    name: 'Admin User', 
+    email: 'admin@example.com', 
+    password: 'admin123', 
+    role: 'admin',
+    department: 'IT Administration'
   },
-  {
-    id: "2",
-    name: "John Researcher",
-    email: "john@mslab.com",
-    role: "user",
-    department: "Proteomics",
-    password: "password"
+  { 
+    id: '2', 
+    name: 'John Researcher', 
+    email: 'john@example.com', 
+    password: 'john123', 
+    role: 'user',
+    department: 'Research'
+  },
+  { 
+    id: '3', 
+    name: 'Sarah Scientist', 
+    email: 'sarah@example.com', 
+    password: 'sarah123', 
+    role: 'user',
+    department: 'Laboratory'
   }
 ];
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export const AuthContext = createContext<AuthContextType>({
+  user: null,
+  isAuthenticated: false,
+  login: async () => false,
+  logout: () => {},
+  signup: async () => false,
+  updateUserProfile: async () => {},
+  updateUserPassword: async () => false,
+  getUserById: () => undefined,
+  users: [],
+  setUsers: () => {},
+  createUser: () => {},
+  updateUser: () => {},
+  deleteUser: () => {}
+});
+
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const { toast } = useToast();
+  
+  // Initialize users state from localStorage or use default
   const [users, setUsers] = useState<User[]>(() => {
-    const savedUsers = localStorage.getItem("mslab_users");
-    return savedUsers ? JSON.parse(savedUsers) : MOCK_USERS;
+    const storedUsers = localStorage.getItem('mslab_users');
+    return storedUsers ? JSON.parse(storedUsers) : defaultUsers;
   });
-
+  
+  // Initialize user state from localStorage
+  const [user, setUser] = useState<User | null>(() => {
+    const storedUser = localStorage.getItem('mslab_current_user');
+    return storedUser ? JSON.parse(storedUser) : null;
+  });
+  
+  // Update localStorage when users change
   useEffect(() => {
-    // Check for stored user on initial load
-    const storedUser = localStorage.getItem("mslab_user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
-  }, []);
-
-  // Save users to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem("mslab_users", JSON.stringify(users));
+    localStorage.setItem('mslab_users', JSON.stringify(users));
   }, [users]);
-
-  // Function to update a user in the storage
-  const updateUserInStorage = (updatedUser: User) => {
-    const updatedUsers = users.map(u => u.id === updatedUser.id ? updatedUser : u);
-    setUsers(updatedUsers);
-    localStorage.setItem("mslab_users", JSON.stringify(updatedUsers));
-    
-    // If the logged in user was updated, update the session too
-    if (user && user.id === updatedUser.id) {
-      setUser(updatedUser);
-      localStorage.setItem("mslab_user", JSON.stringify(updatedUser));
-    }
-  };
-
-  // Function to update the current user
-  const updateCurrentUser = (updatedUser: User) => {
-    setUser(updatedUser);
-    localStorage.setItem("mslab_user", JSON.stringify(updatedUser));
-  };
-
-  // New function to change a user's password
-  const changePassword = async (userId: string, newPassword: string) => {
-    setIsLoading(true);
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Find the user and update their password
-    const updatedUsers = users.map(u => {
-      if (u.id === userId) {
-        return { ...u, password: newPassword };
-      }
-      return u;
-    });
-    
-    setUsers(updatedUsers);
-    localStorage.setItem("mslab_users", JSON.stringify(updatedUsers));
-    
-    // If the current user's password was changed, update the user session
-    if (user && user.id === userId) {
-      const updatedUser = { ...user, password: newPassword };
-      setUser(updatedUser);
-      localStorage.setItem("mslab_user", JSON.stringify(updatedUser));
-    }
-    
-    setIsLoading(false);
-  };
-
-  const login = async (email: string, password: string) => {
-    setIsLoading(true);
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Find the user (using our updated users state)
-    const foundUser = users.find(u => u.email === email);
-    
-    // Check if user exists and password matches
-    if (foundUser && (foundUser.password === password || password === "password")) {
-      setUser(foundUser);
-      localStorage.setItem("mslab_user", JSON.stringify(foundUser));
-    } else {
-      throw new Error("Invalid credentials");
-    }
-    setIsLoading(false);
-  };
-
-  const signup = async (name: string, email: string, password: string) => {
-    setIsLoading(true);
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Check if user already exists
-    if (users.some(u => u.email === email)) {
-      throw new Error("User already exists");
-    }
-
-    // In a real app, would create the user via API
-    const newUser: User = {
-      id: `${users.length + 1}`,
-      name,
-      email,
-      role: "user"
-    };
-
-    // Add to our users array and update localStorage
-    const updatedUsers = [...users, newUser];
-    setUsers(updatedUsers);
-    
-    // Log in the new user
-    setUser(newUser);
-    localStorage.setItem("mslab_user", JSON.stringify(newUser));
-    setIsLoading(false);
-  };
-
-  const updateUserProfile = async (userData: Partial<User>) => {
-    setIsLoading(true);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
+  
+  // Update localStorage when current user changes
+  useEffect(() => {
     if (user) {
-      // Update the user data
-      const updatedUser = { ...user, ...userData };
-      setUser(updatedUser);
-      
-      // Update in users array
-      const userIndex = users.findIndex(u => u.id === user.id);
-      if (userIndex >= 0) {
-        const updatedUsers = [...users];
-        updatedUsers[userIndex] = updatedUser;
-        setUsers(updatedUsers);
-      }
-      
-      // Update in local storage
-      localStorage.setItem("mslab_user", JSON.stringify(updatedUser));
-      localStorage.setItem("mslab_users", JSON.stringify(users));
+      localStorage.setItem('mslab_current_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('mslab_current_user');
     }
-    
-    setIsLoading(false);
+  }, [user]);
+  
+  const login = async (email: string, password: string): Promise<boolean> => {
+    // Simulate API call delay
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        const foundUser = users.find(u => u.email === email && u.password === password);
+        
+        if (foundUser) {
+          setUser(foundUser);
+          resolve(true);
+        } else {
+          toast({
+            title: "Login Failed",
+            description: "Invalid email or password. Please try again.",
+            variant: "destructive",
+          });
+          resolve(false);
+        }
+      }, 500);
+    });
   };
-
+  
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("mslab_user");
+    localStorage.removeItem('mslab_current_user');
   };
-
+  
+  const signup = async (name: string, email: string, password: string): Promise<boolean> => {
+    // Check if the email already exists
+    if (users.some(u => u.email === email)) {
+      toast({
+        title: "Signup Failed",
+        description: "Email already registered. Please use a different email.",
+        variant: "destructive",
+      });
+      return false;
+    }
+    
+    const newUser: User = {
+      id: uuidv4(),
+      name,
+      email,
+      password,
+      role: 'user', // Default role for signup is user
+    };
+    
+    // Simulate API call delay
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        setUsers(prevUsers => [...prevUsers, newUser]);
+        setUser(newUser); // Automatically log in
+        resolve(true);
+      }, 500);
+    });
+  };
+  
+  const updateUserProfile = async (userData: User): Promise<void> => {
+    // Update the user in the users array
+    setUsers(prevUsers => 
+      prevUsers.map(u => u.id === userData.id ? userData : u)
+    );
+    
+    // Update the current user if the updated user is the current user
+    if (user && user.id === userData.id) {
+      setUser(userData);
+    }
+  };
+  
+  const updateUserPassword = async (userId: string, newPassword: string): Promise<boolean> => {
+    try {
+      // Update the user in the users array
+      setUsers(prevUsers => 
+        prevUsers.map(u => 
+          u.id === userId ? { ...u, password: newPassword } : u
+        )
+      );
+      
+      // Update the current user's password if the updated user is the current user
+      if (user && user.id === userId) {
+        setUser(prev => prev ? { ...prev, password: newPassword } : null);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Error updating password:", error);
+      return false;
+    }
+  };
+  
+  const getUserById = (userId: string): User | undefined => {
+    return users.find(u => u.id === userId);
+  };
+  
+  const createUser = (userData: Omit<User, "id">) => {
+    const newUser: User = {
+      id: uuidv4(),
+      ...userData
+    };
+    setUsers(prevUsers => [...prevUsers, newUser]);
+  };
+  
+  const updateUser = (userData: User) => {
+    setUsers(prevUsers => 
+      prevUsers.map(u => u.id === userData.id ? userData : u)
+    );
+    
+    // Update the current user if the updated user is the current user
+    if (user && user.id === userData.id) {
+      setUser(userData);
+    }
+  };
+  
+  const deleteUser = (userId: string) => {
+    // Cannot delete yourself
+    if (user && user.id === userId) {
+      toast({
+        title: "Action Not Allowed",
+        description: "You cannot delete your own account.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setUsers(prevUsers => prevUsers.filter(u => u.id !== userId));
+  };
+  
   return (
-    <AuthContext.Provider
+    <AuthContext.Provider 
       value={{
         user,
         isAuthenticated: !!user,
-        isLoading,
         login,
-        signup,
         logout,
+        signup,
         updateUserProfile,
-        updateUserInStorage,
-        updateCurrentUser,
-        changePassword
+        updateUserPassword,
+        getUserById,
+        users,
+        setUsers,
+        createUser,
+        updateUser,
+        deleteUser
       }}
     >
       {children}
@@ -203,10 +240,4 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
+export const useAuth = () => useContext(AuthContext);
