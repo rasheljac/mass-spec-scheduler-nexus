@@ -14,7 +14,12 @@ const AppLayout: React.FC = () => {
     // Log authentication status when it changes
     console.log("Auth status in AppLayout:", isAuthenticated);
     console.log("Current user:", user);
-  }, [isAuthenticated, user]);
+    
+    // If on root path, redirect to dashboard
+    if (location.pathname === "/") {
+      navigate("/dashboard");
+    }
+  }, [isAuthenticated, user, location.pathname, navigate]);
 
   if (!isAuthenticated) {
     console.log("User is not authenticated, redirecting to login");

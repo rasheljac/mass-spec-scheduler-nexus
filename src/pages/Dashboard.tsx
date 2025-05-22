@@ -5,6 +5,8 @@ import UpcomingBookings from "../components/dashboard/UpcomingBookings";
 import UsageStatistics from "../components/dashboard/UsageStatistics";
 
 const Dashboard: React.FC = () => {
+  console.log("Dashboard component rendering"); // Add this log to debug
+  
   return (
     <div className="container py-6 space-y-6">
       <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
