@@ -6,9 +6,12 @@ import UsageStatistics from "../components/dashboard/UsageStatistics";
 import { supabase } from "../integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
+import { useBooking } from "../contexts/BookingContext";
+import { Loader2 } from "lucide-react";
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const { isLoading } = useBooking();
   
   useEffect(() => {
     // Check Supabase connection when dashboard loads
@@ -30,6 +33,15 @@ const Dashboard: React.FC = () => {
       checkConnection();
     }
   }, [user]);
+  
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-6 max-w-7xl flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
+        <span className="ml-2 text-lg text-mslab-400">Loading dashboard data...</span>
+      </div>
+    );
+  }
   
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">

@@ -1,9 +1,8 @@
-
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Booking, Comment, User } from "../types";
 import { supabase } from "../integrations/supabase/client";
 import { toast } from "sonner";
-import { sendEmail, createBookingNotification, createStatusUpdateNotification, createDelayNotification } from "../utils/emailNotifications";
+import { createBookingNotification, createStatusUpdateNotification, createDelayNotification, sendEmail } from "../utils/emailNotifications";
 
 export const useBookings = (users: User[]) => {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -21,8 +20,9 @@ export const useBookings = (users: User[]) => {
   };
 
   // Load bookings from Supabase
-  const loadBookings = async () => {
+  const loadBookings = useCallback(async () => {
     try {
+      console.log("Loading bookings from Supabase");
       const { data, error } = await supabase
         .from('bookings')
         .select('*');
@@ -36,76 +36,85 @@ export const useBookings = (users: User[]) => {
         const bookingsWithComments: Booking[] = [];
         
         for (const booking of data) {
-          // Get the instrument name for each booking
-          const { data: instrumentData } = await supabase
-            .from('instruments')
-            .select('name')
-            .eq('id', booking.instrument_id)
-            .single();
-            
-          // Get the user name for each booking
-          const { data: userData } = await supabase
-            .from('profiles')
-            .select('name')
-            .eq('id', booking.user_id)
-            .single();
-            
-          // Get comments for this booking
-          const { data: commentsData, error: commentsError } = await supabase
-            .from('comments')
-            .select('*')
-            .eq('booking_id', booking.id);
-            
-          if (commentsError) {
-            console.error("Error fetching comments:", commentsError);
-          }
-            
-          const formattedComments: Comment[] = [];
-          
-          if (commentsData) {
-            // Fetch user names for each comment
-            for (const comment of commentsData) {
-              const { data: commentUserData } = await supabase
-                .from('profiles')
-                .select('name')
-                .eq('id', comment.user_id)
-                .single();
-                
-              formattedComments.push({
-                id: comment.id,
-                userId: comment.user_id,
-                userName: commentUserData ? commentUserData.name : getUserNameById(comment.user_id),
-                content: comment.content,
-                createdAt: new Date(comment.created_at).toISOString()
-              });
+          try {
+            // Get the instrument name for each booking
+            const { data: instrumentData } = await supabase
+              .from('instruments')
+              .select('name')
+              .eq('id', booking.instrument_id)
+              .single();
+              
+            // Get the user name for each booking
+            const { data: userData } = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('id', booking.user_id)
+              .single();
+              
+            // Get comments for this booking
+            const { data: commentsData, error: commentsError } = await supabase
+              .from('comments')
+              .select('*')
+              .eq('booking_id', booking.id);
+              
+            if (commentsError) {
+              console.error("Error fetching comments:", commentsError);
             }
-          }
+              
+            const formattedComments: Comment[] = [];
             
-          const formattedBooking: Booking = {
-            id: booking.id,
-            userId: booking.user_id,
-            userName: userData ? userData.name : "Unknown User",
-            instrumentId: booking.instrument_id,
-            instrumentName: instrumentData ? instrumentData.name : "Unknown Instrument",
-            start: new Date(booking.start_time).toISOString(),
-            end: new Date(booking.end_time).toISOString(),
-            purpose: booking.purpose,
-            status: booking.status,
-            createdAt: new Date(booking.created_at).toISOString(),
-            details: booking.details || "",
-            comments: formattedComments
-          };
-          
-          bookingsWithComments.push(formattedBooking);
+            if (commentsData) {
+              // Fetch user names for each comment
+              for (const comment of commentsData) {
+                try {
+                  const { data: commentUserData } = await supabase
+                    .from('profiles')
+                    .select('name')
+                    .eq('id', comment.user_id)
+                    .single();
+                    
+                  formattedComments.push({
+                    id: comment.id,
+                    userId: comment.user_id,
+                    userName: commentUserData ? commentUserData.name : getUserNameById(comment.user_id),
+                    content: comment.content,
+                    createdAt: new Date(comment.created_at).toISOString()
+                  });
+                } catch (e) {
+                  console.error("Error processing comment user data:", e);
+                }
+              }
+            }
+              
+            const formattedBooking: Booking = {
+              id: booking.id,
+              userId: booking.user_id,
+              userName: userData ? userData.name : "Unknown User",
+              instrumentId: booking.instrument_id,
+              instrumentName: instrumentData ? instrumentData.name : "Unknown Instrument",
+              start: new Date(booking.start_time).toISOString(),
+              end: new Date(booking.end_time).toISOString(),
+              purpose: booking.purpose,
+              status: booking.status,
+              createdAt: new Date(booking.created_at).toISOString(),
+              details: booking.details || "",
+              comments: formattedComments
+            };
+            
+            bookingsWithComments.push(formattedBooking);
+          } catch (e) {
+            console.error("Error processing booking:", e, booking);
+          }
         }
         
+        console.log(`Loaded ${bookingsWithComments.length} bookings from Supabase`);
         setBookings(bookingsWithComments);
       }
     } catch (error) {
       console.error("Error loading bookings:", error);
       toast.error("Failed to load bookings");
     }
-  };
+  }, [users]);
 
   // Function to create a booking
   const createBooking = async (bookingData: Omit<Booking, "id" | "createdAt"> & { status: "pending" | "confirmed" | "cancelled" | "Not-Started" | "In-Progress" | "Completed" | "Delayed" }) => {

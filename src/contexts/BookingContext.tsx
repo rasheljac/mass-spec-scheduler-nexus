@@ -2,12 +2,10 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { Instrument, Booking, BookingStatistics, Comment } from "../types";
 import { useAuth } from "./AuthContext";
-import { supabase } from "../integrations/supabase/client";
 import { toast } from "sonner";
 import { useInstruments } from "../hooks/useInstruments";
 import { useBookings } from "../hooks/useBookings";
 import { useBookingStatistics } from "../hooks/useBookingStatistics";
-import { createBookingNotification, createStatusUpdateNotification, createDelayNotification, sendEmail } from "../utils/emailNotifications";
 
 interface BookingContextType {
   bookings: Booking[];
@@ -23,6 +21,7 @@ interface BookingContextType {
   statistics: BookingStatistics;
   addCommentToBooking: (bookingId: string, comment: Omit<Comment, "id">) => Promise<void>;
   deleteCommentFromBooking: (bookingId: string, commentId: string) => Promise<void>;
+  isLoading: boolean;
 }
 
 export const BookingContext = createContext<BookingContextType>({
@@ -44,6 +43,7 @@ export const BookingContext = createContext<BookingContextType>({
   },
   addCommentToBooking: async () => {},
   deleteCommentFromBooking: async () => {},
+  isLoading: true
 });
 
 export const BookingProvider = ({ children }: { children: React.ReactNode }) => {
@@ -73,19 +73,16 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
   
   const statistics = useBookingStatistics(bookings, instruments);
 
-  // Helper function to find user email by userId
-  const getUserEmailById = (userId: string): string => {
-    const user = users.find(u => u.id === userId);
-    return user?.email || "";
-  };
-
   // Load instruments and bookings from Supabase on initialization
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        await loadInstruments();
-        await loadBookings();
+        if (user) {
+          console.log("Loading instruments and bookings data for user:", user.id);
+          await loadInstruments();
+          await loadBookings();
+        }
       } catch (error) {
         console.error("Error loading initial data:", error);
         toast.error("Failed to load scheduling data");
@@ -94,9 +91,7 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
       }
     };
 
-    if (user) {
-      loadData();
-    }
+    loadData();
   }, [user, loadInstruments, loadBookings]);
 
   return (
@@ -114,14 +109,9 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
       statistics,
       addCommentToBooking,
       deleteCommentFromBooking,
+      isLoading
     }}>
-      {isLoading ? (
-        <div className="flex justify-center items-center h-full">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-mslab-400"></div>
-        </div>
-      ) : (
-        children
-      )}
+      {children}
     </BookingContext.Provider>
   );
 };

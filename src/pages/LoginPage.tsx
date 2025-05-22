@@ -4,15 +4,16 @@ import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AuthModal from "../components/auth/AuthModal";
 import { Alert, AlertDescription } from "../components/ui/alert";
+import { Loader2 } from "lucide-react";
 
 const LoginPage: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [showAutoLogoutAlert, setShowAutoLogoutAlert] = useState(false);
   
   // Get the redirect path from location state, or default to dashboard
-  const from = (location.state as { from?: string })?.from || "/";
+  const from = (location.state as { from?: string })?.from || "/dashboard";
   const autoLogout = (location.state as { autoLogout?: boolean })?.autoLogout || false;
   
   // Show auto-logout message if applicable
@@ -37,6 +38,15 @@ const LoginPage: React.FC = () => {
   if (isAuthenticated) {
     console.log("User is already authenticated on initial render, redirecting to:", from);
     return <Navigate to={from} replace />;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-white to-mslab-100 p-4">
+        <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
+        <span className="mt-2 text-mslab-400">Checking authentication...</span>
+      </div>
+    );
   }
 
   return (

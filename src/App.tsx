@@ -24,6 +24,7 @@ function App() {
   useEffect(() => {
     const checkSupabase = async () => {
       try {
+        console.log("Checking Supabase connection");
         // Just check if Supabase is accessible
         const { error } = await supabase.from('profiles').select('count').limit(1);
         if (error && error.code !== 'PGRST116') {  // PGRST116 is 'JWT role claim invalid' which is normal when not logged in
@@ -45,6 +46,7 @@ function App() {
     <AuthProvider>
       <BookingProvider>
         <Routes>
+          <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Index />} />
             <Route path="/dashboard" element={<Dashboard />} />
@@ -55,7 +57,6 @@ function App() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
-          <Route path="/login" element={<LoginPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster />

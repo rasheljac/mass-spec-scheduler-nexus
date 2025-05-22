@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Instrument } from "../types";
 import { supabase } from "../integrations/supabase/client";
 import { toast } from "sonner";
@@ -8,8 +8,9 @@ export const useInstruments = () => {
   const [instruments, setInstruments] = useState<Instrument[]>([]);
 
   // Load instruments from Supabase
-  const loadInstruments = async () => {
+  const loadInstruments = useCallback(async () => {
     try {
+      console.log("Loading instruments from Supabase");
       const { data, error } = await supabase
         .from('instruments')
         .select('*');
@@ -52,13 +53,14 @@ export const useInstruments = () => {
           }
         }
         
+        console.log(`Loaded ${formattedInstruments.length} instruments from Supabase`);
         setInstruments(formattedInstruments);
       }
     } catch (error) {
       console.error("Error loading instruments:", error);
       toast.error("Failed to load instruments");
     }
-  };
+  }, []);
 
   // Function to add a new instrument
   const addInstrument = async (instrumentData: Omit<Instrument, "id">) => {
