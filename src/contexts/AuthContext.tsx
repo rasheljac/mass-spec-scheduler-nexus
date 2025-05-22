@@ -1,7 +1,11 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { User } from '../types';
 import { useToast } from '../hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
+import { supabase } from '../integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface AuthContextType {
   user: User | null;
@@ -52,7 +56,7 @@ const defaultUsers: User[] = [
     name: 'Eddy Kapelczak',
     email: 'eddy@kapelczak.com',
     password: 'Eddie#12',
-    role: 'admin', // Changed from 'user' to 'admin'
+    role: 'admin',
     department: 'Research',
     profileImage: ''
   }
@@ -77,202 +81,483 @@ export const AuthContext = createContext<AuthContextType>({
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const { toast } = useToast();
   
-  // Initialize users state from localStorage or use default
-  const [users, setUsers] = useState<User[]>(() => {
-    try {
-      const storedUsers = localStorage.getItem('mslab_users');
-      
-      // If there are stored users, but the eddy@kapelczak.com user is missing or not admin, update it
-      if (storedUsers) {
-        const parsedUsers = JSON.parse(storedUsers);
-        const eddyIndex = parsedUsers.findIndex((u: User) => 
-          u.email.toLowerCase() === 'eddy@kapelczak.com'
-        );
+  // State for users and current user
+  const [users, setUsers] = useState<User[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Initialize by loading data from Supabase
+  useEffect(() => {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state changed:', event, session);
+        setSession(session);
         
-        if (eddyIndex === -1) {
-          // Add the missing user with admin role
-          parsedUsers.push({
-            id: '4',
-            name: 'Eddy Kapelczak',
-            email: 'eddy@kapelczak.com',
-            password: 'Eddie#12',
-            role: 'admin',
-            department: 'Research',
-            profileImage: ''
+        if (session) {
+          try {
+            // Get user profile from database
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (error) {
+              console.error('Error fetching profile:', error);
+              return;
+            }
+            
+            if (profile) {
+              // Convert Supabase profile to our User type
+              const userData: User = {
+                id: profile.id,
+                name: profile.name,
+                email: profile.email,
+                role: profile.role,
+                department: profile.department || '',
+                profileImage: profile.profile_image || '',
+                // We don't store passwords in our User type anymore since Supabase manages auth
+                password: ''
+              };
+              
+              setUser(userData);
+            } else {
+              console.log('No profile found for user');
+              setUser(null);
+            }
+          } catch (e) {
+            console.error('Error in auth state change handler:', e);
+          }
+        } else {
+          setUser(null);
+        }
+      }
+    );
+    
+    // Load initial session
+    const initializeAuth = async () => {
+      try {
+        // Check for existing session
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          // Get user profile
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (error) {
+            console.error('Error fetching initial profile:', error);
+            setLoading(false);
+            return;
+          }
+          
+          if (profile) {
+            const userData: User = {
+              id: profile.id,
+              name: profile.name,
+              email: profile.email,
+              role: profile.role,
+              department: profile.department || '',
+              profileImage: profile.profile_image || '',
+              password: ''
+            };
+            
+            setUser(userData);
+          }
+        }
+        
+        // Load all users for admin purposes
+        await refreshUsersList();
+      } catch (e) {
+        console.error('Error initializing auth:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    initializeAuth();
+    
+    // Cleanup subscription
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+  
+  // Function to refresh the users list (for admin purposes)
+  const refreshUsersList = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*');
+      
+      if (error) {
+        console.error('Error loading users:', error);
+        toast({
+          title: "Error loading users",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (data) {
+        const formattedUsers: User[] = data.map(profile => ({
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          role: profile.role,
+          department: profile.department || '',
+          profileImage: profile.profile_image || '',
+          password: ''
+        }));
+        
+        setUsers(formattedUsers);
+      }
+    } catch (e) {
+      console.error('Error refreshing users list:', e);
+    }
+  };
+  
+  // Migrate existing localStorage users to Supabase (run once)
+  useEffect(() => {
+    const migrateLocalStorageUsers = async () => {
+      // Check if migration has been done
+      const migrationDone = localStorage.getItem('mslab_migration_done');
+      if (migrationDone === 'true') {
+        console.log('Migration already completed');
+        return;
+      }
+      
+      try {
+        // Get users from localStorage
+        const storedUsers = localStorage.getItem('mslab_users');
+        if (!storedUsers) {
+          console.log('No users to migrate');
+          localStorage.setItem('mslab_migration_done', 'true');
+          return;
+        }
+        
+        const localUsers: User[] = JSON.parse(storedUsers);
+        console.log('Migrating local users:', localUsers);
+        
+        // Migrate each user
+        for (const localUser of localUsers) {
+          // Check if user already exists in Supabase
+          const { data: existingUsers, error: checkError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('email', localUser.email);
+          
+          if (checkError) {
+            console.error('Error checking for existing user:', checkError);
+            continue;
+          }
+          
+          // Skip if user already exists
+          if (existingUsers && existingUsers.length > 0) {
+            console.log(`User ${localUser.email} already exists in Supabase, skipping`);
+            continue;
+          }
+          
+          // Create auth user in Supabase
+          const { data: authData, error: signupError } = await supabase.auth.signUp({
+            email: localUser.email,
+            password: localUser.password,
+            options: {
+              data: {
+                name: localUser.name,
+              }
+            }
           });
-        } else if (parsedUsers[eddyIndex].role !== 'admin') {
-          // Update existing user to admin
-          parsedUsers[eddyIndex].role = 'admin';
+          
+          if (signupError) {
+            console.error(`Error creating auth user ${localUser.email}:`, signupError);
+            continue;
+          }
+          
+          console.log(`Created auth user for ${localUser.email}`);
+          
+          // The trigger should create the profile automatically
+          // But we'll update it with additional info
+          if (authData.user) {
+            // Wait a bit for the trigger to complete
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // Update with additional info
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({
+                department: localUser.department || null,
+                role: localUser.role,
+                profile_image: localUser.profileImage || null
+              })
+              .eq('id', authData.user.id);
+            
+            if (updateError) {
+              console.error(`Error updating profile for ${localUser.email}:`, updateError);
+            } else {
+              console.log(`Updated profile for ${localUser.email}`);
+            }
+          }
         }
         
-        // Update localStorage with the fixed users array
-        localStorage.setItem('mslab_users', JSON.stringify(parsedUsers));
-        return parsedUsers;
+        // Mark migration as done
+        localStorage.setItem('mslab_migration_done', 'true');
+        console.log('Migration completed');
+        
+        // Refresh users list after migration
+        await refreshUsersList();
+        
+        toast({
+          title: "User Migration Complete",
+          description: "User data has been migrated to Supabase",
+        });
+      } catch (e) {
+        console.error('Migration error:', e);
+        toast({
+          title: "Migration Error",
+          description: "There was an error migrating user data",
+          variant: "destructive",
+        });
       }
-      
-      // If no users in localStorage, store the default users
-      localStorage.setItem('mslab_users', JSON.stringify(defaultUsers));
-      return defaultUsers;
-    } catch (error) {
-      console.error("Error loading users from localStorage:", error);
-      return defaultUsers;
-    }
-  });
-  
-  // Initialize user state from localStorage
-  const [user, setUser] = useState<User | null>(() => {
-    try {
-      const storedUser = localStorage.getItem('mslab_current_user');
-      
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        // If the stored user is Eddy, make sure role is admin
-        if (parsedUser.email.toLowerCase() === 'eddy@kapelczak.com' && parsedUser.role !== 'admin') {
-          parsedUser.role = 'admin';
-          localStorage.setItem('mslab_current_user', JSON.stringify(parsedUser));
-        }
-        return parsedUser;
-      }
-      
-      return null;
-    } catch (error) {
-      console.error("Error loading current user from localStorage:", error);
-      return null;
-    }
-  });
-  
-  // Update localStorage when users change
-  useEffect(() => {
-    try {
-      localStorage.setItem('mslab_users', JSON.stringify(users));
-    } catch (error) {
-      console.error("Error saving users to localStorage:", error);
-    }
-  }, [users]);
-  
-  // Update localStorage when current user changes
-  useEffect(() => {
-    try {
-      if (user) {
-        localStorage.setItem('mslab_current_user', JSON.stringify(user));
-      } else {
-        localStorage.removeItem('mslab_current_user');
-      }
-    } catch (error) {
-      console.error("Error saving current user to localStorage:", error);
-    }
-  }, [user]);
+    };
+    
+    // Run migration after a short delay to ensure Supabase is connected
+    const timer = setTimeout(() => {
+      migrateLocalStorageUsers();
+    }, 2000);
+    
+    return () => clearTimeout(timer);
+  }, []);
   
   const login = async (email: string, password: string): Promise<boolean> => {
-    console.log(`Login attempt for: ${email} with password: ${password}`);
+    console.log(`Login attempt for: ${email}`);
     
-    // Clear case-sensitivity issues - normalize email for comparison
-    const normalizedEmail = email.toLowerCase().trim();
-    
-    // Log available users for debugging
-    console.log(`Available users:`, users.map(u => ({ 
-      id: u.id,
-      email: u.email, 
-      password: u.password 
-    })));
-    
-    // Simulate API call delay
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Debug output
-        console.log("Normalized email for login:", normalizedEmail);
-        
-        const foundUser = users.find(u => {
-          // Normalize stored email for comparison
-          const storedEmail = u.email.toLowerCase().trim();
-          const emailMatch = storedEmail === normalizedEmail;
-          const passwordMatch = u.password === password;
-          
-          console.log(`Checking ${u.email}: email match = ${emailMatch}, password match = ${passwordMatch}`);
-          
-          return emailMatch && passwordMatch;
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (error) {
+        console.error('Login error:', error.message);
+        toast({
+          title: "Login Failed",
+          description: error.message,
+          variant: "destructive",
         });
-        
-        if (foundUser) {
-          console.log("User found, logging in:", foundUser.name);
-          setUser(foundUser);
-          resolve(true);
-        } else {
-          console.log("Login failed: user not found or password mismatch");
-          toast({
-            title: "Login Failed",
-            description: "Invalid email or password. Please try again.",
-            variant: "destructive",
-          });
-          resolve(false);
-        }
-      }, 500);
-    });
-  };
-  
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('mslab_current_user');
-  };
-  
-  const signup = async (name: string, email: string, password: string): Promise<boolean> => {
-    // Check if the email already exists
-    if (users.some(u => u.email === email)) {
+        return false;
+      }
+      
+      if (data.user) {
+        console.log('Login successful');
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      console.error('Unexpected login error:', e);
       toast({
-        title: "Signup Failed",
-        description: "Email already registered. Please use a different email.",
+        title: "Login Failed",
+        description: "An unexpected error occurred",
         variant: "destructive",
       });
       return false;
     }
-    
-    const newUser: User = {
-      id: uuidv4(),
-      name,
-      email,
-      password,
-      role: 'user', // Default role for signup is user
-    };
-    
-    // Simulate API call delay
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        setUsers(prevUsers => [...prevUsers, newUser]);
-        setUser(newUser); // Automatically log in
-        resolve(true);
-      }, 500);
-    });
+  };
+  
+  const logout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Logout error:', error.message);
+        toast({
+          title: "Logout Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+      setUser(null);
+      setSession(null);
+    } catch (e) {
+      console.error('Unexpected logout error:', e);
+    }
+  };
+  
+  const signup = async (name: string, email: string, password: string): Promise<boolean> => {
+    try {
+      // Check if email already exists
+      const { data: existingUsers, error: checkError } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('email', email);
+      
+      if (checkError) {
+        console.error('Error checking existing users:', checkError);
+        toast({
+          title: "Signup Error",
+          description: "Could not verify email availability",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      if (existingUsers && existingUsers.length > 0) {
+        toast({
+          title: "Signup Failed",
+          description: "Email already registered",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      // Create the new user in Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+          }
+        }
+      });
+      
+      if (error) {
+        console.error('Signup error:', error.message);
+        toast({
+          title: "Signup Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      if (data.user) {
+        console.log('Signup successful');
+        toast({
+          title: "Signup Successful",
+          description: "Your account has been created",
+        });
+        
+        // Refresh users list after signup
+        await refreshUsersList();
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      console.error('Unexpected signup error:', e);
+      toast({
+        title: "Signup Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+      return false;
+    }
   };
   
   const updateUserProfile = async (userData: User): Promise<void> => {
-    // Update the user in the users array
-    setUsers(prevUsers => 
-      prevUsers.map(u => u.id === userData.id ? userData : u)
-    );
-    
-    // Update the current user if the updated user is the current user
-    if (user && user.id === userData.id) {
-      setUser(userData);
+    try {
+      // Update the profile in Supabase
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: userData.name,
+          email: userData.email,
+          department: userData.department || null,
+          profile_image: userData.profileImage || null
+        })
+        .eq('id', userData.id);
+      
+      if (error) {
+        console.error('Error updating profile:', error);
+        toast({
+          title: "Profile Update Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Update the local users array
+      setUsers(prev => prev.map(u => u.id === userData.id ? userData : u));
+      
+      // Update the current user if it's the same user
+      if (user && user.id === userData.id) {
+        setUser(userData);
+      }
+      
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been updated successfully",
+      });
+    } catch (e) {
+      console.error('Unexpected error updating profile:', e);
+      toast({
+        title: "Profile Update Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
     }
   };
   
   const updateUserPassword = async (userId: string, newPassword: string): Promise<boolean> => {
     try {
-      // Update the user in the users array
-      setUsers(prevUsers => 
-        prevUsers.map(u => 
-          u.id === userId ? { ...u, password: newPassword } : u
-        )
-      );
-      
-      // Update the current user's password if the updated user is the current user
-      if (user && user.id === userId) {
-        setUser(prev => prev ? { ...prev, password: newPassword } : null);
+      // For security, only allow users to change their own password
+      // or admins to reset passwords
+      if (user?.id !== userId && user?.role !== 'admin') {
+        toast({
+          title: "Permission Denied",
+          description: "You don't have permission to change this password",
+          variant: "destructive",
+        });
+        return false;
       }
       
-      return true;
-    } catch (error) {
-      console.error("Error updating password:", error);
+      // Currently, Supabase only supports users changing their own password
+      // For admin password resets, we'd need a server-side function
+      // For simplicity, we'll implement just the self-password change
+      if (userId === user?.id) {
+        const { error } = await supabase.auth.updateUser({
+          password: newPassword
+        });
+        
+        if (error) {
+          console.error('Error updating password:', error);
+          toast({
+            title: "Password Update Failed",
+            description: error.message,
+            variant: "destructive",
+          });
+          return false;
+        }
+        
+        toast({
+          title: "Password Updated",
+          description: "Your password has been updated successfully",
+        });
+        return true;
+      } else {
+        // For admin password resets - this would require a server function
+        // Just showing a message for now
+        toast({
+          title: "Admin Password Reset",
+          description: "Admin password resets require a server function (not implemented in this demo)",
+        });
+        return false;
+      }
+    } catch (e) {
+      console.error('Unexpected error updating password:', e);
+      toast({
+        title: "Password Update Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
       return false;
     }
   };
@@ -281,65 +566,178 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return users.find(u => u.id === userId);
   };
   
-  const createUser = (userData: Omit<User, "id">) => {
-    const newUser: User = {
-      id: uuidv4(),
-      ...userData
-    };
-    const updatedUsers = [...users, newUser];
-    setUsers(updatedUsers);
-    
-    // Save immediately to localStorage
+  const createUser = async (userData: Omit<User, "id">) => {
     try {
-      localStorage.setItem('mslab_users', JSON.stringify(updatedUsers));
-    } catch (error) {
-      console.error("Error saving new user to localStorage:", error);
-    }
-  };
-  
-  const updateUser = (userData: User) => {
-    const updatedUsers = users.map(u => u.id === userData.id ? userData : u);
-    setUsers(updatedUsers);
-    
-    // Update the current user if the updated user is the current user
-    if (user && user.id === userData.id) {
-      setUser(userData);
-      
-      // Save immediately to localStorage
-      try {
-        localStorage.setItem('mslab_current_user', JSON.stringify(userData));
-      } catch (error) {
-        console.error("Error updating current user in localStorage:", error);
+      // Admin function to create a new user
+      if (user?.role !== 'admin') {
+        toast({
+          title: "Permission Denied",
+          description: "Only admins can create users",
+          variant: "destructive",
+        });
+        return;
       }
-    }
-    
-    // Save immediately to localStorage
-    try {
-      localStorage.setItem('mslab_users', JSON.stringify(updatedUsers));
-    } catch (error) {
-      console.error("Error saving updated users to localStorage:", error);
-    }
-  };
-  
-  const deleteUser = (userId: string) => {
-    // Cannot delete yourself
-    if (user && user.id === userId) {
+      
+      // Create the user in Supabase Auth
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: userData.email,
+        password: userData.password || Math.random().toString(36).slice(-8), // Random password if none provided
+        email_confirm: true,
+        user_metadata: {
+          name: userData.name,
+        }
+      });
+      
+      if (error) {
+        console.error('Error creating user:', error);
+        toast({
+          title: "User Creation Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (data.user) {
+        // Update additional profile fields
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            department: userData.department || null,
+            role: userData.role,
+            profile_image: userData.profileImage || null
+          })
+          .eq('id', data.user.id);
+        
+        if (updateError) {
+          console.error('Error updating new user profile:', updateError);
+        }
+        
+        // Refresh the users list
+        await refreshUsersList();
+        
+        toast({
+          title: "User Created",
+          description: `User ${userData.name} has been created successfully`,
+        });
+      }
+    } catch (e) {
+      console.error('Unexpected error creating user:', e);
       toast({
-        title: "Action Not Allowed",
-        description: "You cannot delete your own account.",
+        title: "User Creation Failed",
+        description: "An unexpected error occurred",
         variant: "destructive",
       });
-      return;
     }
-    
-    const updatedUsers = users.filter(u => u.id !== userId);
-    setUsers(updatedUsers);
-    
-    // Save immediately to localStorage
+  };
+  
+  const updateUser = async (userData: User) => {
     try {
-      localStorage.setItem('mslab_users', JSON.stringify(updatedUsers));
-    } catch (error) {
-      console.error("Error saving users after deletion to localStorage:", error);
+      // This is an admin function
+      if (user?.role !== 'admin' && user?.id !== userData.id) {
+        toast({
+          title: "Permission Denied",
+          description: "You don't have permission to update this user",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Update the profile in Supabase
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: userData.name,
+          email: userData.email,
+          department: userData.department || null,
+          role: userData.role,
+          profile_image: userData.profileImage || null
+        })
+        .eq('id', userData.id);
+      
+      if (error) {
+        console.error('Error updating user:', error);
+        toast({
+          title: "User Update Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Update the local users array
+      setUsers(prev => prev.map(u => u.id === userData.id ? userData : u));
+      
+      // Update the current user if it's the same user
+      if (user && user.id === userData.id) {
+        setUser(userData);
+      }
+      
+      toast({
+        title: "User Updated",
+        description: `User ${userData.name} has been updated successfully`,
+      });
+    } catch (e) {
+      console.error('Unexpected error updating user:', e);
+      toast({
+        title: "User Update Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const deleteUser = async (userId: string) => {
+    try {
+      // This is an admin function
+      if (user?.role !== 'admin') {
+        toast({
+          title: "Permission Denied",
+          description: "Only admins can delete users",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Cannot delete yourself
+      if (user.id === userId) {
+        toast({
+          title: "Action Not Allowed",
+          description: "You cannot delete your own account",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Delete the user from Supabase Auth
+      // Note: This requires admin access and typically should be
+      // done through a secure server function
+      const { error } = await supabase.auth.admin.deleteUser(userId);
+      
+      if (error) {
+        console.error('Error deleting user:', error);
+        toast({
+          title: "User Deletion Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Update the local users array
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      
+      toast({
+        title: "User Deleted",
+        description: "User has been deleted successfully",
+      });
+    } catch (e) {
+      console.error('Unexpected error deleting user:', e);
+      toast({
+        title: "User Deletion Failed",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
     }
   };
   
@@ -361,7 +759,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         deleteUser
       }}
     >
-      {children}
+      {loading ? (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <p className="text-lg font-medium">Loading...</p>
+            <p className="text-sm text-muted-foreground">Setting up your application</p>
+          </div>
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 };
