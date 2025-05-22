@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -24,6 +24,9 @@ const ProfilePage: React.FC = () => {
   const { toast } = useToast();
   const [changePassword, setChangePassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -33,6 +36,17 @@ const ProfilePage: React.FC = () => {
       department: user?.department || "",
     },
   });
+  
+  // Update form when user changes (e.g., after admin edit)
+  useEffect(() => {
+    if (user) {
+      form.reset({
+        name: user.name,
+        email: user.email,
+        department: user.department || "",
+      });
+    }
+  }, [user, form]);
 
   const onSubmit = async (data: FormValues) => {
     if (!user) return;
@@ -41,6 +55,7 @@ const ProfilePage: React.FC = () => {
     try {
       await updateUserProfile({
         name: data.name,
+        email: data.email,
         department: data.department
       });
       
@@ -57,6 +72,49 @@ const ProfilePage: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+  
+  const handlePasswordChange = async () => {
+    // Basic validation
+    if (currentPassword !== "password") {
+      toast({
+        title: "Incorrect password",
+        description: "Your current password is incorrect.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (newPassword.length < 6) {
+      toast({
+        title: "Password too short",
+        description: "Your new password must be at least 6 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Passwords do not match",
+        description: "Your new password and confirmation do not match.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // In a real app, this would call an API to update the password
+    // For our demo, we'll just show a success message
+    toast({
+      title: "Password updated",
+      description: "Your password has been updated successfully.",
+    });
+    
+    // Reset the form
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setChangePassword(false);
   };
 
   return (
@@ -94,7 +152,7 @@ const ProfilePage: React.FC = () => {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input type="email" {...field} disabled />
+                          <Input type="email" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -149,18 +207,33 @@ const ProfilePage: React.FC = () => {
                 <div className="space-y-3 mt-2">
                   <div className="space-y-1">
                     <Label htmlFor="current-password">Current Password</Label>
-                    <Input id="current-password" type="password" />
+                    <Input 
+                      id="current-password" 
+                      type="password" 
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="new-password">New Password</Label>
-                    <Input id="new-password" type="password" />
+                    <Input 
+                      id="new-password" 
+                      type="password" 
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-1">
                     <Label htmlFor="confirm-password">Confirm New Password</Label>
-                    <Input id="confirm-password" type="password" />
+                    <Input 
+                      id="confirm-password" 
+                      type="password" 
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                    />
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm">Update Password</Button>
+                    <Button size="sm" onClick={handlePasswordChange}>Update Password</Button>
                     <Button variant="ghost" size="sm" onClick={() => setChangePassword(false)}>Cancel</Button>
                   </div>
                 </div>

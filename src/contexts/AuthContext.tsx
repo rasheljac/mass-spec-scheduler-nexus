@@ -10,6 +10,8 @@ type AuthContextType = {
   signup: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   updateUserProfile: (userData: Partial<User>) => Promise<void>;
+  updateUserInStorage: (updatedUser: User) => void;
+  updateCurrentUser: (updatedUser: User) => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,6 +55,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     localStorage.setItem("mslab_users", JSON.stringify(users));
   }, [users]);
+
+  // Function to update a user in the storage
+  const updateUserInStorage = (updatedUser: User) => {
+    const updatedUsers = users.map(u => u.id === updatedUser.id ? updatedUser : u);
+    setUsers(updatedUsers);
+    localStorage.setItem("mslab_users", JSON.stringify(updatedUsers));
+    
+    // If the logged in user was updated, update the session too
+    if (user && user.id === updatedUser.id) {
+      setUser(updatedUser);
+      localStorage.setItem("mslab_user", JSON.stringify(updatedUser));
+    }
+  };
+
+  // Function to update the current user
+  const updateCurrentUser = (updatedUser: User) => {
+    setUser(updatedUser);
+    localStorage.setItem("mslab_user", JSON.stringify(updatedUser));
+  };
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
@@ -120,6 +141,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Update in local storage
       localStorage.setItem("mslab_user", JSON.stringify(updatedUser));
+      localStorage.setItem("mslab_users", JSON.stringify(users));
     }
     
     setIsLoading(false);
@@ -139,7 +161,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         login,
         signup,
         logout,
-        updateUserProfile
+        updateUserProfile,
+        updateUserInStorage,
+        updateCurrentUser
       }}
     >
       {children}

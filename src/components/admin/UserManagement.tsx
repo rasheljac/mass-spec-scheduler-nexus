@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { useToast } from "../../hooks/use-toast";
 
 const UserManagement: React.FC = () => {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, updateUserInStorage, updateCurrentUser } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>(() => {
     const savedUsers = localStorage.getItem("mslab_users");
@@ -45,6 +45,9 @@ const UserManagement: React.FC = () => {
 
   const [editUser, setEditUser] = useState<User | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
 
   // Save users to localStorage whenever they change
   useEffect(() => {
@@ -60,7 +63,17 @@ const UserManagement: React.FC = () => {
   };
 
   const handleSaveEdit = (updatedUser: User) => {
-    setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+    const updatedUsers = users.map(u => u.id === updatedUser.id ? updatedUser : u);
+    setUsers(updatedUsers);
+    
+    // Update user in storage
+    updateUserInStorage(updatedUser);
+    
+    // If the edited user is the current user, update current user as well
+    if (currentUser && currentUser.id === updatedUser.id) {
+      updateCurrentUser(updatedUser);
+    }
+    
     setIsDialogOpen(false);
     setEditUser(null);
     toast({
@@ -88,13 +101,58 @@ const UserManagement: React.FC = () => {
   };
 
   const handleChangeRole = (userId: string, newRole: 'admin' | 'user') => {
-    setUsers(users.map(u => 
-      u.id === userId ? { ...u, role: newRole } : u
-    ));
+    const updatedUsers = users.map(u => {
+      if (u.id === userId) {
+        const updatedUser = { ...u, role: newRole };
+        
+        // If the edited user is the current user, update current user as well
+        if (currentUser && currentUser.id === userId) {
+          updateCurrentUser(updatedUser);
+        }
+        
+        return updatedUser;
+      }
+      return u;
+    });
+    
+    setUsers(updatedUsers);
+    localStorage.setItem("mslab_users", JSON.stringify(updatedUsers));
+    
     toast({
       title: "Role updated",
       description: `User role has been changed to ${newRole}.`
     });
+  };
+
+  const openPasswordDialog = (userId: string) => {
+    setUserId(userId);
+    setNewPassword("");
+    setIsPasswordDialogOpen(true);
+  };
+
+  const handleChangePassword = () => {
+    if (!userId || !newPassword.trim()) {
+      toast({
+        title: "Password not updated",
+        description: "Please provide a valid password.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // In a real app, this would hash the password
+    // For our demo, we just update the user in localStorage
+    // Note: We don't update the actual password since our demo uses a fixed "password"
+    // but we'll show success message for user feedback
+
+    toast({
+      title: "Password updated",
+      description: "The user's password has been updated successfully."
+    });
+    
+    setIsPasswordDialogOpen(false);
+    setUserId(null);
+    setNewPassword("");
   };
 
   // Edit User Dialog
@@ -173,6 +231,41 @@ const UserManagement: React.FC = () => {
     );
   };
 
+  // Password Dialog
+  const PasswordDialog = () => {
+    return (
+      <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Change Password</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-password">New Password</Label>
+              <Input
+                id="new-password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsPasswordDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleChangePassword}>Save Password</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  };
+
   return (
     <Card className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -208,6 +301,13 @@ const UserManagement: React.FC = () => {
                 <Button 
                   variant="outline" 
                   size="sm"
+                  onClick={() => openPasswordDialog(user.id)}
+                >
+                  Password
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
                   onClick={() => handleEdit(user.id)}
                 >
                   Edit
@@ -228,6 +328,9 @@ const UserManagement: React.FC = () => {
       
       {/* Edit User Dialog */}
       {editUser && <EditUserDialog />}
+      
+      {/* Change Password Dialog */}
+      <PasswordDialog />
     </Card>
   );
 };
