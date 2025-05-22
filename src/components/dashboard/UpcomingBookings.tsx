@@ -51,7 +51,7 @@ const UpcomingBookings: React.FC = () => {
                 <p className="text-sm text-muted-foreground">
                   Booked by: {booking.userName}
                 </p>
-                <p className="text-sm">{booking.purpose || booking.description}</p>
+                <p className="text-sm">{booking.purpose || booking.details}</p>
               </div>
             ))}
           </div>

@@ -26,7 +26,7 @@ const formSchema = z.object({
   type: z.string().min(2, { message: "Type must be at least 2 characters" }),
   model: z.string().min(2, { message: "Model must be at least 2 characters" }),
   location: z.string().min(2, { message: "Location is required" }),
-  status: z.enum(["available", "maintenance", "in-use", "offline"]),
+  status: z.enum(["available", "maintenance", "in_use", "offline"]),
   description: z.string().optional(),
   calibrationDue: z.date().optional(),
 });
@@ -72,7 +72,9 @@ const InstrumentManagement: React.FC = () => {
       model: data.model,
       location: data.location,
       status: data.status,
-      description: data.description,
+      description: data.description || "",
+      specifications: "",
+      image: "",
       calibrationDue: data.calibrationDue ? format(data.calibrationDue, "yyyy-MM-dd") : undefined,
     });
     setIsAddDialogOpen(false);
@@ -94,7 +96,7 @@ const InstrumentManagement: React.FC = () => {
       model: data.model,
       location: data.location,
       status: data.status,
-      description: data.description,
+      description: data.description || "",
       calibrationDue: data.calibrationDue ? format(data.calibrationDue, "yyyy-MM-dd") : undefined,
     };
 
@@ -135,7 +137,7 @@ const InstrumentManagement: React.FC = () => {
     
     editForm.reset({
       name: instrument.name,
-      type: instrument.type,
+      type: instrument.type || "",
       model: instrument.model || "",
       location: instrument.location,
       status: instrument.status,
@@ -157,7 +159,7 @@ const InstrumentManagement: React.FC = () => {
         return <Badge className="bg-green-500">Available</Badge>;
       case "maintenance":
         return <Badge className="bg-yellow-500">Maintenance</Badge>;
-      case "in-use":
+      case "in_use":
         return <Badge className="bg-blue-500">In Use</Badge>;
       case "offline":
         return <Badge className="bg-gray-500">Offline</Badge>;
@@ -190,8 +192,8 @@ const InstrumentManagement: React.FC = () => {
             {instruments.map(instrument => (
               <TableRow key={instrument.id}>
                 <TableCell className="font-medium">{instrument.name}</TableCell>
-                <TableCell>{instrument.type}</TableCell>
-                <TableCell>{instrument.model}</TableCell>
+                <TableCell>{instrument.type || "-"}</TableCell>
+                <TableCell>{instrument.model || "-"}</TableCell>
                 <TableCell>{instrument.location}</TableCell>
                 <TableCell>{renderStatusBadge(instrument.status)}</TableCell>
                 <TableCell>{instrument.calibrationDue || "-"}</TableCell>
@@ -297,7 +299,7 @@ const InstrumentManagement: React.FC = () => {
                       <SelectContent>
                         <SelectItem value="available">Available</SelectItem>
                         <SelectItem value="maintenance">Maintenance</SelectItem>
-                        <SelectItem value="in-use">In Use</SelectItem>
+                        <SelectItem value="in_use">In Use</SelectItem>
                         <SelectItem value="offline">Offline</SelectItem>
                       </SelectContent>
                     </Select>
@@ -450,7 +452,7 @@ const InstrumentManagement: React.FC = () => {
                       <SelectContent>
                         <SelectItem value="available">Available</SelectItem>
                         <SelectItem value="maintenance">Maintenance</SelectItem>
-                        <SelectItem value="in-use">In Use</SelectItem>
+                        <SelectItem value="in_use">In Use</SelectItem>
                         <SelectItem value="offline">Offline</SelectItem>
                       </SelectContent>
                     </Select>

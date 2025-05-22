@@ -16,7 +16,7 @@ const InstrumentsPage: React.FC = () => {
         return "bg-green-500 text-white";
       case "maintenance":
         return "bg-yellow-500 text-white";
-      case "in-use":
+      case "in_use":
         return "bg-blue-500 text-white";
       default:
         return "bg-gray-500 text-white";
@@ -50,7 +50,7 @@ const InstrumentsPage: React.FC = () => {
                   {instrument.status}
                 </Badge>
               </div>
-              <CardDescription>{instrument.model}</CardDescription>
+              <CardDescription>{instrument.model || ""}</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm">

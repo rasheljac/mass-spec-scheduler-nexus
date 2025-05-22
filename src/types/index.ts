@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string;
@@ -20,16 +21,21 @@ export interface Booking {
   userId: string;
   userName: string;
   comments: Comment[];
+  createdAt?: string;
 }
 
 export interface Instrument {
   id: string;
   name: string;
   description: string;
-  status: 'available' | 'in_use' | 'maintenance';
+  status: 'available' | 'in_use' | 'maintenance' | 'offline';
   location: string;
   specifications: string;
   image: string;
+  type?: string;
+  model?: string;
+  calibrationDue?: string;
+  maintenanceHistory?: Array<{ date: string; description: string }>;
 }
 
 export interface Comment {
@@ -38,4 +44,24 @@ export interface Comment {
   userName: string;
   content: string;
   createdAt: string;
+}
+
+export interface BookingStatistics {
+  totalBookings: number;
+  instrumentUsage: Array<{
+    instrumentId: string;
+    instrumentName: string;
+    bookingCount: number;
+    totalHours: number;
+  }>;
+  userBookings: Array<{
+    userId: string;
+    userName: string;
+    bookingCount: number;
+    totalHours: number;
+  }>;
+  weeklyUsage: Array<{
+    week: string;
+    bookingCount: number;
+  }>;
 }
