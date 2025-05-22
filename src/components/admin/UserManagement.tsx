@@ -8,13 +8,15 @@ import { useToast } from "../../hooks/use-toast";
 import UserTable from "./UserTable";
 import EditUserDialog from "./EditUserDialog";
 import PasswordDialog from "./PasswordDialog";
+import AddUserDialog from "./AddUserDialog";
 
 const UserManagement: React.FC = () => {
-  const { user: currentUser, updateUserProfile, updateUserPassword, users, setUsers } = useAuth();
+  const { user: currentUser, updateUserProfile, updateUserPassword, users, setUsers, createUser, deleteUser } = useAuth();
   const { toast } = useToast();
   const [editUser, setEditUser] = useState<User | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -28,49 +30,21 @@ const UserManagement: React.FC = () => {
   };
 
   const handleSaveEdit = (updatedUser: User) => {
-    const updatedUsers = users.map(u => u.id === updatedUser.id ? updatedUser : u);
-    setUsers(updatedUsers);
-    
-    // Update user in storage
     updateUserProfile(updatedUser);
-    
     setIsDialogOpen(false);
     setEditUser(null);
-    toast({
-      title: "User updated",
-      description: `User ${updatedUser.name} has been updated successfully.`
-    });
   };
 
   const handleDelete = (userId: string) => {
-    setUsers(users.filter(u => u.id !== userId));
-    toast({
-      title: "User deleted",
-      description: "User has been deleted successfully."
-    });
+    deleteUser(userId);
   };
 
   const handleChangeRole = (userId: string, newRole: 'admin' | 'user') => {
-    const updatedUsers = users.map(u => {
-      if (u.id === userId) {
-        const updatedUser = { ...u, role: newRole };
-        
-        // If the edited user is the current user, update current user as well
-        if (currentUser && currentUser.id === userId) {
-          updateUserProfile(updatedUser);
-        }
-        
-        return updatedUser;
-      }
-      return u;
-    });
-    
-    setUsers(updatedUsers);
-    
-    toast({
-      title: "Role updated",
-      description: `User role has been changed to ${newRole}.`
-    });
+    const userToUpdate = users.find(u => u.id === userId);
+    if (userToUpdate) {
+      const updatedUser = { ...userToUpdate, role: newRole };
+      updateUserProfile(updatedUser);
+    }
   };
 
   const openPasswordDialog = (userId: string) => {
@@ -121,11 +95,16 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const handleAddUser = (userData: Omit<User, "id">) => {
+    createUser(userData);
+    setIsAddUserDialogOpen(false);
+  };
+
   return (
     <Card className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-semibold">User Management</h2>
-        <Button>Add User</Button>
+        <Button onClick={() => setIsAddUserDialogOpen(true)}>Add User</Button>
       </div>
 
       <UserTable 
@@ -151,6 +130,12 @@ const UserManagement: React.FC = () => {
         newPassword={newPassword}
         setNewPassword={setNewPassword}
         isSubmitting={isSubmitting}
+      />
+      
+      <AddUserDialog 
+        isOpen={isAddUserDialogOpen}
+        onClose={() => setIsAddUserDialogOpen(false)}
+        onSave={handleAddUser}
       />
     </Card>
   );

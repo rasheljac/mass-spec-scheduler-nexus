@@ -111,11 +111,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             if (profile) {
               // Convert Supabase profile to our User type
+              // Ensure role is properly typed as 'admin' | 'user'
               const userData: User = {
                 id: profile.id,
                 name: profile.name,
                 email: profile.email,
-                role: profile.role,
+                role: profile.role as 'admin' | 'user',
                 department: profile.department || '',
                 profileImage: profile.profile_image || '',
                 // We don't store passwords in our User type anymore since Supabase manages auth
@@ -161,7 +162,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               id: profile.id,
               name: profile.name,
               email: profile.email,
-              role: profile.role,
+              role: profile.role as 'admin' | 'user',
               department: profile.department || '',
               profileImage: profile.profile_image || '',
               password: ''
@@ -210,7 +211,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           id: profile.id,
           name: profile.name,
           email: profile.email,
-          role: profile.role,
+          role: profile.role as 'admin' | 'user',
           department: profile.department || '',
           profileImage: profile.profile_image || '',
           password: ''
