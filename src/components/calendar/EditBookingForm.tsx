@@ -54,6 +54,12 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
 }) => {
   if (!booking) return null;
 
+  // Convert "completed" to "Completed" if needed
+  const normalizeStatus = (status: string) => {
+    if (status === "completed") return "Completed";
+    return status;
+  };
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -63,7 +69,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
       end: new Date(booking.end),
       purpose: booking.purpose || "",
       details: booking.details || "",
-      status: booking.status,
+      status: normalizeStatus(booking.status) as any,
     },
   });
 

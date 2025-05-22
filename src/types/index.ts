@@ -11,14 +11,14 @@ export type User = {
 export type Instrument = {
   id: string;
   name: string;
-  type: string;
+  type: string; // Making sure this is required
   status: "available" | "in-use" | "maintenance" | "offline";
   location: string;
   description?: string;
   image?: string;
-  model?: string; // Added model property
-  calibrationDue?: string; // Added calibrationDue property
-  maintenanceHistory?: Array<{date: string, description: string}>; // Added maintenanceHistory
+  model?: string;
+  calibrationDue?: string;
+  maintenanceHistory?: Array<{date: string, description: string}>;
 };
 
 export type Booking = {
@@ -32,8 +32,8 @@ export type Booking = {
   status: "pending" | "confirmed" | "completed" | "cancelled" | "Not-Started" | "In-Progress" | "Completed" | "Delayed";
   title?: string;
   description?: string;
-  purpose?: string; // Added purpose property
-  details?: string; // Added details property
+  purpose?: string;
+  details?: string;
   createdAt: Date | string;
 };
 

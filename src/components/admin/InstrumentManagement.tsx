@@ -23,9 +23,10 @@ import { useToast } from "../../hooks/use-toast";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
+  type: z.string().min(2, { message: "Type must be at least 2 characters" }),
   model: z.string().min(2, { message: "Model must be at least 2 characters" }),
   location: z.string().min(2, { message: "Location is required" }),
-  status: z.enum(["available", "maintenance", "in-use"]),
+  status: z.enum(["available", "maintenance", "in-use", "offline"]),
   description: z.string().optional(),
   calibrationDue: z.date().optional(),
 });
@@ -44,6 +45,7 @@ const InstrumentManagement: React.FC = () => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
+      type: "",
       model: "",
       location: "",
       status: "available",
@@ -55,6 +57,7 @@ const InstrumentManagement: React.FC = () => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
+      type: "",
       model: "",
       location: "",
       status: "available",
@@ -65,6 +68,7 @@ const InstrumentManagement: React.FC = () => {
   const handleAddInstrument = (data: FormValues) => {
     addInstrument({
       name: data.name,
+      type: data.type,
       model: data.model,
       location: data.location,
       status: data.status,
@@ -86,6 +90,7 @@ const InstrumentManagement: React.FC = () => {
     const updatedInstrument = {
       ...selectedInstrument,
       name: data.name,
+      type: data.type,
       model: data.model,
       location: data.location,
       status: data.status,
@@ -130,7 +135,8 @@ const InstrumentManagement: React.FC = () => {
     
     editForm.reset({
       name: instrument.name,
-      model: instrument.model,
+      type: instrument.type,
+      model: instrument.model || "",
       location: instrument.location,
       status: instrument.status,
       description: instrument.description || "",
@@ -153,6 +159,8 @@ const InstrumentManagement: React.FC = () => {
         return <Badge className="bg-yellow-500">Maintenance</Badge>;
       case "in-use":
         return <Badge className="bg-blue-500">In Use</Badge>;
+      case "offline":
+        return <Badge className="bg-gray-500">Offline</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -170,6 +178,7 @@ const InstrumentManagement: React.FC = () => {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead>Model</TableHead>
               <TableHead>Location</TableHead>
               <TableHead>Status</TableHead>
@@ -181,6 +190,7 @@ const InstrumentManagement: React.FC = () => {
             {instruments.map(instrument => (
               <TableRow key={instrument.id}>
                 <TableCell className="font-medium">{instrument.name}</TableCell>
+                <TableCell>{instrument.type}</TableCell>
                 <TableCell>{instrument.model}</TableCell>
                 <TableCell>{instrument.location}</TableCell>
                 <TableCell>{renderStatusBadge(instrument.status)}</TableCell>
@@ -232,6 +242,20 @@ const InstrumentManagement: React.FC = () => {
               
               <FormField
                 control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Type</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Instrument type" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
                 name="model"
                 render={({ field }) => (
                   <FormItem>
@@ -274,6 +298,7 @@ const InstrumentManagement: React.FC = () => {
                         <SelectItem value="available">Available</SelectItem>
                         <SelectItem value="maintenance">Maintenance</SelectItem>
                         <SelectItem value="in-use">In Use</SelectItem>
+                        <SelectItem value="offline">Offline</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -370,6 +395,20 @@ const InstrumentManagement: React.FC = () => {
               
               <FormField
                 control={editForm.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Type</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={editForm.control}
                 name="model"
                 render={({ field }) => (
                   <FormItem>
@@ -412,6 +451,7 @@ const InstrumentManagement: React.FC = () => {
                         <SelectItem value="available">Available</SelectItem>
                         <SelectItem value="maintenance">Maintenance</SelectItem>
                         <SelectItem value="in-use">In Use</SelectItem>
+                        <SelectItem value="offline">Offline</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

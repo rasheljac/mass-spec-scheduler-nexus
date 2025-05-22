@@ -40,6 +40,7 @@ const initialInstruments: Instrument[] = [
   {
     id: "1",
     name: "Mass Spectrometer A",
+    type: "Mass Spectrometer", // Added type property
     model: "AB Sciex 6500+",
     location: "Lab 101",
     status: "available",
@@ -54,6 +55,7 @@ const initialInstruments: Instrument[] = [
   {
     id: "2",
     name: "Flow Cytometer X20",
+    type: "Flow Cytometer", // Added type property
     model: "BD FACSAria Fusion",
     location: "Lab 102",
     status: "maintenance",
@@ -68,6 +70,7 @@ const initialInstruments: Instrument[] = [
   {
     id: "3",
     name: "Confocal Microscope SP8",
+    type: "Microscope", // Added type property
     model: "Leica TCS SP8",
     location: "Imaging Suite",
     status: "in-use",
@@ -82,6 +85,7 @@ const initialInstruments: Instrument[] = [
   {
     id: "4",
     name: "Electron Microscope TEM",
+    type: "Microscope", // Added type property
     model: "Thermo Fisher Talos",
     location: "EM Facility",
     status: "available",
@@ -96,6 +100,7 @@ const initialInstruments: Instrument[] = [
   {
     id: "5",
     name: "NMR Spectrometer 600",
+    type: "NMR Spectrometer", // Added type property
     model: "Bruker Avance III",
     location: "NMR Facility",
     status: "available",
