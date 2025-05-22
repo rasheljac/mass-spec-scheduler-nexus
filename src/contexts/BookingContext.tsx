@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { Instrument, Booking, BookingStatistics } from "../types";
 import { v4 as uuidv4 } from 'uuid';
@@ -243,8 +242,26 @@ const initialBookings: Booking[] = [
 ];
 
 export const BookingProvider = ({ children }: { children: React.ReactNode }) => {
-  const [bookings, setBookings] = useState<Booking[]>(initialBookings);
-  const [instruments, setInstruments] = useState<Instrument[]>(initialInstruments);
+  // Load bookings and instruments from localStorage on initialization or use defaults
+  const [bookings, setBookings] = useState<Booking[]>(() => {
+    const savedBookings = localStorage.getItem('mslab_bookings');
+    return savedBookings ? JSON.parse(savedBookings) : initialBookings;
+  });
+  
+  const [instruments, setInstruments] = useState<Instrument[]>(() => {
+    const savedInstruments = localStorage.getItem('mslab_instruments');
+    return savedInstruments ? JSON.parse(savedInstruments) : initialInstruments;
+  });
+
+  // Save bookings to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('mslab_bookings', JSON.stringify(bookings));
+  }, [bookings]);
+
+  // Save instruments to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('mslab_instruments', JSON.stringify(instruments));
+  }, [instruments]);
 
   // Function to add a new instrument
   const addInstrument = (instrumentData: Omit<Instrument, "id">) => {
@@ -279,7 +296,7 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
   };
 
   // Function to create a booking
-  const createBooking = async (bookingData: Omit<Booking, "id" | "createdAt" | "status"> & { status: "confirmed" | "pending" | "cancelled" }) => {
+  const createBooking = async (bookingData: Omit<Booking, "id" | "createdAt" | "status"> & { status: "Not-Started" | "In-Progress" | "Completed" | "Delayed" | "confirmed" | "pending" | "cancelled" }) => {
     return new Promise<void>((resolve) => {
       const newBooking: Booking = {
         id: uuidv4(),

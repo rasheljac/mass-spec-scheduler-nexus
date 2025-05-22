@@ -76,14 +76,14 @@ const InstrumentManagement: React.FC = () => {
     
     toast({
       title: "Instrument added",
-      description: `${data.name} has been added successfully.`
+      description: `${data.name} has been added and saved successfully.`
     });
   };
 
   const handleEditInstrument = (data: FormValues) => {
     if (!selectedInstrument) return;
     
-    updateInstrument({
+    const updatedInstrument = {
       ...selectedInstrument,
       name: data.name,
       model: data.model,
@@ -91,28 +91,33 @@ const InstrumentManagement: React.FC = () => {
       status: data.status,
       description: data.description,
       calibrationDue: data.calibrationDue ? format(data.calibrationDue, "yyyy-MM-dd") : undefined,
-    });
+    };
+
+    console.log("Updating instrument:", updatedInstrument);
+    updateInstrument(updatedInstrument);
     setIsEditDialogOpen(false);
     setSelectedInstrument(null);
     
     toast({
       title: "Instrument updated",
-      description: `${data.name} has been updated successfully.`
+      description: `${data.name} has been updated and saved successfully.`
     });
   };
 
   const handleDeleteInstrument = () => {
     if (!selectedInstrument) return;
     
+    console.log("Deleting instrument:", selectedInstrument.id);
     deleteInstrument(selectedInstrument.id);
     setIsDeleteDialogOpen(false);
-    setSelectedInstrument(null);
     
     toast({
       title: "Instrument deleted",
-      description: `${selectedInstrument.name} has been deleted.`,
+      description: `${selectedInstrument.name} has been deleted and changes saved.`,
       variant: "destructive"
     });
+    
+    setSelectedInstrument(null);
   };
 
   const handleEditClick = (instrument: Instrument) => {

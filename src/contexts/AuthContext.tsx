@@ -35,6 +35,10 @@ const MOCK_USERS: User[] = [
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [users, setUsers] = useState<User[]>(() => {
+    const savedUsers = localStorage.getItem("mslab_users");
+    return savedUsers ? JSON.parse(savedUsers) : MOCK_USERS;
+  });
 
   useEffect(() => {
     // Check for stored user on initial load
@@ -45,13 +49,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
+  // Save users to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("mslab_users", JSON.stringify(users));
+  }, [users]);
+
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     // Simulate API call delay
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    // Find the user (in a real app, this would be an API call)
-    const foundUser = MOCK_USERS.find(u => u.email === email);
+    // Find the user (using our updated users state)
+    const foundUser = users.find(u => u.email === email);
     
     if (foundUser && password === "password") { // Simple password check for demo
       setUser(foundUser);
@@ -68,20 +77,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Check if user already exists
-    if (MOCK_USERS.some(u => u.email === email)) {
+    if (users.some(u => u.email === email)) {
       throw new Error("User already exists");
     }
 
     // In a real app, would create the user via API
     const newUser: User = {
-      id: `${MOCK_USERS.length + 1}`,
+      id: `${users.length + 1}`,
       name,
       email,
       role: "user"
     };
 
-    // Simulate adding to database
-    MOCK_USERS.push(newUser);
+    // Add to our users array and update localStorage
+    const updatedUsers = [...users, newUser];
+    setUsers(updatedUsers);
     
     // Log in the new user
     setUser(newUser);
@@ -100,10 +110,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUser = { ...user, ...userData };
       setUser(updatedUser);
       
-      // Update in mock database for demonstration
-      const userIndex = MOCK_USERS.findIndex(u => u.id === user.id);
+      // Update in users array
+      const userIndex = users.findIndex(u => u.id === user.id);
       if (userIndex >= 0) {
-        MOCK_USERS[userIndex] = updatedUser;
+        const updatedUsers = [...users];
+        updatedUsers[userIndex] = updatedUser;
+        setUsers(updatedUsers);
       }
       
       // Update in local storage
