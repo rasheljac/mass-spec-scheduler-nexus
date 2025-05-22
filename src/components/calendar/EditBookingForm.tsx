@@ -61,7 +61,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
       instrumentName: booking.instrumentName,
       start: new Date(booking.start),
       end: new Date(booking.end),
-      purpose: booking.purpose,
+      purpose: booking.purpose || "",
       details: booking.details || "",
       status: booking.status,
     },

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -223,6 +222,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
         start: start.toISOString(),
         end: end.toISOString(),
         purpose: values.purpose,
+        details: values.purpose, // Add description field to match the type
         status: "confirmed"
       });
 

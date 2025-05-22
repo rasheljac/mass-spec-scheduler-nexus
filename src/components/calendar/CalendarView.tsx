@@ -70,8 +70,8 @@ const CalendarView: React.FC = () => {
   };
 
   // Format time for display
-  const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
+  const formatTime = (dateStr: string | Date) => {
+    const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
     return format(date, "h:mm a");
   };
 

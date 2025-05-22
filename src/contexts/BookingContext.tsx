@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { Instrument, Booking, BookingStatistics } from "../types";
 import { v4 as uuidv4 } from 'uuid';
@@ -10,7 +11,7 @@ interface BookingContextType {
   updateInstrument: (instrumentData: Instrument) => void;
   deleteInstrument: (instrumentId: string) => void;
   deleteBooking: (bookingId: string) => void;
-  createBooking: (bookingData: Omit<Booking, "id" | "createdAt" | "status"> & { status: "Not-Started" | "In-Progress" | "Completed" | "Delayed" | "confirmed" | "pending" | "cancelled" }) => Promise<void>;
+  createBooking: (bookingData: Omit<Booking, "id" | "createdAt"> & { status: "pending" | "confirmed" | "cancelled" | "Not-Started" | "In-Progress" | "Completed" | "Delayed" }) => Promise<void>;
   updateBooking: (bookingData: Booking) => Promise<void>;
   applyDelay: (delayMinutes: number, startDateTime: Date) => Promise<void>;
   statistics: BookingStatistics;

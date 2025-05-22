@@ -20,8 +20,8 @@ const UpcomingBookings: React.FC = () => {
     .slice(0, 5);
 
   // Format the date string nicely
-  const formatDateDisplay = (dateStr: string): string => {
-    const date = new Date(dateStr);
+  const formatDateDisplay = (dateStr: string | Date): string => {
+    const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
     
     if (isToday(date)) {
       return `Today at ${format(date, "h:mm a")}`;
@@ -51,7 +51,7 @@ const UpcomingBookings: React.FC = () => {
                 <p className="text-sm text-muted-foreground">
                   Booked by: {booking.userName}
                 </p>
-                <p className="text-sm">{booking.purpose}</p>
+                <p className="text-sm">{booking.purpose || booking.description}</p>
               </div>
             ))}
           </div>
