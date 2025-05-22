@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React from "react";
 import { Routes, Route } from "react-router-dom";
 import { BookingProvider } from "./contexts/BookingContext";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -19,8 +19,8 @@ import { Toaster } from "./components/ui/sonner";
 import { supabase } from "./integrations/supabase/client";
 
 function App() {
-  // Log Supabase connection on app init
-  useEffect(() => {
+  // Move the Supabase check inside the component function
+  React.useEffect(() => {
     const checkSupabase = async () => {
       try {
         const { data, error } = await supabase.from('profiles').select('count').limit(1);
