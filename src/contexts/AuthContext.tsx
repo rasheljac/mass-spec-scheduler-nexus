@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { User } from '../types';
@@ -10,6 +9,7 @@ import { toast } from 'sonner';
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
+  isLoading: boolean; // Added isLoading property
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   signup: (name: string, email: string, password: string) => Promise<boolean>;
@@ -65,6 +65,7 @@ const defaultUsers: User[] = [
 export const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthenticated: false,
+  isLoading: true, // Added isLoading with default value true
   login: async () => false,
   logout: () => {},
   signup: async () => false,
@@ -471,7 +472,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           name: userData.name,
           email: userData.email,
           department: userData.department || null,
-          profile_image: userData.profileImage || null
+          profileImage: userData.profileImage || null
         })
         .eq('id', userData.id);
       
@@ -652,7 +653,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           email: userData.email,
           department: userData.department || null,
           role: userData.role,
-          profile_image: userData.profileImage || null
+          profileImage: userData.profileImage || null
         })
         .eq('id', userData.id);
       
@@ -747,6 +748,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         user,
         isAuthenticated: !!user,
+        isLoading: loading, // Expose loading state to context consumers
         login,
         logout,
         signup,
