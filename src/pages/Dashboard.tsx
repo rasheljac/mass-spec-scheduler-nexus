@@ -19,6 +19,7 @@ const Dashboard: React.FC = () => {
           toast.error('Error connecting to database');
         } else {
           console.log('Successfully connected to Supabase');
+          console.log('Instruments count:', data);
         }
       } catch (err) {
         console.error('Unexpected error:', err);

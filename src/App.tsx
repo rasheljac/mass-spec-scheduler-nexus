@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Routes, Route } from "react-router-dom";
 import { BookingProvider } from "./contexts/BookingContext";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -17,20 +17,23 @@ import "./App.css";
 import Index from "./pages/Index";
 import { Toaster } from "./components/ui/sonner";
 import { supabase } from "./integrations/supabase/client";
+import { toast } from "sonner";
 
 function App() {
-  // Move the Supabase check inside the component function
-  React.useEffect(() => {
+  // Check Supabase connection on app initialization
+  useEffect(() => {
     const checkSupabase = async () => {
       try {
-        const { data, error } = await supabase.from('profiles').select('count').limit(1);
+        const { data, error } = await supabase.from('instruments').select('count').limit(1);
         if (error) {
           console.error('Supabase connection error:', error);
+          toast.error('Failed to connect to database');
         } else {
           console.log('Supabase connected successfully');
         }
       } catch (e) {
         console.error('Supabase initialization error:', e);
+        toast.error('Database initialization error');
       }
     };
     
