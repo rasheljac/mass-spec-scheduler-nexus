@@ -1,0 +1,347 @@
+
+import { useState } from "react";
+import { Booking, Comment, User } from "../types";
+import { supabase } from "../integrations/supabase/client";
+import { toast } from "sonner";
+import { sendEmail, createBookingNotification, createStatusUpdateNotification, createDelayNotification } from "../utils/emailNotifications";
+
+export const useBookings = (users: User[]) => {
+  const [bookings, setBookings] = useState<Booking[]>([]);
+
+  // Helper function to find user email by userId
+  const getUserEmailById = (userId: string): string => {
+    const user = users.find(u => u.id === userId);
+    return user?.email || "";
+  };
+
+  // Helper function to find user name by userId
+  const getUserNameById = (userId: string): string => {
+    const user = users.find(u => u.id === userId);
+    return user?.name || "Unknown User";
+  };
+
+  // Load bookings from Supabase
+  const loadBookings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('*');
+
+      if (error) {
+        throw error;
+      }
+      
+      // Transform Supabase data to match our Booking type
+      if (data) {
+        const bookingsWithComments: Booking[] = [];
+        
+        for (const booking of data) {
+          // Get the instrument name for each booking
+          const { data: instrumentData } = await supabase
+            .from('instruments')
+            .select('name')
+            .eq('id', booking.instrument_id)
+            .single();
+            
+          // Get the user name for each booking
+          const { data: userData } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', booking.user_id)
+            .single();
+            
+          // Get comments for this booking
+          const { data: commentsData, error: commentsError } = await supabase
+            .from('comments')
+            .select('*')
+            .eq('booking_id', booking.id);
+            
+          if (commentsError) {
+            console.error("Error fetching comments:", commentsError);
+          }
+            
+          const formattedComments: Comment[] = [];
+          
+          if (commentsData) {
+            // Fetch user names for each comment
+            for (const comment of commentsData) {
+              const { data: commentUserData } = await supabase
+                .from('profiles')
+                .select('name')
+                .eq('id', comment.user_id)
+                .single();
+                
+              formattedComments.push({
+                id: comment.id,
+                userId: comment.user_id,
+                userName: commentUserData ? commentUserData.name : getUserNameById(comment.user_id),
+                content: comment.content,
+                createdAt: new Date(comment.created_at).toISOString()
+              });
+            }
+          }
+            
+          const formattedBooking: Booking = {
+            id: booking.id,
+            userId: booking.user_id,
+            userName: userData ? userData.name : "Unknown User",
+            instrumentId: booking.instrument_id,
+            instrumentName: instrumentData ? instrumentData.name : "Unknown Instrument",
+            start: new Date(booking.start_time).toISOString(),
+            end: new Date(booking.end_time).toISOString(),
+            purpose: booking.purpose,
+            status: booking.status,
+            createdAt: new Date(booking.created_at).toISOString(),
+            details: booking.details || "",
+            comments: formattedComments
+          };
+          
+          bookingsWithComments.push(formattedBooking);
+        }
+        
+        setBookings(bookingsWithComments);
+      }
+    } catch (error) {
+      console.error("Error loading bookings:", error);
+      toast.error("Failed to load bookings");
+    }
+  };
+
+  // Function to create a booking
+  const createBooking = async (bookingData: Omit<Booking, "id" | "createdAt"> & { status: "pending" | "confirmed" | "cancelled" | "Not-Started" | "In-Progress" | "Completed" | "Delayed" }) => {
+    try {
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert({
+          user_id: bookingData.userId,
+          instrument_id: bookingData.instrumentId,
+          start_time: bookingData.start,
+          end_time: bookingData.end,
+          purpose: bookingData.purpose,
+          status: bookingData.status,
+          details: bookingData.details || null
+        })
+        .select();
+
+      if (error) {
+        throw error;
+      }
+      
+      if (data && data[0]) {
+        // Reload bookings to get the updated list
+        await loadBookings();
+        
+        // Send email notification for new booking
+        const userEmail = getUserEmailById(bookingData.userId);
+        if (userEmail) {
+          const notification = createBookingNotification(
+            userEmail,
+            bookingData.userName,
+            bookingData.instrumentName,
+            bookingData.start,
+            bookingData.end
+          );
+          sendEmail(notification).catch(error => console.error("Failed to send booking notification:", error));
+        }
+        
+        toast.success("Booking created successfully");
+      }
+    } catch (error) {
+      console.error("Error creating booking:", error);
+      toast.error("Failed to create booking");
+      throw error;
+    }
+  };
+
+  // Function to update a booking
+  const updateBooking = async (bookingData: Booking) => {
+    try {
+      // Find the existing booking to compare status
+      const existingBooking = bookings.find(booking => booking.id === bookingData.id);
+      const statusChanged = existingBooking && existingBooking.status !== bookingData.status;
+      
+      // Update in Supabase
+      const { error } = await supabase
+        .from('bookings')
+        .update({
+          user_id: bookingData.userId,
+          instrument_id: bookingData.instrumentId,
+          start_time: bookingData.start,
+          end_time: bookingData.end,
+          purpose: bookingData.purpose,
+          status: bookingData.status,
+          details: bookingData.details || null
+        })
+        .eq('id', bookingData.id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Reload bookings to get the updated list
+      await loadBookings();
+      
+      // Send status update notification if status has changed
+      if (statusChanged) {
+        const userEmail = getUserEmailById(bookingData.userId);
+        if (userEmail) {
+          const notification = createStatusUpdateNotification(
+            userEmail,
+            bookingData.userName,
+            bookingData.instrumentName,
+            bookingData.status
+          );
+          sendEmail(notification).catch(error => console.error("Failed to send status update notification:", error));
+        }
+      }
+      
+      toast.success("Booking updated successfully");
+    } catch (error) {
+      console.error("Error updating booking:", error);
+      toast.error("Failed to update booking");
+      throw error;
+    }
+  };
+
+  // Function to delete a booking
+  const deleteBooking = async (bookingId: string) => {
+    try {
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', bookingId);
+
+      if (error) {
+        throw error;
+      }
+
+      // Reload bookings to get the updated list
+      await loadBookings();
+      toast.success("Booking deleted successfully");
+    } catch (error) {
+      console.error("Error deleting booking:", error);
+      toast.error("Failed to delete booking");
+    }
+  };
+
+  // Function to add a comment to a booking
+  const addCommentToBooking = async (bookingId: string, comment: Omit<Comment, "id">) => {
+    try {
+      // Insert into Supabase
+      const { data, error } = await supabase
+        .from('comments')
+        .insert({
+          booking_id: bookingId,
+          user_id: comment.userId,
+          content: comment.content
+        })
+        .select();
+
+      if (error) {
+        throw error;
+      }
+
+      if (data && data[0]) {
+        // Reload bookings to get the updated comments
+        await loadBookings();
+        toast.success("Comment added successfully");
+      }
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      toast.error("Failed to add comment");
+      throw error;
+    }
+  };
+
+  // Function to delete a comment from a booking
+  const deleteCommentFromBooking = async (bookingId: string, commentId: string) => {
+    try {
+      // Delete from Supabase
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId);
+
+      if (error) {
+        throw error;
+      }
+
+      // Reload bookings to get the updated comments
+      await loadBookings();
+      toast.success("Comment deleted successfully");
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      toast.error("Failed to delete comment");
+      throw error;
+    }
+  };
+
+  // Function to apply delay to bookings after a certain time
+  const applyDelay = async (delayMinutes: number, startDateTime: Date) => {
+    try {
+      const startTime = startDateTime.getTime();
+      
+      // Get bookings that will be affected by the delay
+      const affectedBookingsData = bookings.filter(booking => {
+        const bookingStart = new Date(booking.start).getTime();
+        return bookingStart >= startTime;
+      });
+      
+      // Update all affected bookings
+      for (const booking of affectedBookingsData) {
+        const bookingStart = new Date(booking.start).getTime();
+        const bookingEnd = new Date(booking.end).getTime();
+        
+        if (bookingStart >= startTime) {
+          const newStart = new Date(bookingStart + delayMinutes * 60 * 1000).toISOString();
+          const newEnd = new Date(bookingEnd + delayMinutes * 60 * 1000).toISOString();
+          
+          await supabase
+            .from('bookings')
+            .update({
+              start_time: newStart,
+              end_time: newEnd,
+            })
+            .eq('id', booking.id);
+        }
+      }
+      
+      // Reload bookings to get the updated list
+      await loadBookings();
+      
+      // Send delay notifications to affected users
+      affectedBookingsData.forEach(booking => {
+        const userEmail = getUserEmailById(booking.userId);
+        if (userEmail) {
+          const notification = createDelayNotification(
+            userEmail,
+            booking.userName,
+            booking.instrumentName,
+            delayMinutes
+          );
+          sendEmail(notification).catch(error => console.error("Failed to send delay notification:", error));
+        }
+      });
+      
+      toast.success(`Successfully applied ${delayMinutes} minute delay to ${affectedBookingsData.length} bookings`);
+    } catch (error) {
+      console.error("Error applying delay:", error);
+      toast.error("Failed to apply delay to bookings");
+      throw error;
+    }
+  };
+
+  return {
+    bookings,
+    setBookings,
+    loadBookings,
+    createBooking,
+    updateBooking,
+    deleteBooking,
+    addCommentToBooking,
+    deleteCommentFromBooking,
+    applyDelay
+  };
+};
