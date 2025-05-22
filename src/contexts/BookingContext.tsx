@@ -1,6 +1,8 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { Instrument, Booking, BookingStatistics, Comment } from "../types";
 import { v4 as uuidv4 } from 'uuid';
+import { sendEmail, createBookingNotification, createStatusUpdateNotification, createDelayNotification } from "../utils/emailNotifications";
+import { useAuth } from "./AuthContext";
 
 interface BookingContextType {
   bookings: Booking[];
@@ -15,6 +17,7 @@ interface BookingContextType {
   applyDelay: (delayMinutes: number, startDateTime: Date) => Promise<void>;
   statistics: BookingStatistics;
   addCommentToBooking: (bookingId: string, comment: Omit<Comment, "id">) => Promise<void>;
+  deleteCommentFromBooking: (bookingId: string, commentId: string) => Promise<void>;
 }
 
 export const BookingContext = createContext<BookingContextType>({
@@ -35,6 +38,7 @@ export const BookingContext = createContext<BookingContextType>({
     weeklyUsage: []
   },
   addCommentToBooking: async () => {},
+  deleteCommentFromBooking: async () => {},
 });
 
 const initialInstruments: Instrument[] = [
@@ -264,6 +268,8 @@ const initialBookings: Booking[] = [
 ];
 
 export const BookingProvider = ({ children }: { children: React.ReactNode }) => {
+  const { users } = useAuth();
+  
   // Load bookings and instruments from localStorage on initialization or use defaults
   const [bookings, setBookings] = useState<Booking[]>(() => {
     const savedBookings = localStorage.getItem('mslab_bookings');
@@ -284,6 +290,12 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
   useEffect(() => {
     localStorage.setItem('mslab_instruments', JSON.stringify(instruments));
   }, [instruments]);
+
+  // Helper function to find user email by userId
+  const getUserEmailById = (userId: string): string => {
+    const user = users.find(u => u.id === userId);
+    return user?.email || "";
+  };
 
   // Function to add a new instrument
   const addInstrument = (instrumentData: Omit<Instrument, "id">) => {
@@ -329,6 +341,19 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
       
       setBookings(prevBookings => [...prevBookings, newBooking]);
       
+      // Send email notification for new booking
+      const userEmail = getUserEmailById(bookingData.userId);
+      if (userEmail) {
+        const notification = createBookingNotification(
+          userEmail,
+          bookingData.userName,
+          bookingData.instrumentName,
+          bookingData.start,
+          bookingData.end
+        );
+        sendEmail(notification).catch(error => console.error("Failed to send booking notification:", error));
+      }
+      
       // Simulate API delay
       setTimeout(() => {
         resolve();
@@ -339,11 +364,29 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
   // Function to update a booking
   const updateBooking = async (bookingData: Booking) => {
     return new Promise<void>((resolve) => {
+      // Find the existing booking to compare status
+      const existingBooking = bookings.find(booking => booking.id === bookingData.id);
+      const statusChanged = existingBooking && existingBooking.status !== bookingData.status;
+      
       setBookings(prevBookings =>
         prevBookings.map(booking =>
           booking.id === bookingData.id ? bookingData : booking
         )
       );
+
+      // Send status update notification if status has changed
+      if (statusChanged) {
+        const userEmail = getUserEmailById(bookingData.userId);
+        if (userEmail) {
+          const notification = createStatusUpdateNotification(
+            userEmail,
+            bookingData.userName,
+            bookingData.instrumentName,
+            bookingData.status
+          );
+          sendEmail(notification).catch(error => console.error("Failed to send status update notification:", error));
+        }
+      }
       
       // Simulate API delay
       setTimeout(() => {
@@ -378,10 +421,37 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
     });
   };
 
+  // New function to delete a comment from a booking
+  const deleteCommentFromBooking = async (bookingId: string, commentId: string) => {
+    return new Promise<void>((resolve) => {
+      setBookings(prevBookings =>
+        prevBookings.map(booking =>
+          booking.id === bookingId 
+            ? { 
+                ...booking, 
+                comments: (booking.comments || []).filter(comment => comment.id !== commentId)
+              }
+            : booking
+        )
+      );
+      
+      // Simulate API delay
+      setTimeout(() => {
+        resolve();
+      }, 500);
+    });
+  };
+
   // Function to apply delay to bookings after a certain time
   const applyDelay = async (delayMinutes: number, startDateTime: Date) => {
     return new Promise<void>((resolve) => {
       const startTime = startDateTime.getTime();
+      
+      // Get bookings that will be affected by the delay
+      const affectedBookings = bookings.filter(booking => {
+        const bookingStart = new Date(booking.start).getTime();
+        return bookingStart >= startTime;
+      });
       
       setBookings(prevBookings =>
         prevBookings.map(booking => {
@@ -402,6 +472,20 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
           return booking;
         })
       );
+      
+      // Send delay notifications to affected users
+      affectedBookings.forEach(booking => {
+        const userEmail = getUserEmailById(booking.userId);
+        if (userEmail) {
+          const notification = createDelayNotification(
+            userEmail,
+            booking.userName,
+            booking.instrumentName,
+            delayMinutes
+          );
+          sendEmail(notification).catch(error => console.error("Failed to send delay notification:", error));
+        }
+      });
       
       // Simulate API delay
       setTimeout(() => {
@@ -509,6 +593,7 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
       applyDelay,
       statistics,
       addCommentToBooking,
+      deleteCommentFromBooking,
     }}>
       {children}
     </BookingContext.Provider>

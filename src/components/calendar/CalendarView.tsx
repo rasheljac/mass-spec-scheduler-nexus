@@ -12,6 +12,7 @@ import { Booking } from "../../types";
 import BookingForm from "./BookingForm";
 import EditBookingForm from "./EditBookingForm";
 import { useAuth } from "../../contexts/AuthContext";
+import { toast } from "../ui/sonner";
 
 type ViewMode = "day" | "week" | "month";
 
@@ -113,10 +114,12 @@ const CalendarView: React.FC = () => {
           ...selectedBooking,
           ...bookingData
         });
+        toast.success("Booking updated successfully");
         setIsEditModalOpen(false);
         setSelectedBooking(null); // Clear the selected booking after update
       } catch (error) {
         console.error("Error updating booking:", error);
+        toast.error("Failed to update booking");
       }
     }
   };

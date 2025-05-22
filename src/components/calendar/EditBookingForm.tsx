@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,7 +16,7 @@ import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
-import { CalendarIcon, MessageSquare } from "lucide-react";
+import { CalendarIcon, MessageSquare, Trash2 } from "lucide-react";
 import { format, addHours, isSameDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Booking, Comment } from "../../types";
@@ -26,6 +27,8 @@ import { Card, CardContent } from "../ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Separator } from "../ui/separator";
 import { v4 as uuidv4 } from 'uuid';
+import { useBooking } from "../../contexts/BookingContext";
+import { toast } from "../ui/sonner";
 
 const formSchema = z.object({
   instrumentId: z.string(),
@@ -60,6 +63,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   isSubmitting = false,
 }) => {
   const { user } = useAuth();
+  const { deleteCommentFromBooking } = useBooking();
   const [comments, setComments] = useState<Comment[]>([]);
   const [formInitialized, setFormInitialized] = useState(false);
   
@@ -208,6 +212,27 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
 
     setComments([...comments, newComment]);
     form.setValue("newComment", "");
+  };
+  
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      // First update the local state for immediate visual feedback
+      setComments(currentComments => currentComments.filter(comment => comment.id !== commentId));
+      
+      // Then update in the context (which will update localStorage)
+      if (booking) {
+        await deleteCommentFromBooking(booking.id, commentId);
+        toast.success("Comment deleted successfully");
+      }
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      toast.error("Failed to delete comment");
+    }
+  };
+  
+  // Helper function to check if user can delete a comment
+  const canDeleteComment = (comment: Comment) => {
+    return user.role === "admin" || comment.userId === user.id;
   };
 
   return (
@@ -447,11 +472,24 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
                               <AvatarFallback>{comment.userName.charAt(0)}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
-                              <div className="flex items-center space-x-2">
-                                <h4 className="font-medium">{comment.userName}</h4>
-                                <span className="text-xs text-muted-foreground">
-                                  {format(new Date(comment.createdAt), "MMM d, yyyy 'at' h:mm a")}
-                                </span>
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <h4 className="font-medium">{comment.userName}</h4>
+                                  <span className="text-xs text-muted-foreground">
+                                    {format(new Date(comment.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                                  </span>
+                                </div>
+                                {canDeleteComment(comment) && (
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={() => handleDeleteComment(comment.id)}
+                                    className="h-8 w-8 text-destructive hover:text-destructive/90"
+                                    title="Delete comment"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                               <p className="text-sm mt-1">{comment.content}</p>
                             </div>
