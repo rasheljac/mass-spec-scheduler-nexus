@@ -57,6 +57,12 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
     return user?.email || "";
   };
 
+  // Helper function to find user name by userId
+  const getUserNameById = (userId: string): string => {
+    const user = users.find(u => u.id === userId);
+    return user?.name || "Unknown User";
+  };
+
   // Load instruments and bookings from Supabase on initialization
   useEffect(() => {
     const loadData = async () => {
@@ -96,7 +102,8 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
           type: item.type || "",
           model: item.model || "",
           location: item.location,
-          status: item.status,
+          // Ensure status is one of the allowed values
+          status: (item.status as "available" | "in_use" | "maintenance" | "offline"),
           image: item.image || "",
           description: item.description,
           specifications: item.specifications,
@@ -169,6 +176,27 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
             console.error("Error fetching comments:", commentsError);
           }
             
+          const formattedComments: Comment[] = [];
+          
+          if (commentsData) {
+            // Fetch user names for each comment
+            for (const comment of commentsData) {
+              const { data: commentUserData } = await supabase
+                .from('profiles')
+                .select('name')
+                .eq('id', comment.user_id)
+                .single();
+                
+              formattedComments.push({
+                id: comment.id,
+                userId: comment.user_id,
+                userName: commentUserData ? commentUserData.name : getUserNameById(comment.user_id),
+                content: comment.content,
+                createdAt: new Date(comment.created_at).toISOString()
+              });
+            }
+          }
+            
           const formattedBooking: Booking = {
             id: booking.id,
             userId: booking.user_id,
@@ -181,12 +209,7 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
             status: booking.status,
             createdAt: new Date(booking.created_at).toISOString(),
             details: booking.details || "",
-            comments: commentsData ? commentsData.map(comment => ({
-              id: comment.id,
-              userId: comment.user_id,
-              content: comment.content,
-              createdAt: new Date(comment.created_at).toISOString()
-            })) : []
+            comments: formattedComments
           };
           
           bookingsWithComments.push(formattedBooking);
