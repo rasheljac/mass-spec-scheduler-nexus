@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import { format, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay, parseISO } from "date-fns";
+import { format, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay, parseISO, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval } from "date-fns";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Pencil } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
@@ -31,6 +31,12 @@ const CalendarView: React.FC = () => {
     end: endOfWeek(selectedDate, { weekStartsOn: 0 })       // Saturday
   };
 
+  // Helper to get the month range displayed
+  const monthRange = {
+    start: startOfMonth(selectedDate),
+    end: endOfMonth(selectedDate)
+  };
+
   // Helper function to safely parse ISO date strings
   const safeParseISO = (dateStr: string | Date): Date => {
     if (dateStr instanceof Date) return dateStr;
@@ -42,7 +48,7 @@ const CalendarView: React.FC = () => {
     }
   };
 
-  // Get bookings for the current view (day or week)
+  // Get bookings for the current view (day, week, or month)
   const getVisibleBookings = (): Booking[] => {
     if (viewMode === "day") {
       return bookings.filter(booking => {
@@ -57,8 +63,15 @@ const CalendarView: React.FC = () => {
         const bookingDate = safeParseISO(booking.start);
         return bookingDate >= weekStart && bookingDate <= weekEnd && booking.status !== "cancelled";
       });
+    } else if (viewMode === "month") {
+      const monthStart = startOfMonth(selectedDate);
+      const monthEnd = endOfMonth(selectedDate);
+      
+      return bookings.filter(booking => {
+        const bookingDate = safeParseISO(booking.start);
+        return bookingDate >= monthStart && bookingDate <= monthEnd && booking.status !== "cancelled";
+      });
     }
-    // Month view will need further implementation
     return bookings.filter(b => b.status !== "cancelled");
   };
 
@@ -71,16 +84,18 @@ const CalendarView: React.FC = () => {
       setSelectedDate(addDays(selectedDate, 1));
     } else if (viewMode === "week") {
       setSelectedDate(addWeeks(selectedDate, 1));
+    } else if (viewMode === "month") {
+      setSelectedDate(addMonths(selectedDate, 1));
     }
-    // Add month navigation later
   };
   const movePrevious = () => {
     if (viewMode === "day") {
       setSelectedDate(addDays(selectedDate, -1));
     } else if (viewMode === "week") {
       setSelectedDate(subWeeks(selectedDate, 1));
+    } else if (viewMode === "month") {
+      setSelectedDate(subMonths(selectedDate, 1));
     }
-    // Add month navigation later
   };
 
   // Format time for display
@@ -262,6 +277,110 @@ const CalendarView: React.FC = () => {
     );
   };
 
+  // Generate month view
+  const renderMonthView = () => {
+    // Get all days in the current month
+    const days = eachDayOfInterval({
+      start: monthRange.start,
+      end: monthRange.end
+    });
+
+    // Create calendar grid (6 weeks x 7 days)
+    const startOfView = startOfWeek(monthRange.start, { weekStartsOn: 0 });
+    const endOfView = endOfWeek(monthRange.end, { weekStartsOn: 0 });
+    
+    const calendarDays = eachDayOfInterval({
+      start: startOfView,
+      end: endOfView
+    });
+
+    // Group by weeks
+    const weeks: Date[][] = [];
+    let currentWeek: Date[] = [];
+    
+    calendarDays.forEach((day) => {
+      if (currentWeek.length === 7) {
+        weeks.push(currentWeek);
+        currentWeek = [];
+      }
+      currentWeek.push(day);
+    });
+    
+    if (currentWeek.length > 0) {
+      weeks.push(currentWeek);
+    }
+
+    return (
+      <div className="space-y-4">
+        <h2 className="font-medium text-lg text-center">
+          {format(selectedDate, "MMMM yyyy")}
+        </h2>
+        
+        <div className="border rounded-md overflow-hidden">
+          {/* Week day headers */}
+          <div className="grid grid-cols-7 bg-accent/50">
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+              <div key={day} className="p-2 text-center font-medium">
+                {day}
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar grid */}
+          <div className="divide-y">
+            {weeks.map((week, weekIndex) => (
+              <div key={weekIndex} className="grid grid-cols-7 divide-x">
+                {week.map((day) => {
+                  const isCurrentMonth = day.getMonth() === selectedDate.getMonth();
+                  const dayBookings = bookings.filter(booking => {
+                    const bookingDate = safeParseISO(booking.start);
+                    return isSameDay(bookingDate, day) && booking.status !== "cancelled";
+                  });
+
+                  return (
+                    <div 
+                      key={day.toString()}
+                      className={cn(
+                        "p-1 min-h-[100px] relative",
+                        !isCurrentMonth && "bg-muted/20 text-muted-foreground",
+                        isToday(day) && "bg-accent/40",
+                      )}
+                    >
+                      <div className={cn(
+                        "absolute top-1 right-1 w-6 h-6 flex items-center justify-center rounded-full text-sm",
+                        isToday(day) && "bg-primary text-primary-foreground"
+                      )}>
+                        {format(day, "d")}
+                      </div>
+                      
+                      <div className="mt-6 space-y-1 text-xs">
+                        {dayBookings.slice(0, 3).map((booking) => (
+                          <div 
+                            key={booking.id}
+                            className="bg-primary/10 p-1 rounded truncate cursor-pointer"
+                            onClick={() => handleEditBooking(booking)}
+                            title={`${booking.instrumentName} - ${booking.userName}`}
+                          >
+                            {formatTime(booking.start)} {booking.instrumentName}
+                          </div>
+                        ))}
+                        {dayBookings.length > 3 && (
+                          <div className="text-xs text-muted-foreground">
+                            +{dayBookings.length - 3} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
@@ -311,7 +430,7 @@ const CalendarView: React.FC = () => {
             <Button
               variant={viewMode === "day" ? "default" : "ghost"}
               size="sm"
-              className="rounded-r-none"
+              className="rounded-r-none rounded-l-md"
               onClick={() => setViewMode("day")}
             >
               Day
@@ -319,10 +438,18 @@ const CalendarView: React.FC = () => {
             <Button
               variant={viewMode === "week" ? "default" : "ghost"}
               size="sm"
-              className="rounded-l-none"
+              className="rounded-none border-x"
               onClick={() => setViewMode("week")}
             >
               Week
+            </Button>
+            <Button
+              variant={viewMode === "month" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-l-none rounded-r-md"
+              onClick={() => setViewMode("month")}
+            >
+              Month
             </Button>
           </div>
 
@@ -333,7 +460,11 @@ const CalendarView: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-lg shadow p-4">
-        {viewMode === "day" ? renderDayView() : renderWeekView()}
+        {viewMode === "day" 
+          ? renderDayView() 
+          : viewMode === "week" 
+          ? renderWeekView()
+          : renderMonthView()}
       </div>
 
       <BookingForm
