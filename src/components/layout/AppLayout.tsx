@@ -10,6 +10,7 @@ const AppLayout: React.FC = () => {
   const location = useLocation();
 
   if (!isAuthenticated) {
+    // Save the current location to redirect back after login
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 

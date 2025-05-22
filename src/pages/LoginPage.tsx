@@ -1,16 +1,20 @@
 
 import React from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import AuthModal from "../components/auth/AuthModal";
 
 const LoginPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Get the redirect path from location state, or default to dashboard
+  const from = (location.state as { from?: string })?.from || "/";
 
   // Redirect to dashboard if already authenticated
   if (isAuthenticated) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={from} replace />;
   }
 
   return (

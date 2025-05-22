@@ -34,6 +34,7 @@ const LoginForm: React.FC = () => {
   const onSubmit = async (values: FormValues) => {
     try {
       setIsLoading(true);
+      console.log("Attempting login with:", values.email); // Debug
       const success = await login(values.email, values.password);
       if (success) {
         toast({

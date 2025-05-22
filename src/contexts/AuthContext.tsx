@@ -47,6 +47,15 @@ const defaultUsers: User[] = [
     role: 'user',
     department: 'Laboratory',
     profileImage: ''
+  },
+  {
+    id: '4',
+    name: 'Eddy Kapelczak',
+    email: 'eddy@kapelczak.com',
+    password: 'Eddie#12',
+    role: 'user',
+    department: 'Research',
+    profileImage: ''
   }
 ];
 
