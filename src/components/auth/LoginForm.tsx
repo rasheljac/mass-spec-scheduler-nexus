@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -50,6 +51,7 @@ const LoginForm: React.FC = () => {
           title: "Login successful!",
           description: "Welcome back to the Mass Spec Lab",
         });
+        
         // Explicitly navigate to dashboard after successful login
         navigate("/", { replace: true });
       } else {

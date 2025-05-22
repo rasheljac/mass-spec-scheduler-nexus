@@ -80,62 +80,87 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   
   // Initialize users state from localStorage or use default
   const [users, setUsers] = useState<User[]>(() => {
-    const storedUsers = localStorage.getItem('mslab_users');
-    
-    // If there are stored users, but the eddy@kapelczak.com user is missing, add it
-    if (storedUsers) {
-      const parsedUsers = JSON.parse(storedUsers);
-      const userExists = parsedUsers.some((u: User) => u.email === 'eddy@kapelczak.com');
+    try {
+      const storedUsers = localStorage.getItem('mslab_users');
       
-      if (!userExists) {
-        // Add the missing user
-        parsedUsers.push({
-          id: '4',
-          name: 'Eddy Kapelczak',
-          email: 'eddy@kapelczak.com',
-          password: 'Eddie#12',
-          role: 'user',
-          department: 'Research',
-          profileImage: ''
-        });
+      // If there are stored users, but the eddy@kapelczak.com user is missing, add it
+      if (storedUsers) {
+        const parsedUsers = JSON.parse(storedUsers);
+        const userExists = parsedUsers.some((u: User) => u.email.toLowerCase() === 'eddy@kapelczak.com');
         
-        // Update localStorage with the fixed users array
-        localStorage.setItem('mslab_users', JSON.stringify(parsedUsers));
+        if (!userExists) {
+          // Add the missing user
+          parsedUsers.push({
+            id: '4',
+            name: 'Eddy Kapelczak',
+            email: 'eddy@kapelczak.com',
+            password: 'Eddie#12',
+            role: 'user',
+            department: 'Research',
+            profileImage: ''
+          });
+          
+          // Update localStorage with the fixed users array
+          localStorage.setItem('mslab_users', JSON.stringify(parsedUsers));
+        }
+        
         return parsedUsers;
       }
       
-      return parsedUsers;
+      // If no users in localStorage, store the default users
+      localStorage.setItem('mslab_users', JSON.stringify(defaultUsers));
+      return defaultUsers;
+    } catch (error) {
+      console.error("Error loading users from localStorage:", error);
+      return defaultUsers;
     }
-    
-    return defaultUsers;
   });
   
   // Initialize user state from localStorage
   const [user, setUser] = useState<User | null>(() => {
-    const storedUser = localStorage.getItem('mslab_current_user');
-    return storedUser ? JSON.parse(storedUser) : null;
+    try {
+      const storedUser = localStorage.getItem('mslab_current_user');
+      return storedUser ? JSON.parse(storedUser) : null;
+    } catch (error) {
+      console.error("Error loading current user from localStorage:", error);
+      return null;
+    }
   });
   
   // Update localStorage when users change
   useEffect(() => {
-    localStorage.setItem('mslab_users', JSON.stringify(users));
+    try {
+      localStorage.setItem('mslab_users', JSON.stringify(users));
+    } catch (error) {
+      console.error("Error saving users to localStorage:", error);
+    }
   }, [users]);
   
   // Update localStorage when current user changes
   useEffect(() => {
-    if (user) {
-      localStorage.setItem('mslab_current_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('mslab_current_user');
+    try {
+      if (user) {
+        localStorage.setItem('mslab_current_user', JSON.stringify(user));
+      } else {
+        localStorage.removeItem('mslab_current_user');
+      }
+    } catch (error) {
+      console.error("Error saving current user to localStorage:", error);
     }
   }, [user]);
   
   const login = async (email: string, password: string): Promise<boolean> => {
     console.log(`Login attempt for: ${email} with password: ${password}`);
-    console.log(`Available users: ${JSON.stringify(users.map(u => ({ email: u.email, password: u.password })))}`);
     
     // Clear case-sensitivity issues - normalize email for comparison
     const normalizedEmail = email.toLowerCase().trim();
+    
+    // Log available users for debugging
+    console.log(`Available users:`, users.map(u => ({ 
+      id: u.id,
+      email: u.email, 
+      password: u.password 
+    })));
     
     // Simulate API call delay
     return new Promise((resolve) => {
@@ -247,17 +272,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       id: uuidv4(),
       ...userData
     };
-    setUsers(prevUsers => [...prevUsers, newUser]);
+    const updatedUsers = [...users, newUser];
+    setUsers(updatedUsers);
+    
+    // Save immediately to localStorage
+    try {
+      localStorage.setItem('mslab_users', JSON.stringify(updatedUsers));
+    } catch (error) {
+      console.error("Error saving new user to localStorage:", error);
+    }
   };
   
   const updateUser = (userData: User) => {
-    setUsers(prevUsers => 
-      prevUsers.map(u => u.id === userData.id ? userData : u)
-    );
+    const updatedUsers = users.map(u => u.id === userData.id ? userData : u);
+    setUsers(updatedUsers);
     
     // Update the current user if the updated user is the current user
     if (user && user.id === userData.id) {
       setUser(userData);
+      
+      // Save immediately to localStorage
+      try {
+        localStorage.setItem('mslab_current_user', JSON.stringify(userData));
+      } catch (error) {
+        console.error("Error updating current user in localStorage:", error);
+      }
+    }
+    
+    // Save immediately to localStorage
+    try {
+      localStorage.setItem('mslab_users', JSON.stringify(updatedUsers));
+    } catch (error) {
+      console.error("Error saving updated users to localStorage:", error);
     }
   };
   
@@ -272,7 +318,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     
-    setUsers(prevUsers => prevUsers.filter(u => u.id !== userId));
+    const updatedUsers = users.filter(u => u.id !== userId);
+    setUsers(updatedUsers);
+    
+    // Save immediately to localStorage
+    try {
+      localStorage.setItem('mslab_users', JSON.stringify(updatedUsers));
+    } catch (error) {
+      console.error("Error saving users after deletion to localStorage:", error);
+    }
   };
   
   return (
