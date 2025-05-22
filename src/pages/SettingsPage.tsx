@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Switch } from "../components/ui/switch";
@@ -10,16 +10,43 @@ import { useToast } from "../hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Input } from "../components/ui/input";
 
+// Define interface for settings
+interface UserSettings {
+  emailNotifications: boolean;
+  bookingReminders: boolean;
+  darkMode: boolean;
+  language: string;
+  timeZone: string;
+  calendarSync: boolean;
+  autoLogout: number;
+  twoFactor: boolean;
+}
+
 const SettingsPage: React.FC = () => {
   const { toast } = useToast();
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [calendarSync, setCalendarSync] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
-  const [language, setLanguage] = useState("en");
-  const [timeZone, setTimeZone] = useState("UTC");
-  const [autoLogout, setAutoLogout] = useState(30);
+  
+  // Initialize settings from localStorage or default values
+  const [settings, setSettings] = useState<UserSettings>(() => {
+    const savedSettings = localStorage.getItem('mslab_user_settings');
+    return savedSettings ? JSON.parse(savedSettings) : {
+      emailNotifications: true,
+      bookingReminders: true,
+      darkMode: false,
+      language: "en",
+      timeZone: "UTC",
+      calendarSync: false,
+      autoLogout: 30,
+      twoFactor: false
+    };
+  });
+  
+  // Save settings to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('mslab_user_settings', JSON.stringify(settings));
+  }, [settings]);
 
   const handleSave = () => {
+    localStorage.setItem('mslab_user_settings', JSON.stringify(settings));
     toast({
       title: "Settings saved",
       description: "Your preferences have been updated.",
@@ -58,8 +85,8 @@ const SettingsPage: React.FC = () => {
                 </div>
                 <Switch 
                   id="email-notifications" 
-                  checked={emailNotifications}
-                  onCheckedChange={setEmailNotifications}
+                  checked={settings.emailNotifications}
+                  onCheckedChange={(checked) => setSettings(prev => ({...prev, emailNotifications: checked}))}
                 />
               </div>
               
@@ -76,7 +103,8 @@ const SettingsPage: React.FC = () => {
                 </div>
                 <Switch 
                   id="booking-reminders" 
-                  defaultChecked
+                  checked={settings.bookingReminders}
+                  onCheckedChange={(checked) => setSettings(prev => ({...prev, bookingReminders: checked}))}
                 />
               </div>
               
@@ -109,8 +137,8 @@ const SettingsPage: React.FC = () => {
                 </div>
                 <Switch 
                   id="dark-mode" 
-                  checked={darkMode}
-                  onCheckedChange={setDarkMode}
+                  checked={settings.darkMode}
+                  onCheckedChange={(checked) => setSettings(prev => ({...prev, darkMode: checked}))}
                 />
               </div>
               
@@ -120,7 +148,10 @@ const SettingsPage: React.FC = () => {
                 <Label htmlFor="language" className="font-medium">
                   Language
                 </Label>
-                <Select value={language} onValueChange={setLanguage}>
+                <Select 
+                  value={settings.language} 
+                  onValueChange={(value) => setSettings(prev => ({...prev, language: value}))}
+                >
                   <SelectTrigger id="language">
                     <SelectValue placeholder="Select language" />
                   </SelectTrigger>
@@ -162,8 +193,8 @@ const SettingsPage: React.FC = () => {
                 </div>
                 <Switch 
                   id="calendar-sync" 
-                  checked={calendarSync}
-                  onCheckedChange={setCalendarSync}
+                  checked={settings.calendarSync}
+                  onCheckedChange={(checked) => setSettings(prev => ({...prev, calendarSync: checked}))}
                 />
               </div>
               
@@ -173,7 +204,10 @@ const SettingsPage: React.FC = () => {
                 <Label htmlFor="timezone" className="font-medium">
                   Time Zone
                 </Label>
-                <Select value={timeZone} onValueChange={setTimeZone}>
+                <Select 
+                  value={settings.timeZone} 
+                  onValueChange={(value) => setSettings(prev => ({...prev, timeZone: value}))}
+                >
                   <SelectTrigger id="timezone">
                     <SelectValue placeholder="Select time zone" />
                   </SelectTrigger>
@@ -215,8 +249,8 @@ const SettingsPage: React.FC = () => {
                     type="number" 
                     min="5" 
                     max="120" 
-                    value={autoLogout}
-                    onChange={(e) => setAutoLogout(Number(e.target.value))}
+                    value={settings.autoLogout}
+                    onChange={(e) => setSettings(prev => ({...prev, autoLogout: Number(e.target.value)}))}
                     className="w-24"
                   />
                   <span className="text-sm text-muted-foreground">
@@ -236,7 +270,11 @@ const SettingsPage: React.FC = () => {
                     Add an additional layer of security to your account
                   </p>
                 </div>
-                <Switch id="two-factor" />
+                <Switch 
+                  id="two-factor"
+                  checked={settings.twoFactor}
+                  onCheckedChange={(checked) => setSettings(prev => ({...prev, twoFactor: checked}))}
+                />
               </div>
               
               <Separator />

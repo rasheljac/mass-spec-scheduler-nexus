@@ -1,76 +1,41 @@
-
-export type User = {
+export interface User {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "user";
-  department?: string;
   password?: string;
-  profileImage?: string;
-};
+  role: 'admin' | 'user';
+  department?: string;
+  profileImage?: string | null;
+}
 
-export type Instrument = {
+export interface Booking {
+  id: string;
+  instrumentId: string;
+  instrumentName: string;
+  start: string;
+  end: string;
+  purpose: string;
+  details?: string;
+  status: string;
+  userId: string;
+  userName: string;
+  comments: Comment[];
+}
+
+export interface Instrument {
   id: string;
   name: string;
-  type: string;
-  status: "available" | "in-use" | "maintenance" | "offline";
+  description: string;
+  status: 'available' | 'in_use' | 'maintenance';
   location: string;
-  description?: string;
-  image?: string;
-  model?: string;
-  calibrationDue?: string;
-  maintenanceHistory?: Array<{date: string, description: string}>;
-};
+  specifications: string;
+  image: string;
+}
 
-export type Comment = {
+export interface Comment {
   id: string;
   userId: string;
   userName: string;
   content: string;
   createdAt: string;
-};
-
-export type Booking = {
-  id: string;
-  userId: string;
-  userName: string;
-  instrumentId: string;
-  instrumentName: string;
-  start: Date | string;
-  end: Date | string;
-  status: "pending" | "confirmed" | "completed" | "cancelled" | "Not-Started" | "In-Progress" | "Completed" | "Delayed";
-  title?: string;
-  description?: string;
-  purpose?: string;
-  details?: string;
-  createdAt: Date | string;
-  comments?: Comment[];
-};
-
-export type BookingFormData = {
-  instrumentId: string;
-  title: string;
-  start: Date;
-  end: Date;
-  description?: string;
-};
-
-export type BookingStatistics = {
-  totalBookings: number;
-  instrumentUsage: Array<{
-    instrumentId: string;
-    instrumentName: string;
-    bookingCount: number;
-    totalHours: number;
-  }>;
-  userBookings: Array<{
-    userId: string;
-    userName: string;
-    bookingCount: number;
-    totalHours: number;
-  }>;
-  weeklyUsage: Array<{
-    week: string;
-    bookingCount: number;
-  }>;
-};
+}

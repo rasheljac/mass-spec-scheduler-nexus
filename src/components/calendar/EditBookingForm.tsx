@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -16,14 +16,14 @@ import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
-import { CalendarIcon, MessageSquare, User } from "lucide-react";
+import { CalendarIcon, MessageSquare } from "lucide-react";
 import { format, addHours, isSameDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Booking, Comment } from "../../types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { useAuth } from "../../contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Card, CardContent } from "../ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Separator } from "../ui/separator";
 import { v4 as uuidv4 } from 'uuid';
@@ -61,7 +61,13 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   isSubmitting = false,
 }) => {
   const { user } = useAuth();
-  const [comments, setComments] = useState<Comment[]>(booking?.comments || []);
+  const [comments, setComments] = useState<Comment[]>([]);
+  
+  useEffect(() => {
+    if (booking) {
+      setComments(booking.comments || []);
+    }
+  }, [booking]);
   
   if (!booking || !user) return null;
 
@@ -95,15 +101,15 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      instrumentId: booking.instrumentId,
-      instrumentName: booking.instrumentName,
+      instrumentId: booking?.instrumentId || "",
+      instrumentName: booking?.instrumentName || "",
       startDate: startDateTime.date,
       endDate: endDateTime.date,
       startTime: startDateTime.time,
       endTime: endDateTime.time,
-      purpose: booking.purpose || "",
-      details: booking.details || "",
-      status: normalizeStatus(booking.status) as any,
+      purpose: booking?.purpose || "",
+      details: booking?.details || "",
+      status: normalizeStatus(booking?.status || "pending") as any,
       newComment: "",
     },
   });
