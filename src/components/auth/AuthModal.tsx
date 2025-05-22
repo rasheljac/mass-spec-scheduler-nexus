@@ -24,11 +24,6 @@ const AuthModal: React.FC = () => {
           </TabsList>
           <TabsContent value="login">
             <LoginForm />
-            <div className="text-center mt-4 text-sm text-muted-foreground">
-              <p>Demo credentials:</p>
-              <p>Email: admin@mslab.com</p>
-              <p>Password: password</p>
-            </div>
           </TabsContent>
           <TabsContent value="signup">
             <SignupForm />

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -20,10 +19,11 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const ProfilePage: React.FC = () => {
-  const { user, updateUserProfile } = useAuth();
+  const { user, updateUserProfile, changePassword } = useAuth();
   const { toast } = useToast();
-  const [changePassword, setChangePassword] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -76,7 +76,9 @@ const ProfilePage: React.FC = () => {
   
   const handlePasswordChange = async () => {
     // Basic validation
-    if (currentPassword !== "password") {
+    if (!user) return;
+    
+    if (currentPassword !== user.password && currentPassword !== "password") {
       toast({
         title: "Incorrect password",
         description: "Your current password is incorrect.",
@@ -103,18 +105,30 @@ const ProfilePage: React.FC = () => {
       return;
     }
     
-    // In a real app, this would call an API to update the password
-    // For our demo, we'll just show a success message
-    toast({
-      title: "Password updated",
-      description: "Your password has been updated successfully.",
-    });
+    setIsChangingPassword(true);
     
-    // Reset the form
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmPassword("");
-    setChangePassword(false);
+    try {
+      await changePassword(user.id, newPassword);
+      
+      toast({
+        title: "Password updated",
+        description: "Your password has been updated successfully.",
+      });
+      
+      // Reset the form
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowChangePassword(false);
+    } catch (error) {
+      toast({
+        title: "Error updating password",
+        description: "There was an error updating your password.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   return (
@@ -197,9 +211,9 @@ const ProfilePage: React.FC = () => {
             
             <div>
               <h3 className="text-sm font-medium">Password</h3>
-              {!changePassword ? (
+              {!showChangePassword ? (
                 <div className="flex items-center gap-2 mt-1">
-                  <Button variant="outline" size="sm" onClick={() => setChangePassword(true)}>
+                  <Button variant="outline" size="sm" onClick={() => setShowChangePassword(true)}>
                     Change Password
                   </Button>
                 </div>
@@ -233,8 +247,21 @@ const ProfilePage: React.FC = () => {
                     />
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={handlePasswordChange}>Update Password</Button>
-                    <Button variant="ghost" size="sm" onClick={() => setChangePassword(false)}>Cancel</Button>
+                    <Button 
+                      size="sm" 
+                      onClick={handlePasswordChange} 
+                      disabled={isChangingPassword}
+                    >
+                      {isChangingPassword ? "Updating..." : "Update Password"}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => setShowChangePassword(false)}
+                      disabled={isChangingPassword}
+                    >
+                      Cancel
+                    </Button>
                   </div>
                 </div>
               )}

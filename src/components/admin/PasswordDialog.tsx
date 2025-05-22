@@ -11,6 +11,7 @@ interface PasswordDialogProps {
   onSave: () => void;
   newPassword: string;
   setNewPassword: (password: string) => void;
+  isSubmitting?: boolean;
 }
 
 const PasswordDialog: React.FC<PasswordDialogProps> = ({
@@ -18,7 +19,8 @@ const PasswordDialog: React.FC<PasswordDialogProps> = ({
   onClose,
   onSave,
   newPassword,
-  setNewPassword
+  setNewPassword,
+  isSubmitting = false
 }) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -42,10 +44,13 @@ const PasswordDialog: React.FC<PasswordDialogProps> = ({
               type="button"
               variant="outline"
               onClick={onClose}
+              disabled={isSubmitting}
             >
               Cancel
             </Button>
-            <Button onClick={onSave}>Save Password</Button>
+            <Button onClick={onSave} disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : "Save Password"}
+            </Button>
           </div>
         </div>
       </DialogContent>

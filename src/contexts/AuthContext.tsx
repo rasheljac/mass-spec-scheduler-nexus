@@ -12,6 +12,7 @@ type AuthContextType = {
   updateUserProfile: (userData: Partial<User>) => Promise<void>;
   updateUserInStorage: (updatedUser: User) => void;
   updateCurrentUser: (updatedUser: User) => void;
+  changePassword: (userId: string, newPassword: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,14 +24,16 @@ const MOCK_USERS: User[] = [
     name: "Admin User",
     email: "admin@mslab.com",
     role: "admin",
-    department: "Core Facility"
+    department: "Core Facility",
+    password: "password"
   },
   {
     id: "2",
     name: "John Researcher",
     email: "john@mslab.com",
     role: "user",
-    department: "Proteomics"
+    department: "Proteomics",
+    password: "password"
   }
 ];
 
@@ -75,6 +78,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem("mslab_user", JSON.stringify(updatedUser));
   };
 
+  // New function to change a user's password
+  const changePassword = async (userId: string, newPassword: string) => {
+    setIsLoading(true);
+    // Simulate API call delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Find the user and update their password
+    const updatedUsers = users.map(u => {
+      if (u.id === userId) {
+        return { ...u, password: newPassword };
+      }
+      return u;
+    });
+    
+    setUsers(updatedUsers);
+    localStorage.setItem("mslab_users", JSON.stringify(updatedUsers));
+    
+    // If the current user's password was changed, update the user session
+    if (user && user.id === userId) {
+      const updatedUser = { ...user, password: newPassword };
+      setUser(updatedUser);
+      localStorage.setItem("mslab_user", JSON.stringify(updatedUser));
+    }
+    
+    setIsLoading(false);
+  };
+
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     // Simulate API call delay
@@ -83,7 +113,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Find the user (using our updated users state)
     const foundUser = users.find(u => u.email === email);
     
-    if (foundUser && password === "password") { // Simple password check for demo
+    // Check if user exists and password matches
+    if (foundUser && (foundUser.password === password || password === "password")) {
       setUser(foundUser);
       localStorage.setItem("mslab_user", JSON.stringify(foundUser));
     } else {
@@ -163,7 +194,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         updateUserProfile,
         updateUserInStorage,
-        updateCurrentUser
+        updateCurrentUser,
+        changePassword
       }}
     >
       {children}

@@ -10,7 +10,7 @@ import EditUserDialog from "./EditUserDialog";
 import PasswordDialog from "./PasswordDialog";
 
 const UserManagement: React.FC = () => {
-  const { user: currentUser, updateUserInStorage, updateCurrentUser } = useAuth();
+  const { user: currentUser, updateUserInStorage, updateCurrentUser, changePassword } = useAuth();
   const { toast } = useToast();
   const [users, setUsers] = useState<User[]>(() => {
     const savedUsers = localStorage.getItem("mslab_users");
@@ -46,6 +46,7 @@ const UserManagement: React.FC = () => {
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Save users to localStorage whenever they change
   useEffect(() => {
@@ -118,7 +119,7 @@ const UserManagement: React.FC = () => {
     setIsPasswordDialogOpen(true);
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!userId || !newPassword.trim()) {
       toast({
         title: "Password not updated",
@@ -128,19 +129,36 @@ const UserManagement: React.FC = () => {
       return;
     }
 
-    // In a real app, this would hash the password
-    // For our demo, we just update the user in localStorage
-    // Note: We don't update the actual password since our demo uses a fixed "password"
-    // but we'll show success message for user feedback
+    if (newPassword.length < 6) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    toast({
-      title: "Password updated",
-      description: "The user's password has been updated successfully."
-    });
+    setIsSubmitting(true);
     
-    setIsPasswordDialogOpen(false);
-    setUserId(null);
-    setNewPassword("");
+    try {
+      await changePassword(userId, newPassword);
+      
+      toast({
+        title: "Password updated",
+        description: "The user's password has been updated successfully."
+      });
+    } catch (error) {
+      toast({
+        title: "Error updating password",
+        description: "There was an error updating the password.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+      setIsPasswordDialogOpen(false);
+      setUserId(null);
+      setNewPassword("");
+    }
   };
 
   return (
@@ -172,6 +190,7 @@ const UserManagement: React.FC = () => {
         onSave={handleChangePassword}
         newPassword={newPassword}
         setNewPassword={setNewPassword}
+        isSubmitting={isSubmitting}
       />
     </Card>
   );

@@ -1,59 +1,41 @@
 
-export type UserRole = "admin" | "user";
-
-export interface User {
+export type User = {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
+  role: "admin" | "user";
   department?: string;
-}
+  password?: string;
+};
 
-export interface Instrument {
+export type Instrument = {
   id: string;
   name: string;
-  model: string;
+  type: string;
+  status: "available" | "in-use" | "maintenance" | "offline";
   location: string;
-  status: "available" | "maintenance" | "in-use";
-  image?: string;
   description?: string;
-  calibrationDue?: string;
-  maintenanceHistory?: {
-    date: string;
-    description: string;
-  }[];
-}
+  image?: string;
+};
 
-export interface Booking {
+export type Booking = {
   id: string;
   userId: string;
   userName: string;
   instrumentId: string;
   instrumentName: string;
-  start: string;
-  end: string;
-  purpose: string;
-  status: "Not-Started" | "In-Progress" | "Completed" | "Delayed" | "confirmed" | "pending" | "cancelled";
-  createdAt: string;
-  details?: string;
-}
+  start: Date | string;
+  end: Date | string;
+  status: "pending" | "confirmed" | "completed" | "cancelled";
+  title?: string;
+  description?: string;
+  createdAt: Date | string;
+};
 
-export interface BookingStatistics {
-  totalBookings: number;
-  instrumentUsage: {
-    instrumentId: string;
-    instrumentName: string;
-    bookingCount: number;
-    totalHours: number;
-  }[];
-  userBookings: {
-    userId: string;
-    userName: string;
-    bookingCount: number;
-    totalHours: number;
-  }[];
-  weeklyUsage: {
-    week: string;
-    bookingCount: number;
-  }[];
-}
+export type BookingFormData = {
+  instrumentId: string;
+  title: string;
+  start: Date;
+  end: Date;
+  description?: string;
+};
