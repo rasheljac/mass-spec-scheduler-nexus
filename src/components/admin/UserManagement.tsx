@@ -1,57 +1,176 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { Button } from "../ui/button";
 import { useAuth } from "../../contexts/AuthContext";
 import { User } from "../../types";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { useToast } from "../../hooks/use-toast";
 
 const UserManagement: React.FC = () => {
   const { user: currentUser } = useAuth();
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: "1",
-      name: "Admin User",
-      email: "admin@mslab.com",
-      role: "admin",
-      department: "Core Facility"
-    },
-    {
-      id: "2",
-      name: "John Researcher",
-      email: "john@mslab.com",
-      role: "user",
-      department: "Proteomics"
-    },
-    {
-      id: "3",
-      name: "Sarah Scientist",
-      email: "sarah@mslab.com",
-      role: "user",
-      department: "Metabolomics"
-    }
-  ]);
+  const { toast } = useToast();
+  const [users, setUsers] = useState<User[]>(() => {
+    const savedUsers = localStorage.getItem("mslab_users");
+    return savedUsers 
+      ? JSON.parse(savedUsers) 
+      : [
+        {
+          id: "1",
+          name: "Admin User",
+          email: "admin@mslab.com",
+          role: "admin",
+          department: "Core Facility"
+        },
+        {
+          id: "2",
+          name: "John Researcher",
+          email: "john@mslab.com",
+          role: "user",
+          department: "Proteomics"
+        },
+        {
+          id: "3",
+          name: "Sarah Scientist",
+          email: "sarah@mslab.com",
+          role: "user",
+          department: "Metabolomics"
+        }
+      ];
+  });
 
-  // In a real app, these would call APIs
+  const [editUser, setEditUser] = useState<User | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  // Save users to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("mslab_users", JSON.stringify(users));
+  }, [users]);
+
   const handleEdit = (userId: string) => {
-    console.log(`Edit user: ${userId}`);
-    // Implement edit functionality
+    const userToEdit = users.find(u => u.id === userId);
+    if (userToEdit) {
+      setEditUser(userToEdit);
+      setIsDialogOpen(true);
+    }
+  };
+
+  const handleSaveEdit = (updatedUser: User) => {
+    setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+    setIsDialogOpen(false);
+    setEditUser(null);
+    toast({
+      title: "User updated",
+      description: `User ${updatedUser.name} has been updated successfully.`
+    });
   };
 
   const handleDelete = (userId: string) => {
     // Don't allow deleting yourself
     if (userId === currentUser?.id) {
-      alert("You cannot delete your own account.");
+      toast({
+        title: "Cannot delete account",
+        description: "You cannot delete your own account.",
+        variant: "destructive"
+      });
       return;
     }
     
     setUsers(users.filter(u => u.id !== userId));
+    toast({
+      title: "User deleted",
+      description: "User has been deleted successfully."
+    });
   };
 
   const handleChangeRole = (userId: string, newRole: 'admin' | 'user') => {
     setUsers(users.map(u => 
       u.id === userId ? { ...u, role: newRole } : u
     ));
+    toast({
+      title: "Role updated",
+      description: `User role has been changed to ${newRole}.`
+    });
+  };
+
+  // Edit User Dialog
+  const EditUserDialog = () => {
+    const [name, setName] = useState(editUser?.name || "");
+    const [email, setEmail] = useState(editUser?.email || "");
+    const [department, setDepartment] = useState(editUser?.department || "");
+
+    useEffect(() => {
+      if (editUser) {
+        setName(editUser.name);
+        setEmail(editUser.email);
+        setDepartment(editUser.department || "");
+      }
+    }, [editUser]);
+
+    const handleSubmit = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (editUser) {
+        handleSaveEdit({
+          ...editUser,
+          name,
+          email,
+          department
+        });
+      }
+    };
+
+    return (
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="department">Department</Label>
+              <Input
+                id="department"
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
   };
 
   return (
@@ -106,6 +225,9 @@ const UserManagement: React.FC = () => {
           ))}
         </TableBody>
       </Table>
+      
+      {/* Edit User Dialog */}
+      {editUser && <EditUserDialog />}
     </Card>
   );
 };

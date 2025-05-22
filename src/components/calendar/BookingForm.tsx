@@ -1,9 +1,9 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format, addHours, setHours, setMinutes } from "date-fns";
+import { format, addHours, setHours, setMinutes, addMinutes } from "date-fns";
 import { CalendarIcon, Clock } from "lucide-react";
 import { useToast } from "../../hooks/use-toast";
 import { Button } from "../ui/button";
@@ -31,6 +31,7 @@ import { Calendar } from "../ui/calendar";
 import { cn } from "@/lib/utils";
 import { useBooking } from "../../contexts/BookingContext";
 import { useAuth } from "../../contexts/AuthContext";
+import { Switch } from "../ui/switch";
 
 interface BookingFormProps {
   open: boolean;
@@ -44,6 +45,9 @@ const formSchema = z.object({
   startTime: z.string({ required_error: "Please select a start time" }),
   endTime: z.string({ required_error: "Please select an end time" }),
   purpose: z.string().min(5, { message: "Purpose must be at least 5 characters" }),
+  useAutoDuration: z.boolean().default(false),
+  sampleCount: z.coerce.number().int().min(1).optional(),
+  timePerSample: z.coerce.number().int().min(1).optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -53,6 +57,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
   const { user } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [useAutoDuration, setUseAutoDuration] = useState(false);
 
   // Generate time options in 30-minute increments
   const timeOptions = Array.from({ length: 24 * 2 }, (_, i) => {
@@ -71,6 +76,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
       startTime: "9:00 AM",
       endTime: "10:00 AM",
       purpose: "",
+      useAutoDuration: false,
+      sampleCount: 1,
+      timePerSample: 30,
     },
   });
 
@@ -80,6 +88,77 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
       form.setValue("date", selectedDate);
     }
   }, [selectedDate, form]);
+
+  // Auto-calculate end time when relevant fields change
+  useEffect(() => {
+    const autoDuration = form.watch("useAutoDuration");
+    const sampleCount = form.watch("sampleCount");
+    const timePerSample = form.watch("timePerSample");
+    const startTime = form.watch("startTime");
+    
+    if (autoDuration && sampleCount && timePerSample && startTime) {
+      // Parse the start time
+      const parseTime = (timeStr: string) => {
+        const [timePart, ampm] = timeStr.split(" ");
+        const [hourStr, minuteStr] = timePart.split(":");
+        let hour = parseInt(hourStr, 10);
+        const minute = parseInt(minuteStr, 10);
+        
+        // Convert to 24-hour format
+        if (ampm === "PM" && hour !== 12) {
+          hour += 12;
+        } else if (ampm === "AM" && hour === 12) {
+          hour = 0;
+        }
+        
+        return { hour, minute };
+      };
+
+      // Format time to options format
+      const formatTimeOption = (date: Date) => {
+        let hours = date.getHours();
+        const minutes = date.getMinutes();
+        const ampm = hours >= 12 ? "PM" : "AM";
+        
+        hours = hours % 12;
+        hours = hours ? hours : 12; // the hour '0' should be '12'
+        const minutesStr = minutes < 10 ? `0${minutes}` : `${minutes}`;
+        
+        return `${hours}:${minutesStr} ${ampm}`;
+      };
+
+      try {
+        const { hour, minute } = parseTime(startTime);
+        const totalMinutes = Number(sampleCount) * Number(timePerSample);
+        
+        // Create a date with the start time and add the calculated duration
+        const startDate = new Date(form.getValues("date"));
+        startDate.setHours(hour, minute, 0, 0);
+        const endDate = new Date(startDate.getTime() + totalMinutes * 60 * 1000);
+        
+        // Find the closest 30-minute time slot
+        const roundedMinutes = Math.ceil(endDate.getMinutes() / 30) * 30;
+        endDate.setMinutes(roundedMinutes % 60);
+        if (roundedMinutes >= 60) {
+          endDate.setHours(endDate.getHours() + Math.floor(roundedMinutes / 60));
+        }
+        
+        // Format and set the end time
+        const endTimeStr = formatTimeOption(endDate);
+        if (timeOptions.includes(endTimeStr)) {
+          form.setValue("endTime", endTimeStr);
+        }
+      } catch (e) {
+        console.error("Error calculating end time:", e);
+      }
+    }
+  }, [
+    form.watch("useAutoDuration"),
+    form.watch("sampleCount"),
+    form.watch("timePerSample"),
+    form.watch("startTime"),
+    form.watch("date")
+  ]);
 
   const onSubmit = async (values: FormValues) => {
     if (!user) {
@@ -256,7 +335,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
                     <FormLabel>Start Time</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -284,7 +363,8 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
                     <FormLabel>End Time</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
+                      value={field.value}
+                      disabled={form.watch("useAutoDuration")}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -304,6 +384,61 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
                 )}
               />
             </div>
+            
+            <FormField
+              control={form.control}
+              name="useAutoDuration"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Auto-calculate duration</FormLabel>
+                    <FormDescription>
+                      Calculate end time based on sample quantity and time per sample
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+            
+            {form.watch("useAutoDuration") && (
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="sampleCount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Sample Quantity</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="1" {...field} />
+                      </FormControl>
+                      <FormDescription>Number of samples to process</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="timePerSample"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Minutes Per Sample</FormLabel>
+                      <FormControl>
+                        <Input type="number" min="1" {...field} />
+                      </FormControl>
+                      <FormDescription>Average time to process each sample</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
             
             <FormField
               control={form.control}

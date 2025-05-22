@@ -14,6 +14,7 @@ import { Calendar, Settings, LayoutDashboard, Settings as SettingsIcon, User } f
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../contexts/AuthContext";
 import { Menubar, MenubarContent, MenubarItem, MenubarMenu, MenubarTrigger } from "../ui/menubar";
+import { AspectRatio } from "../ui/aspect-ratio";
 
 const Navbar: React.FC = () => {
   const location = useLocation();
@@ -34,7 +35,15 @@ const Navbar: React.FC = () => {
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-6">
           <Link to="/" className="flex items-center gap-2 font-semibold text-lg text-primary">
-            <img src="/lovable-uploads/d1df28cb-f0ae-4b17-aacf-f7e08d48d146.png" alt="MSLab Logo" className="h-8 w-8" />
+            <div className="w-8 h-8">
+              <AspectRatio ratio={1/1} className="overflow-hidden">
+                <img 
+                  src="/lovable-uploads/d1df28cb-f0ae-4b17-aacf-f7e08d48d146.png" 
+                  alt="MSLab Logo" 
+                  className="object-contain w-full h-full" 
+                />
+              </AspectRatio>
+            </div>
             MSLab Scheduler
           </Link>
           
