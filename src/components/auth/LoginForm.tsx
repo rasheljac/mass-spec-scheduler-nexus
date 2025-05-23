@@ -10,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "../ui/input";
 import { useAuth } from "../../contexts/AuthContext";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email" }),
@@ -20,7 +21,7 @@ type FormValues = z.infer<typeof formSchema>;
 
 const LoginForm: React.FC = () => {
   const { login } = useAuth();
-  const { toast } = useToast();
+  const { toast: hookToast } = useToast();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -48,24 +49,20 @@ const LoginForm: React.FC = () => {
       console.log("Login success:", success);
       
       if (success) {
-        toast({
-          title: "Login successful!",
-          description: "Welcome back to the Mass Spec Lab",
-        });
+        toast.success("Login successful! Welcome back to the Mass Spec Lab");
         
-        // Explicitly navigate to dashboard after successful login
-        navigate("/dashboard", { replace: true });
+        // Explicitly navigate to dashboard after successful login with a slight delay
+        // to allow authentication state to update fully
+        setTimeout(() => {
+          navigate("/dashboard", { replace: true });
+        }, 100);
       } else {
-        // The toast for failure is handled in the AuthContext
+        // Login failure is handled in the AuthContext
         console.log("Login failed in form component");
       }
     } catch (error) {
       console.error("Login error:", error);
-      toast({
-        title: "Login failed",
-        description: error instanceof Error ? error.message : "Please check your credentials",
-        variant: "destructive",
-      });
+      toast.error(error instanceof Error ? error.message : "Please check your credentials");
     } finally {
       setIsLoading(false);
     }

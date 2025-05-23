@@ -40,6 +40,13 @@ function App() {
     };
     
     checkSupabase();
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event, session?.user?.email);
+    });
+    
+    return () => subscription.unsubscribe();
   }, []);
 
   return (
@@ -59,7 +66,7 @@ function App() {
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
-        <Toaster />
+        <Toaster richColors />
       </BookingProvider>
     </AuthProvider>
   );

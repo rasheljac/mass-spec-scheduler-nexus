@@ -49,6 +49,7 @@ export const BookingContext = createContext<BookingContextType>({
 export const BookingProvider = ({ children }: { children: React.ReactNode }) => {
   const { user, users, isLoading: authLoading, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
+  const [initialLoadAttempted, setInitialLoadAttempted] = useState(false);
   
   // Use our custom hooks
   const { 
@@ -86,6 +87,7 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
       if (!isAuthenticated) {
         console.log("Not authenticated, skipping data load");
         setIsLoading(false);
+        setInitialLoadAttempted(true);
         return;
       }
       
@@ -106,18 +108,23 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
         toast.error("Failed to load scheduling data");
       } finally {
         setIsLoading(false);
+        setInitialLoadAttempted(true);
       }
     };
 
-    loadData();
-  }, [user, authLoading, loadInstruments, loadBookings, isAuthenticated]);
+    // Only attempt to load data if this is the first load or auth state changed
+    if (!initialLoadAttempted || (isAuthenticated && !authLoading)) {
+      loadData();
+    }
+  }, [user, authLoading, loadInstruments, loadBookings, isAuthenticated, initialLoadAttempted]);
 
   // Debug loading states
   useEffect(() => {
     console.log("BookingContext loading state:", isLoading);
     console.log("Auth loading state:", authLoading);
     console.log("Is authenticated:", isAuthenticated);
-  }, [isLoading, authLoading, isAuthenticated]);
+    console.log("Initial load attempted:", initialLoadAttempted);
+  }, [isLoading, authLoading, isAuthenticated, initialLoadAttempted]);
 
   return (
     <BookingContext.Provider value={{

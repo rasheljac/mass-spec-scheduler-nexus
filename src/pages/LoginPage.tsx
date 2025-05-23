@@ -11,6 +11,7 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showAutoLogoutAlert, setShowAutoLogoutAlert] = useState(false);
+  const [redirectAttempted, setRedirectAttempted] = useState(false);
   
   // Get the redirect path from location state, or default to dashboard
   const from = (location.state as { from?: string })?.from || "/dashboard";
@@ -28,16 +29,17 @@ const LoginPage: React.FC = () => {
   
   // Effect to handle authentication state changes
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !isLoading) {
       console.log("User is authenticated, redirecting to:", from);
       navigate(from, { replace: true });
+      setRedirectAttempted(true);
     }
-  }, [isAuthenticated, from, navigate]);
+  }, [isAuthenticated, from, navigate, isLoading]);
 
   console.log("Auth loading state:", isLoading, "isAuthenticated:", isAuthenticated);
 
   // Redirect to dashboard if already authenticated
-  if (isAuthenticated) {
+  if (isAuthenticated && !isLoading && !redirectAttempted) {
     console.log("User is already authenticated on initial render, redirecting to:", from);
     return <Navigate to={from} replace />;
   }

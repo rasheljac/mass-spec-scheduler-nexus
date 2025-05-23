@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { Booking, Comment, User } from "../types";
 import { supabase } from "../integrations/supabase/client";
@@ -119,6 +120,8 @@ export const useBookings = (users: User[]) => {
   // Function to create a booking
   const createBooking = async (bookingData: Omit<Booking, "id" | "createdAt"> & { status: "pending" | "confirmed" | "cancelled" | "Not-Started" | "In-Progress" | "Completed" | "Delayed" }) => {
     try {
+      console.log("Creating booking with data:", bookingData);
+      
       // Insert into Supabase
       const { data, error } = await supabase
         .from('bookings')
@@ -134,10 +137,13 @@ export const useBookings = (users: User[]) => {
         .select();
 
       if (error) {
-        throw error;
+        console.error("Supabase insert error:", error);
+        throw new Error(`Database error: ${error.message}`);
       }
       
       if (data && data[0]) {
+        console.log("Booking created successfully:", data[0]);
+        
         // Reload bookings to get the updated list
         await loadBookings();
         
@@ -158,7 +164,7 @@ export const useBookings = (users: User[]) => {
       }
     } catch (error) {
       console.error("Error creating booking:", error);
-      toast.error("Failed to create booking");
+      toast.error(error instanceof Error ? error.message : "Failed to create booking");
       throw error;
     }
   };

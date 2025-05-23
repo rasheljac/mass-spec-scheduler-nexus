@@ -13,6 +13,7 @@ const AppLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [lastActivity, setLastActivity] = useState<number>(Date.now());
+  const [initialCheckDone, setInitialCheckDone] = useState(false);
   
   // Update last activity on user interactions
   useEffect(() => {
@@ -55,23 +56,29 @@ const AppLayout: React.FC = () => {
     }
   }, [isAuthenticated, user, lastActivity, navigate]);
   
+  // Handle authentication status and redirection
   useEffect(() => {
     console.log("Auth status in AppLayout:", isAuthenticated);
     console.log("Auth loading in AppLayout:", authLoading);
     
-    // If on root path, redirect to dashboard
-    if (location.pathname === "/" && isAuthenticated) {
-      navigate("/dashboard");
+    if (!authLoading) {
+      // If authentication check is complete
+      setInitialCheckDone(true);
+      
+      // If on root path, redirect to dashboard
+      if (location.pathname === "/" && isAuthenticated) {
+        navigate("/dashboard");
+      }
     }
   }, [isAuthenticated, location.pathname, navigate, authLoading]);
 
   // Show loading state if auth is still loading
-  if (authLoading) {
+  if (authLoading || !initialCheckDone) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center space-y-4">
           <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
-          <span className="text-lg text-mslab-400">Authenticating...</span>
+          <span className="text-lg text-mslab-400">Loading application...</span>
         </div>
       </div>
     );

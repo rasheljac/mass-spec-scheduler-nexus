@@ -6,7 +6,7 @@ import { format, addHours, setHours, setMinutes, addMinutes, isSameDay, addDays 
 import { CalendarIcon, Clock } from "lucide-react";
 import { useToast } from "../../hooks/use-toast";
 import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
 import {
   Form,
   FormControl,
@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { useBooking } from "../../contexts/BookingContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { Switch } from "../ui/switch";
+import { toast } from "sonner";
 
 interface BookingFormProps {
   open: boolean;
@@ -55,7 +56,7 @@ type FormValues = z.infer<typeof formSchema>;
 const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedDate }) => {
   const { instruments, createBooking } = useBooking();
   const { user } = useAuth();
-  const { toast } = useToast();
+  const { toast: hookToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [useAutoDuration, setUseAutoDuration] = useState(false);
 
@@ -170,11 +171,7 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
 
   const onSubmit = async (values: FormValues) => {
     if (!user) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to book an instrument",
-        variant: "destructive",
-      });
+      toast.error("Authentication required. Please log in to book an instrument");
       return;
     }
 
@@ -205,23 +202,26 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
 
       // Validate that end time is after start time
       if (end <= start) {
-        toast({
-          title: "Invalid time selection",
-          description: "End time must be after start time",
-          variant: "destructive",
-        });
+        toast.error("End time must be after start time");
         return;
       }
 
       const selectedInstrument = instruments.find(i => i.id === values.instrumentId);
       if (!selectedInstrument) {
-        toast({
-          title: "Error",
-          description: "Selected instrument not found",
-          variant: "destructive",
-        });
+        toast.error("Selected instrument not found");
         return;
       }
+
+      console.log("Creating booking with data:", {
+        userId: user.id,
+        userName: user.name,
+        instrumentId: values.instrumentId,
+        instrumentName: selectedInstrument.name,
+        start: start.toISOString(),
+        end: end.toISOString(),
+        purpose: values.purpose,
+        status: "confirmed"
+      });
 
       await createBooking({
         userId: user.id,
@@ -233,21 +233,15 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
         purpose: values.purpose,
         details: values.purpose,
         status: "confirmed",
-        comments: [] // Add the missing comments array
+        comments: [] 
       });
 
-      toast({
-        title: "Booking successful",
-        description: `You've booked ${selectedInstrument.name} from ${format(start, "PPP p")} to ${format(end, "PPP p")}`,
-      });
+      toast.success(`You've booked ${selectedInstrument.name} from ${format(start, "PPP p")} to ${format(end, "PPP p")}`);
       
       onOpenChange(false);
     } catch (error) {
-      toast({
-        title: "Booking failed",
-        description: error instanceof Error ? error.message : "Please try again",
-        variant: "destructive",
-      });
+      console.error("Booking creation error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to create booking. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -258,6 +252,9 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Schedule Instrument Time</DialogTitle>
+          <DialogDescription>
+            Book an instrument for your experiment or analysis.
+          </DialogDescription>
         </DialogHeader>
         
         <Form {...form}>
@@ -522,11 +519,12 @@ const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedD
                 type="button"
                 variant="outline"
                 onClick={() => onOpenChange(false)}
+                disabled={isLoading}
               >
                 Cancel
               </Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Booking..." : "Book Instrument"}
+                {isLoading ? "Creating booking..." : "Book Instrument"}
               </Button>
             </div>
           </form>
