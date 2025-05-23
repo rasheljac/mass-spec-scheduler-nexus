@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,7 @@ import PasswordDialog from "../components/admin/PasswordDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Upload, Image } from "lucide-react";
 import { useToast } from "../hooks/use-toast";
+import { supabase } from "../integrations/supabase/client";
 
 const ProfilePage: React.FC = () => {
   const { user, updateUserProfile, updateUserPassword } = useAuth();
@@ -47,12 +49,30 @@ const ProfilePage: React.FC = () => {
     try {
       setIsUpdating(true);
       
-      // Handle file upload
+      // Handle file upload to Supabase storage
       let profileImageUrl = user.profileImage;
       
       if (selectedFile) {
-        // Normally we'd upload to a server, but for this demo, we'll create a data URL
-        profileImageUrl = await readFileAsDataURL(selectedFile);
+        const fileExt = selectedFile.name.split('.').pop();
+        const fileName = `${user.id}/profile.${fileExt}`;
+        
+        // Upload to Supabase storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('profile-images')
+          .upload(fileName, selectedFile, {
+            upsert: true
+          });
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+          .from('profile-images')
+          .getPublicUrl(fileName);
+
+        profileImageUrl = urlData.publicUrl;
       }
 
       await updateUserProfile({
@@ -69,6 +89,7 @@ const ProfilePage: React.FC = () => {
         description: "Your profile information has been updated successfully.",
       });
     } catch (error) {
+      console.error("Error updating profile:", error);
       toast({
         title: "Update failed",
         description: "There was a problem updating your profile.",

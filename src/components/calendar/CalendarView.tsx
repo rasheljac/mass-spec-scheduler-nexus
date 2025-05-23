@@ -1,5 +1,4 @@
-
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { format, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay, parseISO, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval } from "date-fns";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Pencil } from "lucide-react";
 import { Button } from "../ui/button";
@@ -14,17 +13,25 @@ import EditBookingForm from "./EditBookingForm";
 import StatusBadge from "./StatusBadge";
 import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "../ui/sonner";
+import { useStatusColors } from "../../hooks/useStatusColors";
+import { supabase } from "../../integrations/supabase/client";
 
 type ViewMode = "day" | "week" | "month";
 
 const CalendarView: React.FC = () => {
   const { bookings, updateBooking } = useBooking();
   const { user } = useAuth();
+  const { loadStatusColors } = useStatusColors();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+
+  // Load status colors when component mounts
+  useEffect(() => {
+    loadStatusColors();
+  }, [loadStatusColors]);
 
   // Helper to get the week range displayed
   const weekRange = {
@@ -123,6 +130,12 @@ const CalendarView: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
+  // Check if user can edit a booking
+  const canEditBooking = (booking: Booking) => {
+    if (!user) return false;
+    return user.role === "admin" || booking.userId === user.id;
+  };
+
   const handleUpdateBooking = async (bookingData: Partial<Booking>) => {
     if (selectedBooking && bookingData) {
       try {
@@ -132,7 +145,22 @@ const CalendarView: React.FC = () => {
         });
         toast.success("Booking updated successfully");
         setIsEditModalOpen(false);
-        setSelectedBooking(null); // Clear the selected booking after update
+        setSelectedBooking(null);
+        
+        // Send email notification for booking update
+        await sendEmailNotification(
+          selectedBooking.userId,
+          selectedBooking.userName,
+          selectedBooking.instrumentName,
+          'booking_update',
+          {
+            userName: selectedBooking.userName,
+            instrumentName: selectedBooking.instrumentName,
+            startDate: new Date(selectedBooking.start).toLocaleString(),
+            endDate: new Date(selectedBooking.end).toLocaleString(),
+            status: bookingData.status || selectedBooking.status
+          }
+        );
       } catch (error) {
         console.error("Error updating booking:", error);
         toast.error("Failed to update booking");
@@ -140,10 +168,33 @@ const CalendarView: React.FC = () => {
     }
   };
 
-  // Check if user can edit a booking
-  const canEditBooking = (booking: Booking) => {
-    if (!user) return false;
-    return user.role === "admin" || booking.userId === user.id;
+  const sendEmailNotification = async (
+    userId: string,
+    userName: string,
+    instrumentName: string,
+    templateType: string,
+    variables: Record<string, string>
+  ) => {
+    try {
+      // Get user email from profiles
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', userId)
+        .single();
+
+      if (profileData?.email) {
+        await supabase.functions.invoke('send-email', {
+          body: {
+            to: profileData.email,
+            templateType,
+            variables
+          }
+        });
+      }
+    } catch (error) {
+      console.error("Error sending email notification:", error);
+    }
   };
 
   // Generate time slots for day view (9am to 5pm)

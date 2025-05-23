@@ -6,6 +6,8 @@ import UserManagement from "../components/admin/UserManagement";
 import InstrumentManagement from "../components/admin/InstrumentManagement";
 import DelaySchedule from "../components/admin/DelaySchedule";
 import StatusColorManagement from "../components/admin/StatusColorManagement";
+import SmtpSettings from "../components/admin/SmtpSettings";
+import EmailTemplatesManagement from "../components/admin/EmailTemplatesManagement";
 import { Navigate } from "react-router-dom";
 
 const AdminPage: React.FC = () => {
@@ -21,11 +23,13 @@ const AdminPage: React.FC = () => {
       <h1 className="text-3xl font-bold tracking-tight">Administration</h1>
       
       <Tabs defaultValue="users">
-        <TabsList className="grid grid-cols-4 w-[500px]">
+        <TabsList className="grid grid-cols-6 w-[700px]">
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="instruments">Instruments</TabsTrigger>
           <TabsTrigger value="delays">Schedule Delays</TabsTrigger>
           <TabsTrigger value="status-colors">Status Colors</TabsTrigger>
+          <TabsTrigger value="smtp">SMTP Settings</TabsTrigger>
+          <TabsTrigger value="email-templates">Email Templates</TabsTrigger>
         </TabsList>
         
         <TabsContent value="users" className="mt-6">
@@ -42,6 +46,14 @@ const AdminPage: React.FC = () => {
         
         <TabsContent value="status-colors" className="mt-6">
           <StatusColorManagement />
+        </TabsContent>
+        
+        <TabsContent value="smtp" className="mt-6">
+          <SmtpSettings />
+        </TabsContent>
+        
+        <TabsContent value="email-templates" className="mt-6">
+          <EmailTemplatesManagement />
         </TabsContent>
       </Tabs>
     </div>

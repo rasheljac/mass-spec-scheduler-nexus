@@ -74,7 +74,7 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
     applyDelay
   } = useBookings(users);
   
-  const { loadStatusColors, getStatusColor } = useStatusColors();
+  const { statusColors, loadStatusColors, getStatusColor } = useStatusColors();
   
   const statistics = useBookingStatistics(bookings, instruments);
 

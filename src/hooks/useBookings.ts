@@ -3,7 +3,6 @@ import { useState, useCallback } from "react";
 import { Booking, Comment, User } from "../types";
 import { supabase } from "../integrations/supabase/client";
 import { toast } from "sonner";
-import { createBookingNotification, createStatusUpdateNotification, createDelayNotification, sendEmail } from "../utils/emailNotifications";
 
 export const useBookings = (users: User[]) => {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -148,16 +147,22 @@ export const useBookings = (users: User[]) => {
         await loadBookings();
         
         // Send email notification for new booking
-        const userEmail = getUserEmailById(bookingData.userId);
-        if (userEmail) {
-          const notification = createBookingNotification(
-            userEmail,
-            bookingData.userName,
-            bookingData.instrumentName,
-            bookingData.start,
-            bookingData.end
-          );
-          sendEmail(notification).catch(error => console.error("Failed to send booking notification:", error));
+        try {
+          await supabase.functions.invoke('send-email', {
+            body: {
+              to: getUserEmailById(bookingData.userId),
+              templateType: 'booking_confirmation',
+              variables: {
+                userName: bookingData.userName,
+                instrumentName: bookingData.instrumentName,
+                startDate: new Date(bookingData.start).toLocaleString(),
+                endDate: new Date(bookingData.end).toLocaleString(),
+                status: bookingData.status
+              }
+            }
+          });
+        } catch (emailError) {
+          console.error("Failed to send booking confirmation email:", emailError);
         }
         
         toast.success("Booking created successfully");
@@ -199,15 +204,22 @@ export const useBookings = (users: User[]) => {
       
       // Send status update notification if status has changed
       if (statusChanged) {
-        const userEmail = getUserEmailById(bookingData.userId);
-        if (userEmail) {
-          const notification = createStatusUpdateNotification(
-            userEmail,
-            bookingData.userName,
-            bookingData.instrumentName,
-            bookingData.status
-          );
-          sendEmail(notification).catch(error => console.error("Failed to send status update notification:", error));
+        try {
+          await supabase.functions.invoke('send-email', {
+            body: {
+              to: getUserEmailById(bookingData.userId),
+              templateType: 'booking_update',
+              variables: {
+                userName: bookingData.userName,
+                instrumentName: bookingData.instrumentName,
+                startDate: new Date(bookingData.start).toLocaleString(),
+                endDate: new Date(bookingData.end).toLocaleString(),
+                status: bookingData.status
+              }
+            }
+          });
+        } catch (emailError) {
+          console.error("Failed to send booking update email:", emailError);
         }
       }
       
