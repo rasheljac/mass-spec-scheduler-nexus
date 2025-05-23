@@ -19,7 +19,7 @@ interface BookingContextType {
   updateBooking: (bookingData: Booking) => Promise<void>;
   applyDelay: (delayMinutes: number, startDateTime: Date) => Promise<void>;
   statistics: BookingStatistics;
-  addCommentToBooking: (bookingId: string, comment: Omit<Comment, "id">) => Promise<void>;
+  addCommentToBooking: (bookingId: string, comment: Omit<Comment, "id">) => Promise<string | undefined>;
   deleteCommentFromBooking: (bookingId: string, commentId: string) => Promise<void>;
   isLoading: boolean;
 }
@@ -41,7 +41,7 @@ export const BookingContext = createContext<BookingContextType>({
     userBookings: [],
     weeklyUsage: []
   },
-  addCommentToBooking: async () => {},
+  addCommentToBooking: async () => undefined,
   deleteCommentFromBooking: async () => {},
   isLoading: true
 });

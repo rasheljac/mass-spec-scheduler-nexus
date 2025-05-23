@@ -28,7 +28,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Separator } from "../ui/separator";
 import { v4 as uuidv4 } from 'uuid';
 import { useBooking } from "../../contexts/BookingContext";
-import { toast } from "../ui/sonner";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   instrumentId: z.string(),
@@ -63,7 +63,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   isSubmitting = false,
 }) => {
   const { user } = useAuth();
-  const { deleteCommentFromBooking } = useBooking();
+  const { addCommentToBooking, deleteCommentFromBooking } = useBooking();
   const [comments, setComments] = useState<Comment[]>([]);
   const [formInitialized, setFormInitialized] = useState(false);
   
@@ -140,8 +140,8 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
     return `${hour12}:${minute} ${ampm}`;
   });
 
-  const handleSubmit = (values: z.infer<typeof formSchema>) => {
-    if (onSubmit) {
+  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
       const parseTime = (date: Date, timeStr: string) => {
         const [timePart, ampm] = timeStr.split(" ");
         const [hourStr, minuteStr] = timePart.split(":");
@@ -163,33 +163,42 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
       const start = parseTime(values.startDate, values.startTime);
       const end = parseTime(values.endDate, values.endTime);
 
-      // Filter out the empty comment if there is one
+      // Handle new comment if present
       const newComment = values.newComment?.trim();
-      let updatedComments = [...comments];
       
-      if (newComment) {
-        updatedComments.push({
-          id: uuidv4(),
+      if (newComment && booking) {
+        // First add the comment to the database
+        console.log("Adding comment to booking:", booking.id, newComment);
+        await addCommentToBooking(booking.id, {
           userId: user.id,
           userName: user.name,
           content: newComment,
           createdAt: new Date().toISOString()
         });
+        
+        console.log("Comment added successfully");
       }
 
-      onSubmit({
-        ...booking,
-        instrumentId: values.instrumentId,
-        instrumentName: values.instrumentName,
-        start: start.toISOString(),
-        end: end.toISOString(),
-        purpose: values.purpose,
-        details: values.details,
-        status: values.status,
-        comments: updatedComments
-      });
+      // Then submit the form with updated booking data
+      if (onSubmit) {
+        onSubmit({
+          ...booking,
+          instrumentId: values.instrumentId,
+          instrumentName: values.instrumentName,
+          start: start.toISOString(),
+          end: end.toISOString(),
+          purpose: values.purpose,
+          details: values.details,
+          status: values.status,
+          comments: comments // Use the current comments array from state
+        });
+      }
+      
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error saving booking or adding comment:", error);
+      toast.error("Failed to save changes");
     }
-    onOpenChange(false);
   };
 
   const handleCancel = () => {
@@ -199,29 +208,37 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
     onOpenChange(false);
   };
 
-  const addComment = (comment: string) => {
-    if (!comment.trim()) return;
+  const handleAddComment = async () => {
+    const newComment = form.getValues("newComment")?.trim();
+    if (!newComment || !booking) return;
 
-    const newComment: Comment = {
-      id: uuidv4(),
-      userId: user.id,
-      userName: user.name,
-      content: comment.trim(),
-      createdAt: new Date().toISOString()
-    };
-
-    setComments([...comments, newComment]);
-    form.setValue("newComment", "");
+    try {
+      console.log("Adding comment with content:", newComment);
+      
+      // Add comment to database
+      await addCommentToBooking(booking.id, {
+        userId: user.id,
+        userName: user.name,
+        content: newComment,
+        createdAt: new Date().toISOString()
+      });
+      
+      // Reset comment field
+      form.setValue("newComment", "");
+      
+      toast.success("Comment added successfully");
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      toast.error("Failed to add comment");
+    }
   };
   
   const handleDeleteComment = async (commentId: string) => {
     try {
-      // First update the local state for immediate visual feedback
-      setComments(currentComments => currentComments.filter(comment => comment.id !== commentId));
-      
-      // Then update in the context (which will update localStorage)
       if (booking) {
         await deleteCommentFromBooking(booking.id, commentId);
+        // Update local state after successful deletion from database
+        setComments(currentComments => currentComments.filter(comment => comment.id !== commentId));
         toast.success("Comment deleted successfully");
       }
     } catch (error) {
@@ -502,24 +519,31 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
 
                     <Separator className="my-4" />
                     
-                    <FormField
-                      control={form.control}
-                      name="newComment"
-                      render={({ field }) => (
-                        <FormItem>
-                          <div className="flex space-x-2">
+                    <div className="flex space-x-2">
+                      <FormField
+                        control={form.control}
+                        name="newComment"
+                        render={({ field }) => (
+                          <FormItem className="flex-1">
                             <FormControl>
                               <Textarea 
                                 placeholder="Add a comment..." 
-                                className="min-h-[60px] flex-1"
+                                className="min-h-[60px]"
                                 {...field}
                               />
                             </FormControl>
-                          </div>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button
+                        type="button"
+                        onClick={handleAddComment}
+                        className="self-end"
+                      >
+                        Add Comment
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               </div>

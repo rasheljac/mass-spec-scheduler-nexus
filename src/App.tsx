@@ -18,33 +18,49 @@ import Index from "./pages/Index";
 import { Toaster } from "./components/ui/sonner";
 import { supabase } from "./integrations/supabase/client";
 import { toast } from "sonner";
+import { Loader2, AlertTriangle } from "lucide-react";
+import { Button } from "./components/ui/button";
 
 function App() {
   const [supabaseReady, setSupabaseReady] = useState(false);
   const [supabaseError, setSupabaseError] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+  
+  // Function to check Supabase connection
+  const checkSupabase = async () => {
+    try {
+      setIsRetrying(true);
+      console.log("Checking Supabase connection");
+      // Just check if Supabase is accessible
+      const { error } = await supabase.from('profiles').select('count').limit(1);
+      
+      if (error && error.code !== 'PGRST116') {  // PGRST116 is 'JWT role claim invalid' which is normal when not logged in
+        console.error('Supabase connection error:', error);
+        toast.error('Failed to connect to database');
+        setSupabaseError(true);
+        setSupabaseReady(false);
+      } else {
+        console.log('Supabase connected successfully');
+        setSupabaseReady(true);
+        setSupabaseError(false);
+        
+        // If we were previously in error state, show success message
+        if (supabaseError) {
+          toast.success('Connection restored successfully');
+        }
+      }
+    } catch (e) {
+      console.error('Supabase initialization error:', e);
+      toast.error('Database initialization error');
+      setSupabaseError(true);
+      setSupabaseReady(false);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
   
   // Check Supabase connection on app initialization
   useEffect(() => {
-    const checkSupabase = async () => {
-      try {
-        console.log("Checking Supabase connection");
-        // Just check if Supabase is accessible
-        const { error } = await supabase.from('profiles').select('count').limit(1);
-        if (error && error.code !== 'PGRST116') {  // PGRST116 is 'JWT role claim invalid' which is normal when not logged in
-          console.error('Supabase connection error:', error);
-          toast.error('Failed to connect to database');
-          setSupabaseError(true);
-        } else {
-          console.log('Supabase connected successfully');
-          setSupabaseReady(true);
-        }
-      } catch (e) {
-        console.error('Supabase initialization error:', e);
-        toast.error('Database initialization error');
-        setSupabaseError(true);
-      }
-    };
-    
     checkSupabase();
     
     // Listen for auth state changes
@@ -59,8 +75,39 @@ function App() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center space-y-4">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-mslab-400 border-t-transparent"></div>
+          <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
           <span className="text-lg text-mslab-400">Connecting to database...</span>
+        </div>
+      </div>
+    );
+  }
+  
+  if (supabaseError) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center space-y-6 max-w-md p-8 border rounded-lg shadow-lg">
+          <AlertTriangle className="h-16 w-16 text-red-500" />
+          <h1 className="text-2xl font-bold text-center">Connection Error</h1>
+          <p className="text-center text-gray-600">
+            We're having trouble connecting to the database. This could be due to:
+          </p>
+          <ul className="list-disc pl-6 text-gray-600">
+            <li>Network connectivity issues</li>
+            <li>The database server is temporarily unavailable</li>
+            <li>Your internet connection is unstable</li>
+          </ul>
+          <Button 
+            onClick={checkSupabase} 
+            disabled={isRetrying} 
+            className="w-full mt-4"
+          >
+            {isRetrying ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Retrying...
+              </>
+            ) : "Retry Connection"}
+          </Button>
         </div>
       </div>
     );

@@ -244,6 +244,8 @@ export const useBookings = (users: User[]) => {
   // Function to add a comment to a booking
   const addCommentToBooking = async (bookingId: string, comment: Omit<Comment, "id">) => {
     try {
+      console.log("Adding comment to booking:", bookingId, comment);
+      
       // Insert into Supabase
       const { data, error } = await supabase
         .from('comments')
@@ -255,13 +257,16 @@ export const useBookings = (users: User[]) => {
         .select();
 
       if (error) {
+        console.error("Error inserting comment:", error);
         throw error;
       }
 
       if (data && data[0]) {
+        console.log("Comment added successfully:", data[0]);
+        
         // Reload bookings to get the updated comments
         await loadBookings();
-        toast.success("Comment added successfully");
+        return data[0].id; // Return the new comment ID
       }
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -273,6 +278,8 @@ export const useBookings = (users: User[]) => {
   // Function to delete a comment from a booking
   const deleteCommentFromBooking = async (bookingId: string, commentId: string) => {
     try {
+      console.log("Deleting comment:", commentId, "from booking:", bookingId);
+      
       // Delete from Supabase
       const { error } = await supabase
         .from('comments')
@@ -280,12 +287,14 @@ export const useBookings = (users: User[]) => {
         .eq('id', commentId);
 
       if (error) {
+        console.error("Error deleting comment:", error);
         throw error;
       }
 
+      console.log("Comment deleted successfully");
+      
       // Reload bookings to get the updated comments
       await loadBookings();
-      toast.success("Comment deleted successfully");
     } catch (error) {
       console.error("Error deleting comment:", error);
       toast.error("Failed to delete comment");
