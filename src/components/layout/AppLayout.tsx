@@ -8,8 +8,8 @@ import Footer from "./Footer";
 import { Loader2 } from "lucide-react";
 
 const AppLayout: React.FC = () => {
-  const { isAuthenticated, user } = useAuth();
-  const { isLoading } = useBooking();
+  const { isAuthenticated, user, isLoading: authLoading } = useAuth();
+  const { isLoading: bookingLoading } = useBooking();
   const location = useLocation();
   const navigate = useNavigate();
   const [lastActivity, setLastActivity] = useState<number>(Date.now());
@@ -65,6 +65,18 @@ const AppLayout: React.FC = () => {
     }
   }, [isAuthenticated, user, location.pathname, navigate]);
 
+  // Show loading state if auth is still loading
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
+          <span className="text-lg text-mslab-400">Authenticating...</span>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     console.log("User is not authenticated, redirecting to login");
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
@@ -74,7 +86,7 @@ const AppLayout: React.FC = () => {
     <div className="flex flex-col min-h-screen">
       <Navbar />
       <main className="flex-1">
-        {isLoading ? (
+        {bookingLoading ? (
           <div className="flex items-center justify-center h-full min-h-[60vh]">
             <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
             <span className="ml-2 text-lg text-mslab-400">Loading data...</span>

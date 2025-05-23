@@ -47,7 +47,7 @@ export const BookingContext = createContext<BookingContextType>({
 });
 
 export const BookingProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user, users } = useAuth();
+  const { user, users, isLoading: authLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   
   // Use our custom hooks
@@ -76,12 +76,21 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
   // Load instruments and bookings from Supabase on initialization
   useEffect(() => {
     const loadData = async () => {
+      if (authLoading) {
+        return; // Wait until auth loading is complete
+      }
+      
       setIsLoading(true);
       try {
         if (user) {
           console.log("Loading instruments and bookings data for user:", user.id);
-          await loadInstruments();
-          await loadBookings();
+          await Promise.all([
+            loadInstruments(),
+            loadBookings()
+          ]);
+          console.log("Data loading complete");
+        } else {
+          console.log("No user available, skipping data loading");
         }
       } catch (error) {
         console.error("Error loading initial data:", error);
@@ -92,7 +101,7 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
     };
 
     loadData();
-  }, [user, loadInstruments, loadBookings]);
+  }, [user, authLoading, loadInstruments, loadBookings]);
 
   return (
     <BookingContext.Provider value={{

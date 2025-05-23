@@ -88,7 +88,42 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize by loading data from Supabase
+  // Function to refresh the users list (for admin purposes)
+  const refreshUsersList = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*');
+      
+      if (error) {
+        console.error('Error loading users:', error);
+        toast({
+          title: "Error loading users",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (data) {
+        const formattedUsers: User[] = data.map(profile => ({
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          role: profile.role as 'admin' | 'user',
+          department: profile.department || '',
+          profileImage: profile.profile_image || '',
+          password: ''
+        }));
+        
+        setUsers(formattedUsers);
+      }
+    } catch (e) {
+      console.error('Error refreshing users list:', e);
+    }
+  };
+
+  // Initialize by loading data from Supabase on initialization
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -107,6 +142,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             if (error) {
               console.error('Error fetching profile:', error);
+              setLoading(false);
               return;
             }
             
@@ -131,9 +167,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             }
           } catch (e) {
             console.error('Error in auth state change handler:', e);
+          } finally {
+            setLoading(false);
           }
         } else {
           setUser(null);
+          setLoading(false);
         }
       }
     );
@@ -178,6 +217,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       } catch (e) {
         console.error('Error initializing auth:', e);
       } finally {
+        // Ensure we always set loading to false, even if there was an error
         setLoading(false);
       }
     };
@@ -189,41 +229,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       subscription.unsubscribe();
     };
   }, []);
-  
-  // Function to refresh the users list (for admin purposes)
-  const refreshUsersList = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*');
-      
-      if (error) {
-        console.error('Error loading users:', error);
-        toast({
-          title: "Error loading users",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      if (data) {
-        const formattedUsers: User[] = data.map(profile => ({
-          id: profile.id,
-          name: profile.name,
-          email: profile.email,
-          role: profile.role as 'admin' | 'user',
-          department: profile.department || '',
-          profileImage: profile.profile_image || '',
-          password: ''
-        }));
-        
-        setUsers(formattedUsers);
-      }
-    } catch (e) {
-      console.error('Error refreshing users list:', e);
-    }
-  };
   
   // Migrate existing localStorage users to Supabase (run once)
   useEffect(() => {
@@ -375,7 +380,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   
   const logout = async () => {
     try {
+      setLoading(true);
       const { error } = await supabase.auth.signOut();
+      
       if (error) {
         console.error('Logout error:', error.message);
         toast({
@@ -384,10 +391,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           variant: "destructive",
         });
       }
+      
       setUser(null);
       setSession(null);
     } catch (e) {
       console.error('Unexpected logout error:', e);
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -748,7 +758,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       value={{
         user,
         isAuthenticated: !!user,
-        isLoading: loading, // Expose loading state to context consumers
+        isLoading: loading, 
         login,
         logout,
         signup,
