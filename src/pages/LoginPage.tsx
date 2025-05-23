@@ -27,18 +27,28 @@ const LoginPage: React.FC = () => {
     }
   }, [autoLogout]);
   
-  // Effect to handle authentication state changes
+  // Effect to handle authentication state changes - with debounce to prevent excessive redirects
   useEffect(() => {
-    if (isAuthenticated && !isLoading) {
-      console.log("User is authenticated, redirecting to:", from);
-      navigate(from, { replace: true });
-      setRedirectAttempted(true);
+    if (!isLoading) {
+      console.log("Auth loading complete on login page, authenticated:", isAuthenticated);
+      
+      if (isAuthenticated) {
+        console.log("User is authenticated, redirecting to:", from);
+        // Use a short timeout to ensure state updates have propagated
+        const redirectTimer = setTimeout(() => {
+          navigate(from, { replace: true });
+          setRedirectAttempted(true);
+        }, 100);
+        
+        return () => clearTimeout(redirectTimer);
+      }
     }
   }, [isAuthenticated, from, navigate, isLoading]);
 
-  console.log("Auth loading state:", isLoading, "isAuthenticated:", isAuthenticated);
+  // Debug logging
+  console.log("Login page render - Auth loading state:", isLoading, "isAuthenticated:", isAuthenticated, "redirectAttempted:", redirectAttempted);
 
-  // Redirect to dashboard if already authenticated
+  // Immediate redirect if already authenticated and not loading
   if (isAuthenticated && !isLoading && !redirectAttempted) {
     console.log("User is already authenticated on initial render, redirecting to:", from);
     return <Navigate to={from} replace />;

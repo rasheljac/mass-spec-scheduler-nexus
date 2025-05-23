@@ -56,22 +56,28 @@ const AppLayout: React.FC = () => {
     }
   }, [isAuthenticated, user, lastActivity, navigate]);
   
-  // Handle authentication status and redirection
+  // Handle authentication status and redirection with expanded logging
   useEffect(() => {
     console.log("Auth status in AppLayout:", isAuthenticated);
     console.log("Auth loading in AppLayout:", authLoading);
     
-    if (!authLoading) {
-      // If authentication check is complete
+    // Ensure we mark initialization as complete once auth check is done
+    if (!authLoading && !initialCheckDone) {
+      console.log("Setting initial auth check as complete");
       setInitialCheckDone(true);
       
-      // If on root path, redirect to dashboard
+      // If on root path and authenticated, redirect to dashboard
       if (location.pathname === "/" && isAuthenticated) {
-        navigate("/dashboard");
+        console.log("On root path and authenticated, redirecting to dashboard");
+        navigate("/dashboard", { replace: true });
       }
     }
-  }, [isAuthenticated, location.pathname, navigate, authLoading]);
+  }, [isAuthenticated, location.pathname, navigate, authLoading, initialCheckDone]);
 
+  // Debug logging for component render
+  console.log("AppLayout render - Auth loading:", authLoading, "Auth done:", initialCheckDone, 
+              "Is authenticated:", isAuthenticated, "Current path:", location.pathname);
+  
   // Show loading state if auth is still loading
   if (authLoading || !initialCheckDone) {
     return (
@@ -84,8 +90,9 @@ const AppLayout: React.FC = () => {
     );
   }
 
+  // Redirect to login if not authenticated
   if (!isAuthenticated) {
-    console.log("User is not authenticated, redirecting to login");
+    console.log("User is not authenticated, redirecting to login from path:", location.pathname);
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 

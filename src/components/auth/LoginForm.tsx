@@ -21,7 +21,6 @@ type FormValues = z.infer<typeof formSchema>;
 
 const LoginForm: React.FC = () => {
   const { login } = useAuth();
-  const { toast: hookToast } = useToast();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -46,16 +45,15 @@ const LoginForm: React.FC = () => {
       setIsLoading(true);
       console.log("Attempting login with:", values.email);
       const success = await login(values.email, values.password);
-      console.log("Login success:", success);
+      console.log("Login result:", success);
       
       if (success) {
         toast.success("Login successful! Welcome back to the Mass Spec Lab");
         
-        // Explicitly navigate to dashboard after successful login with a slight delay
-        // to allow authentication state to update fully
+        // Navigate after a short delay to ensure auth state is properly updated
         setTimeout(() => {
           navigate("/dashboard", { replace: true });
-        }, 100);
+        }, 500);
       } else {
         // Login failure is handled in the AuthContext
         console.log("Login failed in form component");

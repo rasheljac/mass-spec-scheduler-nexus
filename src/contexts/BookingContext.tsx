@@ -49,7 +49,6 @@ export const BookingContext = createContext<BookingContextType>({
 export const BookingProvider = ({ children }: { children: React.ReactNode }) => {
   const { user, users, isLoading: authLoading, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
-  const [initialLoadAttempted, setInitialLoadAttempted] = useState(false);
   
   // Use our custom hooks
   const { 
@@ -74,57 +73,45 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
   
   const statistics = useBookingStatistics(bookings, instruments);
 
-  // Load instruments and bookings from Supabase on initialization
+  // Load instruments and bookings from Supabase when authenticated
   useEffect(() => {
     const loadData = async () => {
-      if (authLoading) {
-        console.log("Auth is still loading, waiting...");
-        setIsLoading(true);
-        return; // Wait until auth loading is complete
-      }
-      
-      // If not authenticated, don't try to load data
-      if (!isAuthenticated) {
-        console.log("Not authenticated, skipping data load");
-        setIsLoading(false);
-        setInitialLoadAttempted(true);
+      // Only attempt to load data when auth is not loading and user is authenticated
+      if (authLoading || !isAuthenticated) {
+        console.log("Auth not ready or not authenticated, skipping data load");
+        if (!authLoading && !isAuthenticated) {
+          // If auth loading is complete and user is not authenticated,
+          // we can set isLoading to false since we don't need to load data
+          setIsLoading(false);
+        }
         return;
       }
       
       setIsLoading(true);
       try {
-        if (user) {
-          console.log("Loading instruments and bookings data for user:", user.id);
-          await Promise.all([
-            loadInstruments(),
-            loadBookings()
-          ]);
-          console.log("Data loading complete");
-        } else {
-          console.log("No user available, skipping data loading");
-        }
+        console.log("Loading instruments and bookings data for user:", user?.id);
+        await Promise.all([
+          loadInstruments(),
+          loadBookings()
+        ]);
+        console.log("Data loading complete");
       } catch (error) {
         console.error("Error loading initial data:", error);
         toast.error("Failed to load scheduling data");
       } finally {
         setIsLoading(false);
-        setInitialLoadAttempted(true);
       }
     };
 
-    // Only attempt to load data if this is the first load or auth state changed
-    if (!initialLoadAttempted || (isAuthenticated && !authLoading)) {
-      loadData();
-    }
-  }, [user, authLoading, loadInstruments, loadBookings, isAuthenticated, initialLoadAttempted]);
+    loadData();
+  }, [authLoading, isAuthenticated, user, loadInstruments, loadBookings]);
 
-  // Debug loading states
+  // Debug logging
   useEffect(() => {
     console.log("BookingContext loading state:", isLoading);
     console.log("Auth loading state:", authLoading);
     console.log("Is authenticated:", isAuthenticated);
-    console.log("Initial load attempted:", initialLoadAttempted);
-  }, [isLoading, authLoading, isAuthenticated, initialLoadAttempted]);
+  }, [isLoading, authLoading, isAuthenticated]);
 
   return (
     <BookingContext.Provider value={{

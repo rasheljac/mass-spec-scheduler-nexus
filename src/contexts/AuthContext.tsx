@@ -23,45 +23,6 @@ interface AuthContextType {
   deleteUser: (userId: string) => void;
 }
 
-const defaultUsers: User[] = [
-  { 
-    id: '1', 
-    name: 'Admin User', 
-    email: 'admin@example.com', 
-    password: 'admin123', 
-    role: 'admin',
-    department: 'IT Administration',
-    profileImage: ''
-  },
-  { 
-    id: '2', 
-    name: 'John Researcher', 
-    email: 'john@example.com', 
-    password: 'john123', 
-    role: 'user',
-    department: 'Research',
-    profileImage: ''
-  },
-  { 
-    id: '3', 
-    name: 'Sarah Scientist', 
-    email: 'sarah@example.com', 
-    password: 'sarah123', 
-    role: 'user',
-    department: 'Laboratory',
-    profileImage: ''
-  },
-  {
-    id: '4',
-    name: 'Eddy Kapelczak',
-    email: 'eddy@kapelczak.com',
-    password: 'Eddie#12',
-    role: 'admin',
-    department: 'Research',
-    profileImage: ''
-  }
-];
-
 export const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthenticated: false,
@@ -87,6 +48,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authInitialized, setAuthInitialized] = useState(false);
 
   // Function to refresh the users list (for admin purposes)
   const refreshUsersList = async () => {
@@ -128,7 +90,59 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     console.log("AuthProvider initializing...");
     let isMounted = true;
     
-    // Set up auth state listener FIRST
+    const initializeAuth = async () => {
+      try {
+        setLoading(true);
+        console.log("Checking for existing session...");
+        
+        // Get the current session
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        console.log("Initial session check:", initialSession ? "Session found" : "No session");
+        
+        if (initialSession && isMounted) {
+          setSession(initialSession);
+          
+          // Get user profile
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', initialSession.user.id)
+            .single();
+          
+          if (error) {
+            console.error('Error fetching initial profile:', error);
+          } else if (profile && isMounted) {
+            const userData: User = {
+              id: profile.id,
+              name: profile.name,
+              email: profile.email,
+              role: profile.role as 'admin' | 'user',
+              department: profile.department || '',
+              profileImage: profile.profile_image || '',
+              password: ''
+            };
+            
+            setUser(userData);
+            console.log("Initial user set:", userData.email);
+          }
+        }
+        
+        // Load users for admin purposes
+        if (isMounted) {
+          await refreshUsersList();
+        }
+      } catch (e) {
+        console.error('Error in auth initialization:', e);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+          setAuthInitialized(true);
+          console.log("Auth initialization complete");
+        }
+      }
+    };
+    
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         console.log('Auth state changed:', event, currentSession?.user?.email);
@@ -154,7 +168,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             
             if (profile) {
               // Convert Supabase profile to our User type
-              // Ensure role is properly typed as 'admin' | 'user'
               const userData: User = {
                 id: profile.id,
                 name: profile.name,
@@ -162,24 +175,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 role: profile.role as 'admin' | 'user',
                 department: profile.department || '',
                 profileImage: profile.profile_image || '',
-                // We don't store passwords in our User type anymore since Supabase manages auth
                 password: ''
               };
               
               if (isMounted) {
                 setUser(userData);
                 console.log("User set:", userData.email);
+                setLoading(false);
               }
             } else {
               console.log('No profile found for user');
-              if (isMounted) setUser(null);
+              if (isMounted) {
+                setUser(null);
+                setLoading(false);
+              }
             }
           } catch (e) {
             console.error('Error in auth state change handler:', e);
-          } finally {
             if (isMounted) {
               setLoading(false);
-              console.log("Auth loading complete");
             }
           }
         } else {
@@ -191,64 +205,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
     );
-    
-    // Load initial session
-    const initializeAuth = async () => {
-      try {
-        console.log("Checking for existing session...");
-        // Check for existing session
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
-        
-        if (!isMounted) return;
-        
-        console.log("Initial session check:", initialSession ? "Session found" : "No session");
-        
-        if (initialSession) {
-          // Get user profile
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', initialSession.user.id)
-            .single();
-          
-          if (error) {
-            console.error('Error fetching initial profile:', error);
-            if (isMounted) setLoading(false);
-            return;
-          }
-          
-          if (profile) {
-            const userData: User = {
-              id: profile.id,
-              name: profile.name,
-              email: profile.email,
-              role: profile.role as 'admin' | 'user',
-              department: profile.department || '',
-              profileImage: profile.profile_image || '',
-              password: ''
-            };
-            
-            if (isMounted) {
-              setUser(userData);
-              console.log("Initial user set:", userData.email);
-            }
-          }
-        } else {
-          console.log("No initial session found");
-        }
-        
-        // Load all users for admin purposes
-        if (isMounted) await refreshUsersList();
-      } catch (e) {
-        console.error('Error initializing auth:', e);
-      } finally {
-        // Ensure we always set loading to false, even if there was an error
-        if (isMounted) {
-          setLoading(false);
-          console.log("Auth initialization complete");
-        }
-      }
-    };
     
     // Run initial session check
     initializeAuth();
@@ -263,10 +219,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   
   // Debug logs for authentication state
   useEffect(() => {
-    console.log("Auth state updated - Loading:", loading, "User:", user?.email, "Authenticated:", !!user);
-  }, [loading, user]);
+    console.log("Auth state updated - Loading:", loading, "User:", user?.email, "Authenticated:", !!user, "Initialized:", authInitialized);
+  }, [loading, user, authInitialized]);
   
-  // Migrate existing localStorage users to Supabase (run once)
+  // Migration logic - kept unchanged
   useEffect(() => {
     const migrateLocalStorageUsers = async () => {
       // Check if migration has been done
@@ -401,7 +357,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       if (data.user) {
         console.log('Login successful');
-        // Loading state will be updated by the auth state change listener
+        // State will be updated by the auth state change listener
         return true;
       }
       
