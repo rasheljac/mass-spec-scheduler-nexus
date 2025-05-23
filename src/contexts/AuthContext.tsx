@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
-  isLoading: boolean; // Added isLoading property
+  isLoading: boolean; 
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   signup: (name: string, email: string, password: string) => Promise<boolean>;
@@ -65,7 +65,7 @@ const defaultUsers: User[] = [
 export const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthenticated: false,
-  isLoading: true, // Added isLoading with default value true
+  isLoading: true,
   login: async () => false,
   logout: () => {},
   signup: async () => false,
@@ -125,24 +125,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // Initialize by loading data from Supabase on initialization
   useEffect(() => {
+    console.log("AuthProvider initializing...");
+    let isMounted = true;
+    
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event, session);
-        setSession(session);
+      async (event, currentSession) => {
+        console.log('Auth state changed:', event, currentSession?.user?.email);
         
-        if (session) {
+        if (!isMounted) return;
+        
+        setSession(currentSession);
+        
+        if (currentSession) {
           try {
             // Get user profile from database
             const { data: profile, error } = await supabase
               .from('profiles')
               .select('*')
-              .eq('id', session.user.id)
+              .eq('id', currentSession.user.id)
               .single();
             
             if (error) {
               console.error('Error fetching profile:', error);
-              setLoading(false);
+              if (isMounted) setLoading(false);
               return;
             }
             
@@ -160,19 +166,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 password: ''
               };
               
-              setUser(userData);
+              if (isMounted) {
+                setUser(userData);
+                console.log("User set:", userData.email);
+              }
             } else {
               console.log('No profile found for user');
-              setUser(null);
+              if (isMounted) setUser(null);
             }
           } catch (e) {
             console.error('Error in auth state change handler:', e);
           } finally {
-            setLoading(false);
+            if (isMounted) {
+              setLoading(false);
+              console.log("Auth loading complete");
+            }
           }
         } else {
-          setUser(null);
-          setLoading(false);
+          if (isMounted) {
+            setUser(null);
+            setLoading(false);
+            console.log("No session, auth loading complete");
+          }
         }
       }
     );
@@ -180,20 +195,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Load initial session
     const initializeAuth = async () => {
       try {
+        console.log("Checking for existing session...");
         // Check for existing session
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
         
-        if (session) {
+        if (!isMounted) return;
+        
+        console.log("Initial session check:", initialSession ? "Session found" : "No session");
+        
+        if (initialSession) {
           // Get user profile
           const { data: profile, error } = await supabase
             .from('profiles')
             .select('*')
-            .eq('id', session.user.id)
+            .eq('id', initialSession.user.id)
             .single();
           
           if (error) {
             console.error('Error fetching initial profile:', error);
-            setLoading(false);
+            if (isMounted) setLoading(false);
             return;
           }
           
@@ -208,27 +228,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               password: ''
             };
             
-            setUser(userData);
+            if (isMounted) {
+              setUser(userData);
+              console.log("Initial user set:", userData.email);
+            }
           }
+        } else {
+          console.log("No initial session found");
         }
         
         // Load all users for admin purposes
-        await refreshUsersList();
+        if (isMounted) await refreshUsersList();
       } catch (e) {
         console.error('Error initializing auth:', e);
       } finally {
         // Ensure we always set loading to false, even if there was an error
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+          console.log("Auth initialization complete");
+        }
       }
     };
     
+    // Run initial session check
     initializeAuth();
     
-    // Cleanup subscription
+    // Cleanup subscription and set mounted flag
     return () => {
+      console.log("Auth provider cleanup");
+      isMounted = false;
       subscription.unsubscribe();
     };
   }, []);
+  
+  // Debug logs for authentication state
+  useEffect(() => {
+    console.log("Auth state updated - Loading:", loading, "User:", user?.email, "Authenticated:", !!user);
+  }, [loading, user]);
   
   // Migrate existing localStorage users to Supabase (run once)
   useEffect(() => {
@@ -344,6 +380,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   
   const login = async (email: string, password: string): Promise<boolean> => {
     console.log(`Login attempt for: ${email}`);
+    setLoading(true);
     
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -358,14 +395,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           description: error.message,
           variant: "destructive",
         });
+        setLoading(false);
         return false;
       }
       
       if (data.user) {
         console.log('Login successful');
+        // Loading state will be updated by the auth state change listener
         return true;
       }
       
+      setLoading(false);
       return false;
     } catch (e) {
       console.error('Unexpected login error:', e);
@@ -374,6 +414,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         description: "An unexpected error occurred",
         variant: "destructive",
       });
+      setLoading(false);
       return false;
     }
   };

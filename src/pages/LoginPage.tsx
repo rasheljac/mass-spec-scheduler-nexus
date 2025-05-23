@@ -34,19 +34,12 @@ const LoginPage: React.FC = () => {
     }
   }, [isAuthenticated, from, navigate]);
 
+  console.log("Auth loading state:", isLoading, "isAuthenticated:", isAuthenticated);
+
   // Redirect to dashboard if already authenticated
   if (isAuthenticated) {
     console.log("User is already authenticated on initial render, redirecting to:", from);
     return <Navigate to={from} replace />;
-  }
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-white to-mslab-100 p-4">
-        <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
-        <span className="mt-2 text-mslab-400">Checking authentication...</span>
-      </div>
-    );
   }
 
   return (
@@ -69,7 +62,16 @@ const LoginPage: React.FC = () => {
           />
         </div>
       </div>
-      <AuthModal />
+      
+      {isLoading ? (
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
+          <span className="text-mslab-400">Checking authentication...</span>
+        </div>
+      ) : (
+        <AuthModal />
+      )}
+      
       <div className="mt-8 text-center text-sm text-muted-foreground">
         &copy; {new Date().getFullYear()} MSLab Scheduler. All rights reserved.
       </div>

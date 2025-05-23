@@ -9,6 +9,7 @@ import { Button } from "../ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { Input } from "../ui/input";
 import { useAuth } from "../../contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 
 const formSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email" }),
@@ -42,9 +43,9 @@ const LoginForm: React.FC = () => {
   const onSubmit = async (values: FormValues) => {
     try {
       setIsLoading(true);
-      console.log("Attempting login with:", values.email, "Password:", values.password); // Debug
+      console.log("Attempting login with:", values.email);
       const success = await login(values.email, values.password);
-      console.log("Login success:", success); // Debug
+      console.log("Login success:", success);
       
       if (success) {
         toast({
@@ -53,13 +54,13 @@ const LoginForm: React.FC = () => {
         });
         
         // Explicitly navigate to dashboard after successful login
-        navigate("/", { replace: true });
+        navigate("/dashboard", { replace: true });
       } else {
         // The toast for failure is handled in the AuthContext
-        console.log("Login failed in form component"); // Debug
+        console.log("Login failed in form component");
       }
     } catch (error) {
-      console.error("Login error:", error); // Debug
+      console.error("Login error:", error);
       toast({
         title: "Login failed",
         description: error instanceof Error ? error.message : "Please check your credentials",
@@ -100,7 +101,12 @@ const LoginForm: React.FC = () => {
           )}
         />
         <Button className="w-full" type="submit" disabled={isLoading}>
-          {isLoading ? "Logging in..." : "Login"}
+          {isLoading ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> 
+              Logging in...
+            </>
+          ) : "Login"}
         </Button>
       </form>
     </Form>

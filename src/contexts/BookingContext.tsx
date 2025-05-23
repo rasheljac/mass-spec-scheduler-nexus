@@ -47,7 +47,7 @@ export const BookingContext = createContext<BookingContextType>({
 });
 
 export const BookingProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user, users, isLoading: authLoading } = useAuth();
+  const { user, users, isLoading: authLoading, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   
   // Use our custom hooks
@@ -77,7 +77,16 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
   useEffect(() => {
     const loadData = async () => {
       if (authLoading) {
+        console.log("Auth is still loading, waiting...");
+        setIsLoading(true);
         return; // Wait until auth loading is complete
+      }
+      
+      // If not authenticated, don't try to load data
+      if (!isAuthenticated) {
+        console.log("Not authenticated, skipping data load");
+        setIsLoading(false);
+        return;
       }
       
       setIsLoading(true);
@@ -101,7 +110,14 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
     };
 
     loadData();
-  }, [user, authLoading, loadInstruments, loadBookings]);
+  }, [user, authLoading, loadInstruments, loadBookings, isAuthenticated]);
+
+  // Debug loading states
+  useEffect(() => {
+    console.log("BookingContext loading state:", isLoading);
+    console.log("Auth loading state:", authLoading);
+    console.log("Is authenticated:", isAuthenticated);
+  }, [isLoading, authLoading, isAuthenticated]);
 
   return (
     <BookingContext.Provider value={{

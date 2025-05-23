@@ -57,13 +57,13 @@ const AppLayout: React.FC = () => {
   
   useEffect(() => {
     console.log("Auth status in AppLayout:", isAuthenticated);
-    console.log("Current user:", user);
+    console.log("Auth loading in AppLayout:", authLoading);
     
     // If on root path, redirect to dashboard
     if (location.pathname === "/" && isAuthenticated) {
       navigate("/dashboard");
     }
-  }, [isAuthenticated, user, location.pathname, navigate]);
+  }, [isAuthenticated, location.pathname, navigate, authLoading]);
 
   // Show loading state if auth is still loading
   if (authLoading) {
