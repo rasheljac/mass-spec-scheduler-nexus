@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useInstruments } from "../hooks/useInstruments";
 import { useBookings } from "../hooks/useBookings";
 import { useBookingStatistics } from "../hooks/useBookingStatistics";
+import { useStatusColors } from "../hooks/useStatusColors";
 
 interface BookingContextType {
   bookings: Booking[];
@@ -21,6 +22,7 @@ interface BookingContextType {
   statistics: BookingStatistics;
   addCommentToBooking: (bookingId: string, comment: Omit<Comment, "id">) => Promise<string | undefined>;
   deleteCommentFromBooking: (bookingId: string, commentId: string) => Promise<void>;
+  getStatusColor: (status: string) => string;
   isLoading: boolean;
 }
 
@@ -43,6 +45,7 @@ export const BookingContext = createContext<BookingContextType>({
   },
   addCommentToBooking: async () => undefined,
   deleteCommentFromBooking: async () => {},
+  getStatusColor: () => '#6b7280',
   isLoading: true
 });
 
@@ -71,9 +74,11 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
     applyDelay
   } = useBookings(users);
   
+  const { loadStatusColors, getStatusColor } = useStatusColors();
+  
   const statistics = useBookingStatistics(bookings, instruments);
 
-  // Load instruments and bookings from Supabase when authenticated
+  // Load instruments, bookings, and status colors from Supabase when authenticated
   useEffect(() => {
     const loadData = async () => {
       // Only attempt to load data when auth is not loading and user is authenticated
@@ -89,10 +94,11 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
       
       setIsLoading(true);
       try {
-        console.log("Loading instruments and bookings data for user:", user?.id);
+        console.log("Loading instruments, bookings, and status colors data for user:", user?.id);
         await Promise.all([
           loadInstruments(),
-          loadBookings()
+          loadBookings(),
+          loadStatusColors()
         ]);
         console.log("Data loading complete");
       } catch (error) {
@@ -104,7 +110,7 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
     };
 
     loadData();
-  }, [authLoading, isAuthenticated, user, loadInstruments, loadBookings]);
+  }, [authLoading, isAuthenticated, user, loadInstruments, loadBookings, loadStatusColors]);
 
   // Debug logging
   useEffect(() => {
@@ -128,6 +134,7 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
       statistics,
       addCommentToBooking,
       deleteCommentFromBooking,
+      getStatusColor,
       isLoading
     }}>
       {children}

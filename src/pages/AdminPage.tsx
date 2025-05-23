@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import UserManagement from "../components/admin/UserManagement";
 import InstrumentManagement from "../components/admin/InstrumentManagement";
 import DelaySchedule from "../components/admin/DelaySchedule";
+import StatusColorManagement from "../components/admin/StatusColorManagement";
 import { Navigate } from "react-router-dom";
 
 const AdminPage: React.FC = () => {
@@ -20,10 +21,11 @@ const AdminPage: React.FC = () => {
       <h1 className="text-3xl font-bold tracking-tight">Administration</h1>
       
       <Tabs defaultValue="users">
-        <TabsList className="grid grid-cols-3 w-[400px]">
+        <TabsList className="grid grid-cols-4 w-[500px]">
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="instruments">Instruments</TabsTrigger>
           <TabsTrigger value="delays">Schedule Delays</TabsTrigger>
+          <TabsTrigger value="status-colors">Status Colors</TabsTrigger>
         </TabsList>
         
         <TabsContent value="users" className="mt-6">
@@ -36,6 +38,10 @@ const AdminPage: React.FC = () => {
         
         <TabsContent value="delays" className="mt-6">
           <DelaySchedule />
+        </TabsContent>
+        
+        <TabsContent value="status-colors" className="mt-6">
+          <StatusColorManagement />
         </TabsContent>
       </Tabs>
     </div>

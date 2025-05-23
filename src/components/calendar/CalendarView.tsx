@@ -11,6 +11,7 @@ import { useBooking } from "../../contexts/BookingContext";
 import { Booking } from "../../types";
 import BookingForm from "./BookingForm";
 import EditBookingForm from "./EditBookingForm";
+import StatusBadge from "./StatusBadge";
 import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "../ui/sonner";
 
@@ -161,7 +162,10 @@ const CalendarView: React.FC = () => {
             <Card key={booking.id} className="p-4 border-l-4 border-l-mslab-400">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="font-medium">{booking.instrumentName}</h3>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-medium">{booking.instrumentName}</h3>
+                    <StatusBadge status={booking.status} />
+                  </div>
                   <p className="text-sm text-muted-foreground">{booking.userName}</p>
                   <p className="text-sm">{formatDateRange(booking.start, booking.end)}</p>
                   {booking.details && <p className="text-sm mt-1">{booking.details}</p>}
@@ -246,7 +250,10 @@ const CalendarView: React.FC = () => {
                       <Card key={booking.id} className="p-2 border-l-4 border-l-mslab-400">
                         <div className="flex justify-between items-center">
                           <div>
-                            <h4 className="font-medium">{booking.instrumentName}</h4>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-medium">{booking.instrumentName}</h4>
+                              <StatusBadge status={booking.status} />
+                            </div>
                             <p className="text-xs text-muted-foreground">{formatDateRange(booking.start, booking.end)}</p>
                             {booking.details && <p className="text-xs mt-1">{booking.details}</p>}
                           </div>
@@ -354,19 +361,22 @@ const CalendarView: React.FC = () => {
                       </div>
                       
                       <div className="mt-6 space-y-1 text-xs">
-                        {dayBookings.slice(0, 3).map((booking) => (
+                        {dayBookings.slice(0, 2).map((booking) => (
                           <div 
                             key={booking.id}
-                            className="bg-primary/10 p-1 rounded truncate cursor-pointer"
+                            className="bg-primary/10 p-1 rounded truncate cursor-pointer flex items-center justify-between"
                             onClick={() => handleEditBooking(booking)}
-                            title={`${booking.instrumentName} - ${booking.userName}`}
+                            title={`${booking.instrumentName} - ${booking.userName} - ${booking.status}`}
                           >
-                            {formatTime(booking.start)} {booking.instrumentName}
+                            <span className="truncate">
+                              {formatTime(booking.start)} {booking.instrumentName}
+                            </span>
+                            <StatusBadge status={booking.status} className="ml-1 text-[10px] px-1" />
                           </div>
                         ))}
-                        {dayBookings.length > 3 && (
+                        {dayBookings.length > 2 && (
                           <div className="text-xs text-muted-foreground">
-                            +{dayBookings.length - 3} more
+                            +{dayBookings.length - 2} more
                           </div>
                         )}
                       </div>
