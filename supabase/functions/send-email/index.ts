@@ -15,7 +15,7 @@ interface EmailRequest {
   variables: Record<string, string>;
 }
 
-// Simple SMTP client implementation
+// Improved SMTP client implementation with proper TLS handling
 async function sendSMTPEmail(
   host: string,
   port: number,
@@ -28,74 +28,137 @@ async function sendSMTPEmail(
   subject: string,
   htmlContent: string
 ) {
+  let conn: Deno.TcpConn | Deno.TlsConn | null = null;
+  
   try {
-    console.log(`Connecting to SMTP server: ${host}:${port}`);
+    console.log(`Connecting to SMTP server: ${host}:${port}, TLS: ${useTls}`);
     
-    // Connect to SMTP server
-    const conn = await Deno.connect({
-      hostname: host,
-      port: port,
-    });
+    // Connect to SMTP server - use TLS directly for port 465, otherwise start plain
+    if (port === 465 && useTls) {
+      // Direct TLS connection (SMTPS)
+      conn = await Deno.connectTls({
+        hostname: host,
+        port: port,
+      });
+      console.log("Connected with direct TLS (SMTPS)");
+    } else {
+      // Plain connection (will upgrade to TLS if needed)
+      conn = await Deno.connect({
+        hostname: host,
+        port: port,
+      });
+      console.log("Connected with plain connection");
+    }
 
     const encoder = new TextEncoder();
     const decoder = new TextDecoder();
 
-    // Helper function to read response
+    // Helper function to read response with timeout
     async function readResponse(): Promise<string> {
-      const buffer = new Uint8Array(1024);
-      const n = await conn.read(buffer);
-      if (n === null) throw new Error("Connection closed");
-      return decoder.decode(buffer.subarray(0, n));
+      const buffer = new Uint8Array(4096);
+      const n = await conn!.read(buffer);
+      if (n === null) throw new Error("Connection closed unexpectedly");
+      const response = decoder.decode(buffer.subarray(0, n));
+      return response.trim();
     }
 
-    // Helper function to send command
+    // Helper function to send command and get response
     async function sendCommand(command: string): Promise<string> {
-      console.log(`> ${command}`);
-      await conn.write(encoder.encode(command + "\r\n"));
+      console.log(`> ${command.replace(/AUTH PLAIN .+/, 'AUTH PLAIN [HIDDEN]')}`);
+      await conn!.write(encoder.encode(command + "\r\n"));
       const response = await readResponse();
-      console.log(`< ${response.trim()}`);
+      console.log(`< ${response}`);
+      
+      // Check for SMTP error responses
+      const responseCode = parseInt(response.substring(0, 3));
+      if (responseCode >= 400) {
+        throw new Error(`SMTP Error ${responseCode}: ${response}`);
+      }
+      
       return response;
     }
 
     // SMTP handshake
-    await readResponse(); // Read initial greeting
-    await sendCommand(`EHLO ${host}`);
+    const greeting = await readResponse();
+    console.log(`< ${greeting}`);
     
-    if (useTls && port !== 465) {
-      await sendCommand("STARTTLS");
-      // Note: This is a simplified implementation. In production, you'd need proper TLS handling
+    if (!greeting.startsWith('220')) {
+      throw new Error(`Invalid SMTP greeting: ${greeting}`);
     }
 
-    // Authenticate
+    // Send EHLO
+    await sendCommand(`EHLO ${host}`);
+    
+    // Handle STARTTLS for non-465 ports
+    if (useTls && port !== 465) {
+      console.log("Initiating STARTTLS...");
+      const startTlsResponse = await sendCommand("STARTTLS");
+      
+      if (startTlsResponse.startsWith('220')) {
+        // Upgrade connection to TLS
+        console.log("Upgrading connection to TLS...");
+        const tlsConn = await Deno.startTls(conn as Deno.TcpConn, {
+          hostname: host,
+        });
+        conn.close();
+        conn = tlsConn;
+        console.log("TLS upgrade successful");
+        
+        // Send EHLO again after TLS upgrade
+        await sendCommand(`EHLO ${host}`);
+      } else {
+        throw new Error(`STARTTLS failed: ${startTlsResponse}`);
+      }
+    }
+
+    // Authenticate using AUTH PLAIN
+    console.log("Authenticating...");
     const authString = btoa(`\0${username}\0${password}`);
     await sendCommand("AUTH PLAIN " + authString);
 
     // Send email
+    console.log("Sending email...");
     await sendCommand(`MAIL FROM:<${fromEmail}>`);
     await sendCommand(`RCPT TO:<${to}>`);
     await sendCommand("DATA");
 
+    // Prepare email content
     const emailContent = [
       `From: ${fromName} <${fromEmail}>`,
       `To: ${to}`,
       `Subject: ${subject}`,
       `Content-Type: text/html; charset=UTF-8`,
+      `MIME-Version: 1.0`,
+      `Date: ${new Date().toUTCString()}`,
       ``,
       htmlContent,
       `.`
     ].join("\r\n");
 
+    console.log("Sending email data...");
     await conn.write(encoder.encode(emailContent + "\r\n"));
     const dataResponse = await readResponse();
+    console.log("Email data sent, response:", dataResponse);
     
-    await sendCommand("QUIT");
-    conn.close();
+    if (!dataResponse.startsWith('250')) {
+      throw new Error(`Email sending failed: ${dataResponse}`);
+    }
 
+    await sendCommand("QUIT");
     console.log("Email sent successfully via SMTP");
     return true;
+    
   } catch (error) {
     console.error("SMTP Error:", error);
     throw new Error(`SMTP sending failed: ${error.message}`);
+  } finally {
+    if (conn) {
+      try {
+        conn.close();
+      } catch (e) {
+        console.log("Error closing connection:", e);
+      }
+    }
   }
 }
 
@@ -114,6 +177,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Email request received:", { to, subject, templateType });
 
+    // Validate email parameters
+    if (!to || !to.includes('@')) {
+      throw new Error("Invalid recipient email address");
+    }
+
     // Get SMTP settings from database
     const { data: smtpData, error: smtpError } = await supabase
       .from('smtp_settings')
@@ -129,7 +197,18 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("SMTP settings not configured. Please configure SMTP settings in the admin panel.");
     }
 
-    console.log("SMTP settings loaded:", { host: smtpData.host, port: smtpData.port, username: smtpData.username });
+    // Validate SMTP settings
+    if (!smtpData.host || !smtpData.username || !smtpData.password || !smtpData.from_email) {
+      throw new Error("Incomplete SMTP settings. Please check host, username, password, and from_email.");
+    }
+
+    console.log("SMTP settings loaded:", { 
+      host: smtpData.host, 
+      port: smtpData.port, 
+      username: smtpData.username,
+      useTls: smtpData.use_tls,
+      fromEmail: smtpData.from_email 
+    });
 
     // Get email template if specified
     let finalSubject = subject;
