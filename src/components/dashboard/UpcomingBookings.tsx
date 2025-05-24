@@ -1,48 +1,41 @@
 
-import React from "react";
+import React, { useEffect } from "react";
 import { format, isToday, isTomorrow, startOfDay } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { useBooking } from "../../contexts/BookingContext";
 import { useAuth } from "../../contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 
 const UpcomingBookings: React.FC = () => {
-  const { bookings } = useBooking();
+  const { bookings, isLoading, refreshData } = useBooking();
   const { user } = useAuth();
+
+  // Refresh data when component mounts if no bookings are loaded
+  useEffect(() => {
+    if (!isLoading && bookings.length === 0) {
+      console.log("No bookings loaded, refreshing data...");
+      refreshData();
+    }
+  }, [bookings.length, isLoading, refreshData]);
 
   console.log("UpcomingBookings - Total bookings:", bookings.length);
   console.log("UpcomingBookings - Current user:", user?.id, user?.role);
-  console.log("UpcomingBookings - All bookings:", bookings);
+  console.log("UpcomingBookings - Loading state:", isLoading);
 
   // Get the next 5 bookings for the current user or all bookings if admin
   const now = new Date();
   const today = startOfDay(now);
   
-  console.log("UpcomingBookings - Current time:", now.toISOString());
-  console.log("UpcomingBookings - Today start:", today.toISOString());
-
   const upcoming = bookings
     .filter(booking => {
-      const bookingStart = new Date(booking.start);
       const bookingEnd = new Date(booking.end);
       
-      console.log(`UpcomingBookings - Checking booking ${booking.id}:`);
-      console.log(`  - Start: ${bookingStart.toISOString()}`);
-      console.log(`  - End: ${bookingEnd.toISOString()}`);
-      console.log(`  - Status: ${booking.status}`);
-      console.log(`  - User: ${booking.userId} (current: ${user?.id})`);
-      console.log(`  - Is future or today: ${bookingEnd >= today}`);
-      console.log(`  - Is confirmed: ${booking.status === "confirmed"}`);
-      console.log(`  - User match: ${user?.role === "admin" || booking.userId === user?.id}`);
-      
       // Include bookings that haven't ended yet (including ongoing ones)
-      const isNotEnded = bookingEnd >= today;
+      const isNotEnded = bookingEnd >= now; // Changed from today to now for more accurate filtering
       const isConfirmed = booking.status === "confirmed";
       const isUserBooking = user?.role === "admin" || booking.userId === user?.id;
       
-      const shouldInclude = isNotEnded && isConfirmed && isUserBooking;
-      console.log(`  - Should include: ${shouldInclude}`);
-      
-      return shouldInclude;
+      return isNotEnded && isConfirmed && isUserBooking;
     })
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
     .slice(0, 5);
@@ -68,7 +61,12 @@ const UpcomingBookings: React.FC = () => {
         <CardTitle className="text-lg font-medium">Upcoming Bookings</CardTitle>
       </CardHeader>
       <CardContent>
-        {upcoming.length > 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            <span className="text-sm text-muted-foreground">Loading bookings...</span>
+          </div>
+        ) : upcoming.length > 0 ? (
           <div className="space-y-4">
             {upcoming.map((booking) => (
               <div key={booking.id} className="flex flex-col border-b pb-2">
@@ -89,7 +87,7 @@ const UpcomingBookings: React.FC = () => {
           <div className="text-center text-muted-foreground py-4">
             <p>No upcoming bookings</p>
             <p className="text-xs mt-1">
-              Debug: Found {bookings.length} total bookings, user role: {user?.role}
+              {bookings.length === 0 ? "No bookings found" : `Found ${bookings.length} total bookings`}
             </p>
           </div>
         )}

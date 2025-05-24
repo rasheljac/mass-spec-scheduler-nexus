@@ -56,7 +56,7 @@ const AppLayout: React.FC = () => {
     }
   }, [isAuthenticated, user, lastActivity, navigate]);
   
-  // Handle authentication status and redirection with expanded logging
+  // Handle authentication status and redirection
   useEffect(() => {
     console.log("Auth status in AppLayout:", isAuthenticated);
     console.log("Auth loading in AppLayout:", authLoading);
@@ -74,9 +74,12 @@ const AppLayout: React.FC = () => {
     }
   }, [isAuthenticated, location.pathname, navigate, authLoading, initialCheckDone]);
 
-  // Debug logging for component render
-  console.log("AppLayout render - Auth loading:", authLoading, "Auth done:", initialCheckDone, 
-              "Is authenticated:", isAuthenticated, "Current path:", location.pathname);
+  // Debug logging
+  useEffect(() => {
+    console.log("AppLayout render - Auth loading:", authLoading, "Auth done:", initialCheckDone, 
+                "Is authenticated:", isAuthenticated, "Current path:", location.pathname, 
+                "Booking loading:", bookingLoading);
+  }, [authLoading, initialCheckDone, isAuthenticated, location.pathname, bookingLoading]);
   
   // Show loading state if auth is still loading
   if (authLoading || !initialCheckDone) {
@@ -102,8 +105,10 @@ const AppLayout: React.FC = () => {
       <main className="flex-1">
         {bookingLoading ? (
           <div className="flex items-center justify-center h-full min-h-[60vh]">
-            <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
-            <span className="ml-2 text-lg text-mslab-400">Loading data...</span>
+            <div className="flex flex-col items-center space-y-4">
+              <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
+              <span className="text-lg text-mslab-400">Loading data...</span>
+            </div>
           </div>
         ) : (
           <Outlet />
