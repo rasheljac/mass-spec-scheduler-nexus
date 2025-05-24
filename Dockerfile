@@ -6,10 +6,9 @@ WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-COPY bun.lockb ./
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install all dependencies (including dev dependencies needed for build)
+RUN npm ci
 
 # Copy source code
 COPY . .
@@ -28,7 +27,7 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 # Add healthcheck
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost/ || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
 
 # Expose port
 EXPOSE 80
