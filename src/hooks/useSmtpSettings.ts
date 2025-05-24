@@ -70,17 +70,31 @@ export const useSmtpSettings = () => {
         updated_at: new Date().toISOString()
       };
 
-      // Use upsert to either insert or update
-      const { data, error } = await supabase
+      // First check if any settings exist
+      const { data: existingData } = await supabase
         .from('smtp_settings')
-        .upsert(settingsData, { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        })
-        .select()
-        .single();
+        .select('id')
+        .maybeSingle();
 
-      if (error) throw error;
+      let result;
+      if (existingData) {
+        // Update existing record
+        result = await supabase
+          .from('smtp_settings')
+          .update(settingsData)
+          .eq('id', existingData.id)
+          .select()
+          .single();
+      } else {
+        // Insert new record
+        result = await supabase
+          .from('smtp_settings')
+          .insert(settingsData)
+          .select()
+          .single();
+      }
+
+      if (result.error) throw result.error;
 
       await loadSmtpSettings();
       toast.success("SMTP settings saved successfully");

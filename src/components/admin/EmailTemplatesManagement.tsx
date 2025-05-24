@@ -6,13 +6,13 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Mail } from "lucide-react";
+import { Mail, Eye } from "lucide-react";
 import { useEmailTemplates } from "../../hooks/useEmailTemplates";
-import { useSmtpSettings } from "../../hooks/useSmtpSettings";
+import { supabase } from "../../integrations/supabase/client";
+import { toast } from "sonner";
 
 const EmailTemplatesManagement: React.FC = () => {
   const { emailTemplates, isLoading, loadEmailTemplates, saveEmailTemplate } = useEmailTemplates();
-  const { sendTestEmail } = useSmtpSettings();
   const [activeTemplate, setActiveTemplate] = useState("booking_confirmation");
   const [formData, setFormData] = useState({
     subject: "",
@@ -20,6 +20,7 @@ const EmailTemplatesManagement: React.FC = () => {
   });
   const [testEmail, setTestEmail] = useState("");
   const [isSendingTest, setIsSendingTest] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
     loadEmailTemplates();
@@ -33,34 +34,86 @@ const EmailTemplatesManagement: React.FC = () => {
         htmlContent: template.htmlContent
       });
     } else {
-      // Set default templates if none exist
+      // Set default HTML templates if none exist
       if (activeTemplate === "booking_confirmation") {
         setFormData({
           subject: "Booking Confirmation: {{instrumentName}}",
-          htmlContent: `<h1>Booking Confirmation</h1>
-<p>Dear {{userName}},</p>
-<p>Your booking has been confirmed:</p>
-<ul>
-  <li><strong>Instrument:</strong> {{instrumentName}}</li>
-  <li><strong>Start Date:</strong> {{startDate}}</li>
-  <li><strong>End Date:</strong> {{endDate}}</li>
-  <li><strong>Status:</strong> {{status}}</li>
-</ul>
-<p>Thank you for using the Lab Management System.</p>`
+          htmlContent: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Booking Confirmation</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .header { background-color: #4f46e5; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; }
+    .booking-details { background-color: #f8fafc; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    .footer { background-color: #e5e7eb; padding: 15px; text-align: center; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Booking Confirmation</h1>
+  </div>
+  <div class="content">
+    <p>Dear {{userName}},</p>
+    <p>Your booking has been confirmed:</p>
+    <div class="booking-details">
+      <h3>Booking Details</h3>
+      <ul>
+        <li><strong>Instrument:</strong> {{instrumentName}}</li>
+        <li><strong>Start Date:</strong> {{startDate}}</li>
+        <li><strong>End Date:</strong> {{endDate}}</li>
+        <li><strong>Status:</strong> {{status}}</li>
+      </ul>
+    </div>
+    <p>Thank you for using the Lab Management System.</p>
+  </div>
+  <div class="footer">
+    <p>Lab Management System | Automated Email</p>
+  </div>
+</body>
+</html>`
         });
       } else if (activeTemplate === "booking_update") {
         setFormData({
           subject: "Booking Update: {{instrumentName}}",
-          htmlContent: `<h1>Booking Update</h1>
-<p>Dear {{userName}},</p>
-<p>Your booking has been updated:</p>
-<ul>
-  <li><strong>Instrument:</strong> {{instrumentName}}</li>
-  <li><strong>Start Date:</strong> {{startDate}}</li>
-  <li><strong>End Date:</strong> {{endDate}}</li>
-  <li><strong>New Status:</strong> {{status}}</li>
-</ul>
-<p>Thank you for using the Lab Management System.</p>`
+          htmlContent: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Booking Update</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .header { background-color: #059669; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; }
+    .booking-details { background-color: #f0fdf4; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    .footer { background-color: #e5e7eb; padding: 15px; text-align: center; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Booking Update</h1>
+  </div>
+  <div class="content">
+    <p>Dear {{userName}},</p>
+    <p>Your booking has been updated:</p>
+    <div class="booking-details">
+      <h3>Updated Booking Details</h3>
+      <ul>
+        <li><strong>Instrument:</strong> {{instrumentName}}</li>
+        <li><strong>Start Date:</strong> {{startDate}}</li>
+        <li><strong>End Date:</strong> {{endDate}}</li>
+        <li><strong>New Status:</strong> {{status}}</li>
+      </ul>
+    </div>
+    <p>Thank you for using the Lab Management System.</p>
+  </div>
+  <div class="footer">
+    <p>Lab Management System | Automated Email</p>
+  </div>
+</body>
+</html>`
         });
       }
     }
@@ -81,6 +134,7 @@ const EmailTemplatesManagement: React.FC = () => {
 
   const handleSendTestEmail = async () => {
     if (!testEmail) {
+      toast.error("Please enter a test email address");
       return;
     }
     
@@ -92,7 +146,7 @@ const EmailTemplatesManagement: React.FC = () => {
     
     const sampleData = {
       "{{userName}}": "John Doe",
-      "{{instrumentName}}": "Sample Instrument",
+      "{{instrumentName}}": "Sample Instrument XR-1000",
       "{{startDate}}": new Date().toLocaleDateString(),
       "{{endDate}}": new Date(Date.now() + 86400000).toLocaleDateString(),
       "{{status}}": "confirmed"
@@ -103,10 +157,7 @@ const EmailTemplatesManagement: React.FC = () => {
       testContent = testContent.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), value);
     });
 
-    // Use the SMTP hook's sendTestEmail function but with custom content
     try {
-      const { supabase } = await import("../../integrations/supabase/client");
-      
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
           to: testEmail,
@@ -119,16 +170,30 @@ const EmailTemplatesManagement: React.FC = () => {
 
       if (error) throw error;
 
-      // Use toast directly since we're in a component
-      const { toast } = await import("sonner");
       toast.success("Test email sent successfully!");
     } catch (error) {
       console.error("Error sending test email:", error);
-      const { toast } = await import("sonner");
       toast.error("Failed to send test email");
     }
     
     setIsSendingTest(false);
+  };
+
+  const getPreviewContent = () => {
+    let previewContent = formData.htmlContent;
+    const sampleData = {
+      "{{userName}}": "John Doe",
+      "{{instrumentName}}": "Sample Instrument XR-1000",
+      "{{startDate}}": new Date().toLocaleDateString(),
+      "{{endDate}}": new Date(Date.now() + 86400000).toLocaleDateString(),
+      "{{status}}": "confirmed"
+    };
+
+    Object.entries(sampleData).forEach(([key, value]) => {
+      previewContent = previewContent.replace(new RegExp(key.replace(/[{}]/g, '\\$&'), 'g'), value);
+    });
+
+    return previewContent;
   };
 
   const availableVariables = {
@@ -166,16 +231,37 @@ const EmailTemplatesManagement: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="htmlContent">HTML Content</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="htmlContent">HTML Content</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowPreview(!showPreview)}
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    {showPreview ? "Hide Preview" : "Show Preview"}
+                  </Button>
+                </div>
                 <Textarea
                   id="htmlContent"
                   value={formData.htmlContent}
                   onChange={(e) => setFormData(prev => ({ ...prev, htmlContent: e.target.value }))}
                   placeholder="HTML email template content"
-                  className="min-h-[300px] font-mono text-sm"
+                  className="min-h-[400px] font-mono text-sm"
                   required
                 />
               </div>
+
+              {showPreview && (
+                <div className="border rounded-lg p-4">
+                  <h4 className="font-medium mb-2">Live Preview (with sample data):</h4>
+                  <div 
+                    className="border rounded p-4 bg-white"
+                    dangerouslySetInnerHTML={{ __html: getPreviewContent() }}
+                  />
+                </div>
+              )}
 
               <div className="bg-gray-50 p-4 rounded-lg">
                 <h4 className="font-medium mb-2">Available Variables:</h4>
