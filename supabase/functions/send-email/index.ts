@@ -175,7 +175,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { to, subject, htmlContent, templateType, variables }: EmailRequest = await req.json();
 
-    console.log("Email request received:", { to, subject, templateType });
+    console.log("Email request received:", { to, subject, templateType, variables });
 
     // Validate email parameters
     if (!to || !to.includes('@')) {
@@ -215,28 +215,70 @@ const handler = async (req: Request): Promise<Response> => {
     let finalHtmlContent = htmlContent;
 
     if (templateType) {
+      console.log("Loading template:", templateType);
       const { data: templateData, error: templateError } = await supabase
         .from('email_templates')
         .select('*')
         .eq('template_type', templateType)
         .maybeSingle();
 
-      if (!templateError && templateData) {
+      if (templateError) {
+        console.error("Template loading error:", templateError);
+      }
+
+      if (templateData) {
         finalSubject = templateData.subject;
         finalHtmlContent = templateData.html_content;
-        console.log("Template loaded:", templateType);
+        console.log("Template loaded successfully:", { 
+          templateType, 
+          subject: finalSubject,
+          contentLength: finalHtmlContent.length 
+        });
+      } else {
+        console.log("No template found for type:", templateType, "using default content");
+        // Provide fallback content if template doesn't exist
+        if (templateType === 'comment_added') {
+          finalSubject = "New Comment on Your Booking: {{instrumentName}}";
+          finalHtmlContent = `
+            <html>
+            <body>
+              <h2>New Comment Added</h2>
+              <p>Dear {{userName}},</p>
+              <p>A new comment has been added to your booking for {{instrumentName}}.</p>
+              <div style="background-color: #f5f5f5; padding: 15px; margin: 15px 0; border-left: 4px solid #007bff;">
+                <h4>Comment by {{commentAuthor}}</h4>
+                <p><strong>Time:</strong> {{commentTime}}</p>
+                <p><strong>Comment:</strong> {{commentContent}}</p>
+              </div>
+              <p><strong>Booking Details:</strong></p>
+              <ul>
+                <li>Start: {{startDate}}</li>
+                <li>End: {{endDate}}</li>
+              </ul>
+              <p>Thank you for using the Lab Management System.</p>
+            </body>
+            </html>
+          `;
+        }
       }
     }
 
     // Replace variables in subject and content - FIXED: Handle undefined values safely
     if (variables && Object.keys(variables).length > 0) {
+      console.log("Replacing variables:", variables);
       Object.entries(variables).forEach(([key, value]) => {
         const placeholder = `{{${key}}}`;
         const safeValue = value || ""; // Handle undefined/null values
-        finalSubject = finalSubject.replace(new RegExp(placeholder, 'g'), safeValue);
-        finalHtmlContent = finalHtmlContent.replace(new RegExp(placeholder, 'g'), safeValue);
+        finalSubject = finalSubject.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), safeValue);
+        finalHtmlContent = finalHtmlContent.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), safeValue);
       });
+      console.log("Variable replacement completed. Final content length:", finalHtmlContent.length);
     }
+
+    console.log("Final email content:", {
+      subject: finalSubject,
+      contentPreview: finalHtmlContent.substring(0, 200) + "..."
+    });
 
     console.log("Attempting to send email via SMTP...");
 
@@ -263,7 +305,8 @@ const handler = async (req: Request): Promise<Response> => {
         emailData: {
           to,
           subject: finalSubject,
-          from: `${smtpData.from_name} <${smtpData.from_email}>`
+          from: `${smtpData.from_name} <${smtpData.from_email}>`,
+          contentLength: finalHtmlContent.length
         }
       }),
       {
