@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { Booking, Comment, User } from "../types";
 import { supabase } from "../integrations/supabase/client";
@@ -282,23 +283,40 @@ export const useBookings = (users: User[]) => {
       if (data && data[0]) {
         console.log("Comment added successfully:", data[0]);
         
-        // Send email notification for new comment - FIXED: Use correct template
+        // Send email notification for new comment - FIXED: Ensure all variables are defined
         try {
+          const commentAuthor = comment.userName || getUserNameById(comment.userId);
+          const commentTime = new Date().toLocaleString();
+          
+          console.log("Sending comment notification email with variables:", {
+            userName: booking.userName,
+            instrumentName: booking.instrumentName,
+            startDate: new Date(booking.start).toLocaleString(),
+            endDate: new Date(booking.end).toLocaleString(),
+            commentAuthor,
+            commentContent: comment.content,
+            commentTime
+          });
+          
           await supabase.functions.invoke('send-email', {
             body: {
               to: getUserEmailById(booking.userId),
+              subject: `New Comment on Your Booking: ${booking.instrumentName}`,
+              htmlContent: "", // Will be replaced by template
               templateType: 'comment_added',
               variables: {
-                userName: booking.userName,
-                instrumentName: booking.instrumentName,
+                userName: booking.userName || "User",
+                instrumentName: booking.instrumentName || "Instrument",
                 startDate: new Date(booking.start).toLocaleString(),
                 endDate: new Date(booking.end).toLocaleString(),
-                commentAuthor: comment.userName,
-                commentContent: comment.content,
-                commentTime: new Date().toLocaleString()
+                commentAuthor: commentAuthor,
+                commentContent: comment.content || "",
+                commentTime: commentTime
               }
             }
           });
+          
+          console.log("Comment notification email sent successfully");
         } catch (emailError) {
           console.error("Failed to send comment notification email:", emailError);
         }

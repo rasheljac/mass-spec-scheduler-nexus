@@ -228,12 +228,13 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Replace variables in subject and content
+    // Replace variables in subject and content - FIXED: Handle undefined values safely
     if (variables && Object.keys(variables).length > 0) {
       Object.entries(variables).forEach(([key, value]) => {
         const placeholder = `{{${key}}}`;
-        finalSubject = finalSubject.replace(new RegExp(placeholder, 'g'), value);
-        finalHtmlContent = finalHtmlContent.replace(new RegExp(placeholder, 'g'), value);
+        const safeValue = value || ""; // Handle undefined/null values
+        finalSubject = finalSubject.replace(new RegExp(placeholder, 'g'), safeValue);
+        finalHtmlContent = finalHtmlContent.replace(new RegExp(placeholder, 'g'), safeValue);
       });
     }
 
