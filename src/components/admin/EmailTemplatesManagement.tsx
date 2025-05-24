@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
@@ -151,15 +150,10 @@ const EmailTemplatesManagement: React.FC = () => {
       toast.error("Please enter a test email address");
       return;
     }
-
-    if (hasChanges) {
-      toast.error("Please save the template first before sending a test email");
-      return;
-    }
     
     setIsSendingTest(true);
     
-    // Replace template variables with sample data for testing
+    // Use current form data (not saved template) for testing
     let testSubject = formData.subject;
     let testContent = formData.htmlContent;
     
@@ -332,7 +326,7 @@ const EmailTemplatesManagement: React.FC = () => {
                 </div>
                 <Button 
                   onClick={handleSendTestEmail}
-                  disabled={!testEmail || isSendingTest || hasChanges}
+                  disabled={!testEmail || isSendingTest}
                   variant="outline"
                   className="flex items-center gap-2"
                 >
@@ -341,8 +335,7 @@ const EmailTemplatesManagement: React.FC = () => {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                This will send the current template with sample data to test the formatting.
-                {hasChanges && " Please save your changes first."}
+                This will send the current template (even if not saved) with sample data to test the formatting.
               </p>
             </div>
           </TabsContent>
