@@ -16,34 +16,33 @@ const AdminPage: React.FC = () => {
   const { user } = useAuth();
   const { refreshData, isLoading } = useBooking();
   const [activeTab, setActiveTab] = useState("users");
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   // Redirect if user is not admin
   if (!user || user.role !== "admin") {
     return <Navigate to="/" replace />;
   }
 
-  // Refresh data when the admin page loads or when switching to certain tabs
+  // Only refresh data on initial load, not on every tab change
   useEffect(() => {
-    const handleTabRefresh = async () => {
-      if (activeTab === "instruments" || activeTab === "status-colors") {
-        console.log(`Refreshing data for tab: ${activeTab}`);
-        setIsRefreshing(true);
+    const handleInitialLoad = async () => {
+      if (isInitialLoad) {
+        console.log("AdminPage: Initial data refresh");
         try {
           await refreshData();
         } catch (error) {
-          console.error("Error refreshing data for tab:", error);
+          console.error("Error refreshing admin data:", error);
         } finally {
-          setIsRefreshing(false);
+          setIsInitialLoad(false);
         }
       }
     };
 
-    handleTabRefresh();
-  }, [activeTab, refreshData]);
+    handleInitialLoad();
+  }, [isInitialLoad, refreshData]);
 
   const handleTabChange = (value: string) => {
-    console.log(`Switching to tab: ${value}`);
+    console.log(`AdminPage: Switching to tab: ${value}`);
     setActiveTab(value);
   };
 
@@ -51,10 +50,10 @@ const AdminPage: React.FC = () => {
     <div className="container py-6 space-y-6">
       <h1 className="text-3xl font-bold tracking-tight">Administration</h1>
       
-      {(isLoading || isRefreshing) && (
+      {isLoading && isInitialLoad && (
         <div className="flex items-center justify-center py-4">
           <Loader2 className="h-6 w-6 animate-spin mr-2" />
-          <span>Loading data...</span>
+          <span>Loading admin data...</span>
         </div>
       )}
       

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { format, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay, parseISO, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval } from "date-fns";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Pencil } from "lucide-react";
@@ -12,6 +11,7 @@ import { Booking } from "../../types";
 import BookingForm from "./BookingForm";
 import EditBookingForm from "./EditBookingForm";
 import StatusBadge from "./StatusBadge";
+import InstrumentFilter from "./InstrumentFilter";
 import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "../ui/sonner";
 import { useStatusColors } from "../../hooks/useStatusColors";
@@ -20,11 +20,12 @@ import { supabase } from "../../integrations/supabase/client";
 type ViewMode = "day" | "week" | "month";
 
 const CalendarView: React.FC = () => {
-  const { bookings, updateBooking } = useBooking();
+  const { bookings, instruments, updateBooking } = useBooking();
   const { user } = useAuth();
   const { statusColors, loadStatusColors, getStatusColor } = useStatusColors();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>("week");
+  const [viewMode, setViewMode] = useState<ViewMode>("month"); // Default to month view
+  const [selectedInstrument, setSelectedInstrument] = useState<string>("all");
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -36,8 +37,8 @@ const CalendarView: React.FC = () => {
 
   // Helper to get the week range displayed
   const weekRange = {
-    start: startOfWeek(selectedDate, { weekStartsOn: 0 }),  // Sunday
-    end: endOfWeek(selectedDate, { weekStartsOn: 0 })       // Saturday
+    start: startOfWeek(selectedDate, { weekStartsOn: 0 }),
+    end: endOfWeek(selectedDate, { weekStartsOn: 0 })
   };
 
   // Helper to get the month range displayed
@@ -59,8 +60,16 @@ const CalendarView: React.FC = () => {
 
   // Get bookings for the current view (day, week, or month)
   const getVisibleBookings = (): Booking[] => {
+    let filteredBookings = bookings;
+
+    if (selectedInstrument !== "all") {
+      filteredBookings = filteredBookings.filter(booking => 
+        booking.instrumentId === selectedInstrument
+      );
+    }
+
     if (viewMode === "day") {
-      return bookings.filter(booking => {
+      return filteredBookings.filter(booking => {
         const bookingDate = safeParseISO(booking.start);
         return isSameDay(bookingDate, selectedDate) && booking.status !== "cancelled";
       });
@@ -68,7 +77,7 @@ const CalendarView: React.FC = () => {
       const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
       const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 0 });
       
-      return bookings.filter(booking => {
+      return filteredBookings.filter(booking => {
         const bookingDate = safeParseISO(booking.start);
         return bookingDate >= weekStart && bookingDate <= weekEnd && booking.status !== "cancelled";
       });
@@ -76,12 +85,12 @@ const CalendarView: React.FC = () => {
       const monthStart = startOfMonth(selectedDate);
       const monthEnd = endOfMonth(selectedDate);
       
-      return bookings.filter(booking => {
+      return filteredBookings.filter(booking => {
         const bookingDate = safeParseISO(booking.start);
         return bookingDate >= monthStart && bookingDate <= monthEnd && booking.status !== "cancelled";
       });
     }
-    return bookings.filter(b => b.status !== "cancelled");
+    return filteredBookings.filter(b => b.status !== "cancelled");
   };
 
   const visibleBookings = getVisibleBookings();
@@ -282,7 +291,7 @@ const CalendarView: React.FC = () => {
         
         <div className="space-y-2">
           {days.map((day) => {
-            const dayBookings = bookings.filter(booking => {
+            const dayBookings = visibleBookings.filter(booking => {
               const bookingDate = safeParseISO(booking.start);
               return isSameDay(bookingDate, day) && booking.status !== "cancelled";
             });
@@ -391,7 +400,7 @@ const CalendarView: React.FC = () => {
               <div key={weekIndex} className="grid grid-cols-7 divide-x">
                 {week.map((day) => {
                   const isCurrentMonth = day.getMonth() === selectedDate.getMonth();
-                  const dayBookings = bookings.filter(booking => {
+                  const dayBookings = visibleBookings.filter(booking => {
                     const bookingDate = safeParseISO(booking.start);
                     return isSameDay(bookingDate, day) && booking.status !== "cancelled";
                   });
@@ -486,6 +495,12 @@ const CalendarView: React.FC = () => {
               />
             </PopoverContent>
           </Popover>
+
+          <InstrumentFilter
+            instruments={instruments}
+            selectedInstrument={selectedInstrument}
+            onInstrumentChange={setSelectedInstrument}
+          />
         </div>
 
         <div className="flex items-center space-x-2">
