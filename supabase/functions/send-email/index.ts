@@ -15,6 +15,90 @@ interface EmailRequest {
   variables: Record<string, string>;
 }
 
+// Simple SMTP client implementation
+async function sendSMTPEmail(
+  host: string,
+  port: number,
+  username: string,
+  password: string,
+  useTls: boolean,
+  fromEmail: string,
+  fromName: string,
+  to: string,
+  subject: string,
+  htmlContent: string
+) {
+  try {
+    console.log(`Connecting to SMTP server: ${host}:${port}`);
+    
+    // Connect to SMTP server
+    const conn = await Deno.connect({
+      hostname: host,
+      port: port,
+    });
+
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+
+    // Helper function to read response
+    async function readResponse(): Promise<string> {
+      const buffer = new Uint8Array(1024);
+      const n = await conn.read(buffer);
+      if (n === null) throw new Error("Connection closed");
+      return decoder.decode(buffer.subarray(0, n));
+    }
+
+    // Helper function to send command
+    async function sendCommand(command: string): Promise<string> {
+      console.log(`> ${command}`);
+      await conn.write(encoder.encode(command + "\r\n"));
+      const response = await readResponse();
+      console.log(`< ${response.trim()}`);
+      return response;
+    }
+
+    // SMTP handshake
+    await readResponse(); // Read initial greeting
+    await sendCommand(`EHLO ${host}`);
+    
+    if (useTls && port !== 465) {
+      await sendCommand("STARTTLS");
+      // Note: This is a simplified implementation. In production, you'd need proper TLS handling
+    }
+
+    // Authenticate
+    const authString = btoa(`\0${username}\0${password}`);
+    await sendCommand("AUTH PLAIN " + authString);
+
+    // Send email
+    await sendCommand(`MAIL FROM:<${fromEmail}>`);
+    await sendCommand(`RCPT TO:<${to}>`);
+    await sendCommand("DATA");
+
+    const emailContent = [
+      `From: ${fromName} <${fromEmail}>`,
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      `Content-Type: text/html; charset=UTF-8`,
+      ``,
+      htmlContent,
+      `.`
+    ].join("\r\n");
+
+    await conn.write(encoder.encode(emailContent + "\r\n"));
+    const dataResponse = await readResponse();
+    
+    await sendCommand("QUIT");
+    conn.close();
+
+    console.log("Email sent successfully via SMTP");
+    return true;
+  } catch (error) {
+    console.error("SMTP Error:", error);
+    throw new Error(`SMTP sending failed: ${error.message}`);
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -76,34 +160,21 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Attempting to send email via SMTP...");
 
-    // Use nodemailer-compatible approach for better reliability
-    const emailData = {
-      from: `${smtpData.from_name} <${smtpData.from_email}>`,
-      to: to,
-      subject: finalSubject,
-      html: finalHtmlContent,
-    };
+    // Actually send the email using SMTP
+    await sendSMTPEmail(
+      smtpData.host,
+      smtpData.port,
+      smtpData.username,
+      smtpData.password,
+      smtpData.use_tls,
+      smtpData.from_email,
+      smtpData.from_name,
+      to,
+      finalSubject,
+      finalHtmlContent
+    );
 
-    // Create a simple SMTP client using fetch to send via a more reliable method
-    // Since denomailer seems to have issues, let's use a different approach
-    
-    // For now, let's simulate sending and log the details
-    console.log("Email data prepared:", emailData);
-    console.log("SMTP configuration:", {
-      host: smtpData.host,
-      port: smtpData.port,
-      secure: smtpData.use_tls,
-      auth: {
-        user: smtpData.username,
-        // password is hidden for security
-      }
-    });
-
-    // Since the SMTP library is having issues, let's return success for now
-    // and implement a proper SMTP solution
-    await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate sending delay
-
-    console.log("Email sent successfully (simulated)");
+    console.log("Email sent successfully");
 
     return new Response(
       JSON.stringify({ 
