@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { Booking, Comment, User } from "../types";
 import { supabase } from "../integrations/supabase/client";
@@ -258,6 +259,12 @@ export const useBookings = (users: User[]) => {
     try {
       console.log("Adding comment to booking:", bookingId, comment);
       
+      // Get booking details for email notification
+      const booking = bookings.find(b => b.id === bookingId);
+      if (!booking) {
+        throw new Error("Booking not found");
+      }
+      
       // Insert into Supabase
       const { data, error } = await supabase
         .from('comments')
@@ -275,6 +282,27 @@ export const useBookings = (users: User[]) => {
 
       if (data && data[0]) {
         console.log("Comment added successfully:", data[0]);
+        
+        // Send email notification for new comment
+        try {
+          await supabase.functions.invoke('send-email', {
+            body: {
+              to: getUserEmailById(booking.userId),
+              templateType: 'comment_added',
+              variables: {
+                userName: booking.userName,
+                instrumentName: booking.instrumentName,
+                startDate: new Date(booking.start).toLocaleString(),
+                endDate: new Date(booking.end).toLocaleString(),
+                commentAuthor: comment.userName,
+                commentContent: comment.content,
+                commentTime: new Date().toLocaleString()
+              }
+            }
+          });
+        } catch (emailError) {
+          console.error("Failed to send comment notification email:", emailError);
+        }
         
         // Reload bookings to get the updated comments
         await loadBookings();

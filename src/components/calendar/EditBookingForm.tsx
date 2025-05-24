@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -63,9 +62,10 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   isSubmitting = false,
 }) => {
   const { user } = useAuth();
-  const { addCommentToBooking, deleteCommentFromBooking } = useBooking();
+  const { addCommentToBooking, deleteCommentFromBooking, refreshData } = useBooking();
   const [comments, setComments] = useState<Comment[]>([]);
   const [formInitialized, setFormInitialized] = useState(false);
+  const [isAddingComment, setIsAddingComment] = useState(false);
   
   // Initialize form when booking changes
   const form = useForm<z.infer<typeof formSchema>>({
@@ -163,23 +163,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
       const start = parseTime(values.startDate, values.startTime);
       const end = parseTime(values.endDate, values.endTime);
 
-      // Handle new comment if present
-      const newComment = values.newComment?.trim();
-      
-      if (newComment && booking) {
-        // First add the comment to the database
-        console.log("Adding comment to booking:", booking.id, newComment);
-        await addCommentToBooking(booking.id, {
-          userId: user.id,
-          userName: user.name,
-          content: newComment,
-          createdAt: new Date().toISOString()
-        });
-        
-        console.log("Comment added successfully");
-      }
-
-      // Then submit the form with updated booking data
+      // Submit the form with updated booking data
       if (onSubmit) {
         onSubmit({
           ...booking,
@@ -190,13 +174,13 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
           purpose: values.purpose,
           details: values.details,
           status: values.status,
-          comments: comments // Use the current comments array from state
+          comments: comments
         });
       }
       
       onOpenChange(false);
     } catch (error) {
-      console.error("Error saving booking or adding comment:", error);
+      console.error("Error saving booking:", error);
       toast.error("Failed to save changes");
     }
   };
@@ -210,26 +194,45 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
 
   const handleAddComment = async () => {
     const newComment = form.getValues("newComment")?.trim();
-    if (!newComment || !booking) return;
+    if (!newComment || !booking || !user) return;
 
     try {
+      setIsAddingComment(true);
       console.log("Adding comment with content:", newComment);
       
       // Add comment to database
-      await addCommentToBooking(booking.id, {
+      const commentId = await addCommentToBooking(booking.id, {
         userId: user.id,
         userName: user.name,
         content: newComment,
         createdAt: new Date().toISOString()
       });
       
-      // Reset comment field
-      form.setValue("newComment", "");
-      
-      toast.success("Comment added successfully");
+      if (commentId) {
+        // Update local state immediately
+        const newCommentObj: Comment = {
+          id: commentId,
+          userId: user.id,
+          userName: user.name,
+          content: newComment,
+          createdAt: new Date().toISOString()
+        };
+        
+        setComments(prev => [...prev, newCommentObj]);
+        
+        // Reset comment field
+        form.setValue("newComment", "");
+        
+        // Refresh the booking data in the background
+        await refreshData();
+        
+        toast.success("Comment added successfully");
+      }
     } catch (error) {
       console.error("Error adding comment:", error);
       toast.error("Failed to add comment");
+    } finally {
+      setIsAddingComment(false);
     }
   };
   
@@ -540,8 +543,9 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
                         type="button"
                         onClick={handleAddComment}
                         className="self-end"
+                        disabled={isAddingComment}
                       >
-                        Add Comment
+                        {isAddingComment ? "Adding..." : "Add Comment"}
                       </Button>
                     </div>
                   </CardContent>

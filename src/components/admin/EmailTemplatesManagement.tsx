@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
@@ -118,6 +119,51 @@ const EmailTemplatesManagement: React.FC = () => {
 </body>
 </html>`
         });
+      } else if (activeTemplate === "comment_added") {
+        setFormData({
+          subject: "New Comment on Your Booking: {{instrumentName}}",
+          htmlContent: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>New Comment Added</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .header { background-color: #7c3aed; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; }
+    .booking-details { background-color: #faf5ff; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    .comment-box { background-color: #f3f4f6; padding: 15px; border-left: 4px solid #7c3aed; margin: 15px 0; }
+    .footer { background-color: #e5e7eb; padding: 15px; text-align: center; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>New Comment Added</h1>
+  </div>
+  <div class="content">
+    <p>Dear {{userName}},</p>
+    <p>A new comment has been added to your booking:</p>
+    <div class="booking-details">
+      <h3>Booking Details</h3>
+      <ul>
+        <li><strong>Instrument:</strong> {{instrumentName}}</li>
+        <li><strong>Start Date:</strong> {{startDate}}</li>
+        <li><strong>End Date:</strong> {{endDate}}</li>
+      </ul>
+    </div>
+    <div class="comment-box">
+      <h4>New Comment by {{commentAuthor}}</h4>
+      <p><strong>Time:</strong> {{commentTime}}</p>
+      <p><strong>Comment:</strong> {{commentContent}}</p>
+    </div>
+    <p>Thank you for using the Lab Management System.</p>
+  </div>
+  <div class="footer">
+    <p>Lab Management System | Automated Email</p>
+  </div>
+</body>
+</html>`
+        });
       }
       setHasChanges(false);
     }
@@ -162,7 +208,10 @@ const EmailTemplatesManagement: React.FC = () => {
       "{{instrumentName}}": "Sample Instrument XR-1000",
       "{{startDate}}": new Date().toLocaleDateString(),
       "{{endDate}}": new Date(Date.now() + 86400000).toLocaleDateString(),
-      "{{status}}": "confirmed"
+      "{{status}}": "confirmed",
+      "{{commentAuthor}}": "Jane Smith",
+      "{{commentContent}}": "This is a sample comment for testing purposes.",
+      "{{commentTime}}": new Date().toLocaleDateString()
     };
 
     Object.entries(sampleData).forEach(([key, value]) => {
@@ -205,7 +254,10 @@ const EmailTemplatesManagement: React.FC = () => {
       "{{instrumentName}}": "Sample Instrument XR-1000",
       "{{startDate}}": new Date().toLocaleDateString(),
       "{{endDate}}": new Date(Date.now() + 86400000).toLocaleDateString(),
-      "{{status}}": "confirmed"
+      "{{status}}": "confirmed",
+      "{{commentAuthor}}": "Jane Smith",
+      "{{commentContent}}": "This is a sample comment for testing purposes.",
+      "{{commentTime}}": new Date().toLocaleDateString()
     };
 
     Object.entries(sampleData).forEach(([key, value]) => {
@@ -217,7 +269,8 @@ const EmailTemplatesManagement: React.FC = () => {
 
   const availableVariables = {
     booking_confirmation: ["{{userName}}", "{{instrumentName}}", "{{startDate}}", "{{endDate}}", "{{status}}"],
-    booking_update: ["{{userName}}", "{{instrumentName}}", "{{startDate}}", "{{endDate}}", "{{status}}"]
+    booking_update: ["{{userName}}", "{{instrumentName}}", "{{startDate}}", "{{endDate}}", "{{status}}"],
+    comment_added: ["{{userName}}", "{{instrumentName}}", "{{startDate}}", "{{endDate}}", "{{commentAuthor}}", "{{commentContent}}", "{{commentTime}}"]
   };
 
   return (
@@ -234,6 +287,7 @@ const EmailTemplatesManagement: React.FC = () => {
           <TabsList>
             <TabsTrigger value="booking_confirmation">Booking Confirmation</TabsTrigger>
             <TabsTrigger value="booking_update">Booking Update</TabsTrigger>
+            <TabsTrigger value="comment_added">Comment Added</TabsTrigger>
           </TabsList>
 
           <TabsContent value={activeTemplate} className="mt-6">
