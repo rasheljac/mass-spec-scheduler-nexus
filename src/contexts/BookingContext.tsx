@@ -1,5 +1,5 @@
 
-import React, { createContext, useState, useContext, useEffect } from "react";
+import React, { createContext, useState, useContext, useEffect, useCallback } from "react";
 import { Instrument, Booking, BookingStatistics, Comment } from "../types";
 import { useAuth } from "./AuthContext";
 import { toast } from "sonner";
@@ -81,8 +81,8 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
   
   const statistics = useBookingStatistics(bookings, instruments);
 
-  // Function to refresh all data
-  const refreshData = async () => {
+  // Memoize the refresh function to prevent infinite loops
+  const refreshData = useCallback(async () => {
     if (!isAuthenticated) {
       console.log("Not authenticated, skipping data refresh");
       return;
@@ -103,7 +103,7 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [isAuthenticated, loadInstruments, loadBookings, loadStatusColors]);
 
   // Initial data load
   useEffect(() => {
@@ -126,25 +126,12 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
       }
       
       console.log("Loading initial data for user:", user?.id);
-      setIsLoading(true);
-      try {
-        await Promise.all([
-          loadInstruments(),
-          loadBookings(),
-          loadStatusColors()
-        ]);
-        console.log("Initial data loading complete");
-        setHasInitialized(true);
-      } catch (error) {
-        console.error("Error loading initial data:", error);
-        toast.error("Failed to load scheduling data");
-      } finally {
-        setIsLoading(false);
-      }
+      await refreshData();
+      setHasInitialized(true);
     };
 
     loadInitialData();
-  }, [authLoading, isAuthenticated, user, hasInitialized, loadInstruments, loadBookings, loadStatusColors]);
+  }, [authLoading, isAuthenticated, user?.id, hasInitialized, refreshData]);
 
   // Reset initialization when auth state changes
   useEffect(() => {
