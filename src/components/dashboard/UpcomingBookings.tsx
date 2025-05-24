@@ -1,6 +1,6 @@
 
 import React from "react";
-import { format, isToday, isTomorrow } from "date-fns";
+import { format, isToday, isTomorrow, startOfDay } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { useBooking } from "../../contexts/BookingContext";
 import { useAuth } from "../../contexts/AuthContext";
@@ -9,15 +9,45 @@ const UpcomingBookings: React.FC = () => {
   const { bookings } = useBooking();
   const { user } = useAuth();
 
+  console.log("UpcomingBookings - Total bookings:", bookings.length);
+  console.log("UpcomingBookings - Current user:", user?.id, user?.role);
+  console.log("UpcomingBookings - All bookings:", bookings);
+
   // Get the next 5 bookings for the current user or all bookings if admin
+  const now = new Date();
+  const today = startOfDay(now);
+  
+  console.log("UpcomingBookings - Current time:", now.toISOString());
+  console.log("UpcomingBookings - Today start:", today.toISOString());
+
   const upcoming = bookings
-    .filter(booking => 
-      new Date(booking.start) >= new Date() && 
-      booking.status === "confirmed" &&
-      (user?.role === "admin" || booking.userId === user?.id)
-    )
+    .filter(booking => {
+      const bookingStart = new Date(booking.start);
+      const bookingEnd = new Date(booking.end);
+      
+      console.log(`UpcomingBookings - Checking booking ${booking.id}:`);
+      console.log(`  - Start: ${bookingStart.toISOString()}`);
+      console.log(`  - End: ${bookingEnd.toISOString()}`);
+      console.log(`  - Status: ${booking.status}`);
+      console.log(`  - User: ${booking.userId} (current: ${user?.id})`);
+      console.log(`  - Is future or today: ${bookingEnd >= today}`);
+      console.log(`  - Is confirmed: ${booking.status === "confirmed"}`);
+      console.log(`  - User match: ${user?.role === "admin" || booking.userId === user?.id}`);
+      
+      // Include bookings that haven't ended yet (including ongoing ones)
+      const isNotEnded = bookingEnd >= today;
+      const isConfirmed = booking.status === "confirmed";
+      const isUserBooking = user?.role === "admin" || booking.userId === user?.id;
+      
+      const shouldInclude = isNotEnded && isConfirmed && isUserBooking;
+      console.log(`  - Should include: ${shouldInclude}`);
+      
+      return shouldInclude;
+    })
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
     .slice(0, 5);
+
+  console.log("UpcomingBookings - Filtered upcoming bookings:", upcoming);
 
   // Format the date string nicely
   const formatDateDisplay = (dateStr: string | Date): string => {
@@ -56,7 +86,12 @@ const UpcomingBookings: React.FC = () => {
             ))}
           </div>
         ) : (
-          <p className="text-center text-muted-foreground py-4">No upcoming bookings</p>
+          <div className="text-center text-muted-foreground py-4">
+            <p>No upcoming bookings</p>
+            <p className="text-xs mt-1">
+              Debug: Found {bookings.length} total bookings, user role: {user?.role}
+            </p>
+          </div>
         )}
       </CardContent>
     </Card>
