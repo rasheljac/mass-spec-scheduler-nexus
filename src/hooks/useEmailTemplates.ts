@@ -59,16 +59,34 @@ export const useEmailTemplates = () => {
 
       console.log("Saving email template:", templateData);
 
-      const { error } = await supabase
+      // Check if template already exists
+      const { data: existingData, error: fetchError } = await supabase
         .from('email_templates')
-        .upsert(templateData, { 
-          onConflict: 'template_type',
-          ignoreDuplicates: false 
-        });
+        .select('id')
+        .eq('template_type', template.templateType)
+        .maybeSingle();
 
-      if (error) {
-        console.error("Supabase error:", error);
-        throw error;
+      if (fetchError) {
+        console.error("Error checking existing template:", fetchError);
+      }
+
+      let result;
+      if (existingData?.id) {
+        // Update existing template
+        result = await supabase
+          .from('email_templates')
+          .update(templateData)
+          .eq('id', existingData.id);
+      } else {
+        // Insert new template
+        result = await supabase
+          .from('email_templates')
+          .insert(templateData);
+      }
+
+      if (result.error) {
+        console.error("Supabase error:", result.error);
+        throw result.error;
       }
 
       await loadEmailTemplates();

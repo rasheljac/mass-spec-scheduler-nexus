@@ -71,16 +71,33 @@ export const useSmtpSettings = () => {
 
       console.log("Saving SMTP settings:", settingsData);
 
-      const { error } = await supabase
+      // Try to update existing settings first
+      const { data: existingData, error: fetchError } = await supabase
         .from('smtp_settings')
-        .upsert(settingsData, { 
-          onConflict: 'id',
-          ignoreDuplicates: false 
-        });
+        .select('id')
+        .maybeSingle();
 
-      if (error) {
-        console.error("Supabase error:", error);
-        throw error;
+      if (fetchError) {
+        console.error("Error checking existing settings:", fetchError);
+      }
+
+      let result;
+      if (existingData?.id) {
+        // Update existing record
+        result = await supabase
+          .from('smtp_settings')
+          .update(settingsData)
+          .eq('id', existingData.id);
+      } else {
+        // Insert new record
+        result = await supabase
+          .from('smtp_settings')
+          .insert(settingsData);
+      }
+
+      if (result.error) {
+        console.error("Supabase error:", result.error);
+        throw result.error;
       }
 
       await loadSmtpSettings();
@@ -100,7 +117,7 @@ export const useSmtpSettings = () => {
       
       console.log("Sending test email to:", testEmail);
       
-      const { data, error } = await supabase.functions.invoke('send-email', {
+      const response = await supabase.functions.invoke('send-email', {
         body: {
           to: testEmail,
           subject: 'Test Email from Lab Management System',
@@ -115,18 +132,23 @@ export const useSmtpSettings = () => {
         }
       });
 
-      console.log("Email function response:", { data, error });
+      console.log("Email function response:", response);
 
-      if (error) {
-        console.error("Email function error:", error);
-        throw error;
+      if (response.error) {
+        console.error("Email function error:", response.error);
+        throw new Error(response.error.message || "Failed to send email");
+      }
+
+      if (!response.data?.success) {
+        throw new Error(response.data?.error || "Unknown error occurred");
       }
 
       toast.success("Test email sent successfully!");
       return true;
     } catch (error) {
       console.error("Error sending test email:", error);
-      toast.error("Failed to send test email: " + (error as Error).message);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+      toast.error("Failed to send test email: " + errorMessage);
       return false;
     } finally {
       setIsLoading(false);
