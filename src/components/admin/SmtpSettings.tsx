@@ -5,10 +5,11 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
+import { Mail } from "lucide-react";
 import { useSmtpSettings } from "../../hooks/useSmtpSettings";
 
 const SmtpSettings: React.FC = () => {
-  const { smtpSettings, isLoading, loadSmtpSettings, saveSmtpSettings } = useSmtpSettings();
+  const { smtpSettings, isLoading, loadSmtpSettings, saveSmtpSettings, sendTestEmail } = useSmtpSettings();
   const [formData, setFormData] = useState({
     host: "",
     port: 587,
@@ -18,6 +19,8 @@ const SmtpSettings: React.FC = () => {
     fromName: "Lab Management System",
     useTls: true
   });
+  const [testEmail, setTestEmail] = useState("");
+  const [isSendingTest, setIsSendingTest] = useState(false);
 
   useEffect(() => {
     loadSmtpSettings();
@@ -51,6 +54,16 @@ const SmtpSettings: React.FC = () => {
       ...prev,
       [field]: value
     }));
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!testEmail) {
+      return;
+    }
+    
+    setIsSendingTest(true);
+    await sendTestEmail(testEmail);
+    setIsSendingTest(false);
   };
 
   return (
@@ -144,6 +157,32 @@ const SmtpSettings: React.FC = () => {
             {isLoading ? "Saving..." : "Save SMTP Settings"}
           </Button>
         </form>
+
+        {smtpSettings && (
+          <div className="border-t pt-6">
+            <h4 className="text-md font-semibold mb-4">Test Email Configuration</h4>
+            <div className="flex gap-4 items-end">
+              <div className="flex-1">
+                <Label htmlFor="testEmail">Test Email Address</Label>
+                <Input
+                  id="testEmail"
+                  type="email"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  placeholder="test@example.com"
+                />
+              </div>
+              <Button 
+                onClick={handleSendTestEmail}
+                disabled={!testEmail || isSendingTest}
+                variant="outline"
+              >
+                <Mail className="w-4 h-4 mr-2" />
+                {isSendingTest ? "Sending..." : "Send Test Email"}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </Card>
   );

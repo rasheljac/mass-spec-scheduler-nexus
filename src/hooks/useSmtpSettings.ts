@@ -26,9 +26,9 @@ export const useSmtpSettings = () => {
       const { data, error } = await supabase
         .from('smtp_settings')
         .select('*')
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         throw error;
       }
 
@@ -70,22 +70,17 @@ export const useSmtpSettings = () => {
         updated_at: new Date().toISOString()
       };
 
-      if (smtpSettings?.id) {
-        // Update existing settings
-        const { error } = await supabase
-          .from('smtp_settings')
-          .update(settingsData)
-          .eq('id', smtpSettings.id);
+      // Use upsert to either insert or update
+      const { data, error } = await supabase
+        .from('smtp_settings')
+        .upsert(settingsData, { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        })
+        .select()
+        .single();
 
-        if (error) throw error;
-      } else {
-        // Create new settings
-        const { error } = await supabase
-          .from('smtp_settings')
-          .insert(settingsData);
-
-        if (error) throw error;
-      }
+      if (error) throw error;
 
       await loadSmtpSettings();
       toast.success("SMTP settings saved successfully");
@@ -98,10 +93,43 @@ export const useSmtpSettings = () => {
     }
   };
 
+  const sendTestEmail = async (testEmail: string) => {
+    try {
+      setIsLoading(true);
+      
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: testEmail,
+          subject: 'Test Email from Lab Management System',
+          htmlContent: `
+            <h1>Test Email</h1>
+            <p>This is a test email to verify your SMTP configuration.</p>
+            <p>If you received this email, your SMTP settings are working correctly!</p>
+            <p>Sent at: ${new Date().toLocaleString()}</p>
+          `,
+          templateType: null,
+          variables: {}
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success("Test email sent successfully!");
+      return true;
+    } catch (error) {
+      console.error("Error sending test email:", error);
+      toast.error("Failed to send test email");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return {
     smtpSettings,
     isLoading,
     loadSmtpSettings,
-    saveSmtpSettings
+    saveSmtpSettings,
+    sendTestEmail
   };
 };
