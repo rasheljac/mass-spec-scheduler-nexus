@@ -236,26 +236,124 @@ const handler = async (req: Request): Promise<Response> => {
         });
       } else {
         console.log("No template found for type:", templateType, "using default content");
-        // Provide fallback content if template doesn't exist
+        // Provide fallback content with consistent styling for comment notifications
         if (templateType === 'comment_added') {
           finalSubject = "New Comment on Your Booking: {{instrumentName}}";
           finalHtmlContent = `
+            <!DOCTYPE html>
             <html>
+            <head>
+              <style>
+                body {
+                  font-family: Arial, sans-serif;
+                  margin: 0;
+                  padding: 20px;
+                  background-color: #f5f5f5;
+                }
+                .container {
+                  max-width: 600px;
+                  margin: 0 auto;
+                  background-color: white;
+                  padding: 30px;
+                  border-radius: 8px;
+                  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }
+                .header {
+                  color: #333;
+                  font-size: 24px;
+                  margin-bottom: 20px;
+                  text-align: center;
+                  border-bottom: 2px solid #007bff;
+                  padding-bottom: 15px;
+                }
+                .content {
+                  color: #555;
+                  line-height: 1.6;
+                  margin-bottom: 20px;
+                }
+                .comment-box {
+                  background-color: #f8f9fa;
+                  padding: 20px;
+                  margin: 20px 0;
+                  border-left: 4px solid #007bff;
+                  border-radius: 4px;
+                }
+                .comment-header {
+                  font-weight: bold;
+                  color: #333;
+                  margin-bottom: 10px;
+                }
+                .comment-meta {
+                  color: #666;
+                  font-size: 14px;
+                  margin-bottom: 15px;
+                }
+                .comment-content {
+                  color: #333;
+                  font-size: 16px;
+                  line-height: 1.5;
+                }
+                .booking-details {
+                  background-color: #f8f9fa;
+                  padding: 15px;
+                  border-radius: 4px;
+                  margin: 20px 0;
+                }
+                .booking-details h4 {
+                  margin: 0 0 10px 0;
+                  color: #333;
+                }
+                .booking-details ul {
+                  margin: 0;
+                  padding-left: 20px;
+                  color: #555;
+                }
+                .footer {
+                  margin-top: 30px;
+                  padding-top: 20px;
+                  border-top: 1px solid #eee;
+                  text-align: center;
+                  color: #666;
+                  font-size: 14px;
+                }
+                .btn {
+                  display: inline-block;
+                  background-color: #007bff;
+                  color: white;
+                  padding: 12px 24px;
+                  text-decoration: none;
+                  border-radius: 4px;
+                  margin: 20px 0;
+                }
+              </style>
+            </head>
             <body>
-              <h2>New Comment Added</h2>
-              <p>Dear {{userName}},</p>
-              <p>A new comment has been added to your booking for {{instrumentName}}.</p>
-              <div style="background-color: #f5f5f5; padding: 15px; margin: 15px 0; border-left: 4px solid #007bff;">
-                <h4>Comment by {{commentAuthor}}</h4>
-                <p><strong>Time:</strong> {{commentTime}}</p>
-                <p><strong>Comment:</strong> {{commentContent}}</p>
+              <div class="container">
+                <div class="header">New Comment Added</div>
+                <div class="content">
+                  <p>Dear {{userName}},</p>
+                  <p>A new comment has been added to your booking for <strong>{{instrumentName}}</strong>.</p>
+                </div>
+                
+                <div class="comment-box">
+                  <div class="comment-header">Comment by {{commentAuthor}}</div>
+                  <div class="comment-meta">Time: {{commentTime}}</div>
+                  <div class="comment-content">{{commentContent}}</div>
+                </div>
+                
+                <div class="booking-details">
+                  <h4>Booking Details:</h4>
+                  <ul>
+                    <li><strong>Instrument:</strong> {{instrumentName}}</li>
+                    <li><strong>Start:</strong> {{startDate}}</li>
+                    <li><strong>End:</strong> {{endDate}}</li>
+                  </ul>
+                </div>
+                
+                <div class="footer">
+                  <p>Thank you for using the Lab Management System.</p>
+                </div>
               </div>
-              <p><strong>Booking Details:</strong></p>
-              <ul>
-                <li>Start: {{startDate}}</li>
-                <li>End: {{endDate}}</li>
-              </ul>
-              <p>Thank you for using the Lab Management System.</p>
             </body>
             </html>
           `;

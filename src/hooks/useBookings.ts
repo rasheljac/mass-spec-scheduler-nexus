@@ -175,12 +175,21 @@ export const useBookings = (users: User[]) => {
     }
   };
 
-  // Function to update a booking
+  // Function to update a booking - FIXED: Only check for booking field changes, not comment changes
   const updateBooking = async (bookingData: Booking) => {
     try {
-      // Find the existing booking to compare status
+      // Find the existing booking to compare status and other fields
       const existingBooking = bookings.find(booking => booking.id === bookingData.id);
-      const statusChanged = existingBooking && existingBooking.status !== bookingData.status;
+      
+      // Check if any booking fields have changed (excluding comments)
+      const bookingFieldsChanged = existingBooking && (
+        existingBooking.status !== bookingData.status ||
+        existingBooking.start !== bookingData.start ||
+        existingBooking.end !== bookingData.end ||
+        existingBooking.purpose !== bookingData.purpose ||
+        existingBooking.details !== bookingData.details ||
+        existingBooking.instrumentId !== bookingData.instrumentId
+      );
       
       // Update in Supabase
       const { error } = await supabase
@@ -203,8 +212,8 @@ export const useBookings = (users: User[]) => {
       // Reload bookings to get the updated list
       await loadBookings();
       
-      // Send status update notification if status has changed
-      if (statusChanged) {
+      // Send status update notification only if booking fields have changed (not comments)
+      if (bookingFieldsChanged) {
         try {
           await supabase.functions.invoke('send-email', {
             body: {
@@ -283,7 +292,7 @@ export const useBookings = (users: User[]) => {
       if (data && data[0]) {
         console.log("Comment added successfully:", data[0]);
         
-        // Send email notification for new comment - FIXED: Ensure all variables are defined
+        // Send email notification for new comment
         try {
           const commentAuthor = comment.userName || getUserNameById(comment.userId);
           const commentTime = new Date().toLocaleString();
