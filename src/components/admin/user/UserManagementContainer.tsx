@@ -12,7 +12,7 @@ import AddUserDialog from "../AddUserDialog";
 import { supabase } from "../../../integrations/supabase/client";
 
 const UserManagementContainer: React.FC = () => {
-  const { user: currentUser, updateUserProfile, updateUserPassword, users, setUsers, createUser, deleteUser } = useAuth();
+  const { user: currentUser, updateUserProfile, updateUserPassword, users, createUser, deleteUser } = useAuth();
   const { toast } = useToast();
   const [editUser, setEditUser] = useState<User | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);

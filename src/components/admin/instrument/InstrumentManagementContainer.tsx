@@ -1,24 +1,18 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Card } from "../../ui/card";
-import { useInstruments } from "../../../hooks/useInstruments";
+import { useBooking } from "../../../contexts/BookingContext";
 import { Instrument } from "../../../types";
 import { toast } from "sonner";
 import InstrumentTable from "./InstrumentTable";
 import InstrumentDialogs from "./InstrumentDialogs";
 
 const InstrumentManagementContainer: React.FC = () => {
-  const { instruments, loadInstruments, addInstrument, updateInstrument, deleteInstrument } = useInstruments();
+  const { instruments, addInstrument, updateInstrument, deleteInstrument } = useBooking();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedInstrument, setSelectedInstrument] = useState<Instrument | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-
-  // Load instruments when component mounts
-  useEffect(() => {
-    console.log("InstrumentManagement - Loading instruments on mount");
-    loadInstruments();
-  }, [loadInstruments]);
 
   const handleAddInstrument = async (data: any) => {
     console.log("Adding instrument:", data);

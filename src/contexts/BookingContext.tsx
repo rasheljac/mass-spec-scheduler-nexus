@@ -52,9 +52,9 @@ export const BookingContext = createContext<BookingContextType>({
 });
 
 export const BookingProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user, users, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { users, isLoading: authLoading, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
-  const [hasInitialized, setHasInitialized] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   
   // Use our custom hooks
   const { 
@@ -77,28 +77,30 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
     applyDelay
   } = useBookings(users);
   
-  const { statusColors, loadStatusColors, getStatusColor } = useStatusColors();
+  const { getStatusColor, loadStatusColors } = useStatusColors();
   
   const statistics = useBookingStatistics(bookings, instruments);
 
-  // Memoize the refresh function to prevent infinite loops
+  // Memoize the refresh function
   const refreshData = useCallback(async () => {
     if (!isAuthenticated) {
       console.log("Not authenticated, skipping data refresh");
+      setIsLoading(false);
       return;
     }
     
-    console.log("Refreshing all data...");
+    console.log("BookingContext: Starting data refresh");
     setIsLoading(true);
+    
     try {
       await Promise.all([
         loadInstruments(),
         loadBookings(),
         loadStatusColors()
       ]);
-      console.log("Data refresh complete");
+      console.log("BookingContext: Data refresh complete");
     } catch (error) {
-      console.error("Error refreshing data:", error);
+      console.error("BookingContext: Error refreshing data:", error);
       toast.error("Failed to refresh data");
     } finally {
       setIsLoading(false);
@@ -107,50 +109,34 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
 
   // Initial data load
   useEffect(() => {
-    const loadInitialData = async () => {
-      // Skip if auth is still loading or user is not authenticated
-      if (authLoading || !isAuthenticated) {
-        console.log("Auth not ready, skipping initial data load");
-        // If auth is done loading and user is not authenticated, we can stop loading
-        if (!authLoading && !isAuthenticated) {
-          setIsLoading(false);
-          setHasInitialized(true);
-        }
+    const initializeData = async () => {
+      // Don't initialize if already done or if auth is loading
+      if (isInitialized || authLoading) {
         return;
       }
       
-      // Skip if already initialized
-      if (hasInitialized) {
-        console.log("Already initialized, skipping initial data load");
+      // If not authenticated, stop loading
+      if (!isAuthenticated) {
+        console.log("BookingContext: Not authenticated, stopping loading");
+        setIsLoading(false);
+        setIsInitialized(true);
         return;
       }
       
-      console.log("Loading initial data for user:", user?.id);
+      console.log("BookingContext: Initializing data");
       await refreshData();
-      setHasInitialized(true);
+      setIsInitialized(true);
     };
 
-    loadInitialData();
-  }, [authLoading, isAuthenticated, user?.id, hasInitialized, refreshData]);
+    initializeData();
+  }, [authLoading, isAuthenticated, isInitialized, refreshData]);
 
-  // Reset initialization when auth state changes
+  // Reset when auth changes
   useEffect(() => {
     if (authLoading) {
-      setHasInitialized(false);
+      setIsInitialized(false);
     }
   }, [authLoading]);
-
-  // Debug logging
-  useEffect(() => {
-    console.log("BookingContext state:", {
-      isLoading,
-      authLoading,
-      isAuthenticated,
-      hasInitialized,
-      bookingsCount: bookings.length,
-      instrumentsCount: instruments.length
-    });
-  }, [isLoading, authLoading, isAuthenticated, hasInitialized, bookings.length, instruments.length]);
 
   return (
     <BookingContext.Provider value={{

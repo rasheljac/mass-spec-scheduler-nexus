@@ -58,28 +58,18 @@ const AppLayout: React.FC = () => {
   
   // Handle authentication status and redirection
   useEffect(() => {
-    console.log("Auth status in AppLayout:", isAuthenticated);
-    console.log("Auth loading in AppLayout:", authLoading);
+    console.log("AppLayout - Auth status:", isAuthenticated, "Auth loading:", authLoading);
     
-    // Ensure we mark initialization as complete once auth check is done
     if (!authLoading && !initialCheckDone) {
-      console.log("Setting initial auth check as complete");
+      console.log("AppLayout - Setting initial check as complete");
       setInitialCheckDone(true);
       
-      // If on root path and authenticated, redirect to dashboard
       if (location.pathname === "/" && isAuthenticated) {
-        console.log("On root path and authenticated, redirecting to dashboard");
+        console.log("AppLayout - Redirecting authenticated user from root to dashboard");
         navigate("/dashboard", { replace: true });
       }
     }
   }, [isAuthenticated, location.pathname, navigate, authLoading, initialCheckDone]);
-
-  // Debug logging
-  useEffect(() => {
-    console.log("AppLayout render - Auth loading:", authLoading, "Auth done:", initialCheckDone, 
-                "Is authenticated:", isAuthenticated, "Current path:", location.pathname, 
-                "Booking loading:", bookingLoading);
-  }, [authLoading, initialCheckDone, isAuthenticated, location.pathname, bookingLoading]);
   
   // Show loading state if auth is still loading
   if (authLoading || !initialCheckDone) {
@@ -95,7 +85,7 @@ const AppLayout: React.FC = () => {
 
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
-    console.log("User is not authenticated, redirecting to login from path:", location.pathname);
+    console.log("AppLayout - User not authenticated, redirecting to login");
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
@@ -103,7 +93,8 @@ const AppLayout: React.FC = () => {
     <div className="flex flex-col min-h-screen">
       <Navbar />
       <main className="flex-1">
-        {bookingLoading ? (
+        {/* Only show global loading for the main data, not for every page */}
+        {bookingLoading && location.pathname === "/dashboard" ? (
           <div className="flex items-center justify-center h-full min-h-[60vh]">
             <div className="flex flex-col items-center space-y-4">
               <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
