@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { Booking, Comment, User } from "../types";
 import { supabase } from "../integrations/supabase/client";
@@ -283,7 +282,7 @@ export const useBookings = (users: User[]) => {
       if (data && data[0]) {
         console.log("Comment added successfully:", data[0]);
         
-        // Send email notification for new comment
+        // Send email notification for new comment - FIXED: Use correct template
         try {
           await supabase.functions.invoke('send-email', {
             body: {
