@@ -6,7 +6,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Mail, Eye } from "lucide-react";
+import { Mail, Eye, Save } from "lucide-react";
 import { useEmailTemplates } from "../../hooks/useEmailTemplates";
 import { supabase } from "../../integrations/supabase/client";
 import { toast } from "sonner";
@@ -20,7 +20,9 @@ const EmailTemplatesManagement: React.FC = () => {
   });
   const [testEmail, setTestEmail] = useState("");
   const [isSendingTest, setIsSendingTest] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
     loadEmailTemplates();
@@ -29,10 +31,12 @@ const EmailTemplatesManagement: React.FC = () => {
   useEffect(() => {
     const template = emailTemplates.find(t => t.templateType === activeTemplate);
     if (template) {
-      setFormData({
+      const newFormData = {
         subject: template.subject,
         htmlContent: template.htmlContent
-      });
+      };
+      setFormData(newFormData);
+      setHasChanges(false);
     } else {
       // Set default HTML templates if none exist
       if (activeTemplate === "booking_confirmation") {
@@ -116,25 +120,40 @@ const EmailTemplatesManagement: React.FC = () => {
 </html>`
         });
       }
+      setHasChanges(false);
     }
   }, [emailTemplates, activeTemplate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      setIsSaving(true);
       await saveEmailTemplate({
         templateType: activeTemplate,
         subject: formData.subject,
         htmlContent: formData.htmlContent
       });
+      setHasChanges(false);
     } catch (error) {
       console.error("Error saving email template:", error);
+    } finally {
+      setIsSaving(false);
     }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setHasChanges(true);
   };
 
   const handleSendTestEmail = async () => {
     if (!testEmail) {
       toast.error("Please enter a test email address");
+      return;
+    }
+
+    if (hasChanges) {
+      toast.error("Please save the template first before sending a test email");
       return;
     }
     
@@ -158,6 +177,7 @@ const EmailTemplatesManagement: React.FC = () => {
     });
 
     try {
+      console.log("Sending test template email...");
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
           to: testEmail,
@@ -168,12 +188,17 @@ const EmailTemplatesManagement: React.FC = () => {
         }
       });
 
-      if (error) throw error;
+      console.log("Test email response:", { data, error });
+
+      if (error) {
+        console.error("Test email error:", error);
+        throw error;
+      }
 
       toast.success("Test email sent successfully!");
     } catch (error) {
       console.error("Error sending test email:", error);
-      toast.error("Failed to send test email");
+      toast.error("Failed to send test email: " + (error as Error).message);
     }
     
     setIsSendingTest(false);
@@ -224,7 +249,7 @@ const EmailTemplatesManagement: React.FC = () => {
                 <Input
                   id="subject"
                   value={formData.subject}
-                  onChange={(e) => setFormData(prev => ({ ...prev, subject: e.target.value }))}
+                  onChange={(e) => handleInputChange("subject", e.target.value)}
                   placeholder="Email subject with variables like {{instrumentName}}"
                   required
                 />
@@ -246,7 +271,7 @@ const EmailTemplatesManagement: React.FC = () => {
                 <Textarea
                   id="htmlContent"
                   value={formData.htmlContent}
-                  onChange={(e) => setFormData(prev => ({ ...prev, htmlContent: e.target.value }))}
+                  onChange={(e) => handleInputChange("htmlContent", e.target.value)}
                   placeholder="HTML email template content"
                   className="min-h-[400px] font-mono text-sm"
                   required
@@ -274,10 +299,21 @@ const EmailTemplatesManagement: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex gap-4">
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Saving..." : "Save Template"}
+              <div className="flex gap-4 items-center">
+                <Button 
+                  type="submit" 
+                  disabled={isLoading || isSaving || !hasChanges}
+                  className="flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  {isSaving ? "Saving..." : "Save Template"}
                 </Button>
+                
+                {hasChanges && (
+                  <p className="text-sm text-amber-600 flex items-center">
+                    You have unsaved changes
+                  </p>
+                )}
               </div>
             </form>
 
@@ -296,15 +332,17 @@ const EmailTemplatesManagement: React.FC = () => {
                 </div>
                 <Button 
                   onClick={handleSendTestEmail}
-                  disabled={!testEmail || isSendingTest}
+                  disabled={!testEmail || isSendingTest || hasChanges}
                   variant="outline"
+                  className="flex items-center gap-2"
                 >
-                  <Mail className="w-4 h-4 mr-2" />
+                  <Mail className="w-4 h-4" />
                   {isSendingTest ? "Sending..." : "Send Test Template"}
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
                 This will send the current template with sample data to test the formatting.
+                {hasChanges && " Please save your changes first."}
               </p>
             </div>
           </TabsContent>

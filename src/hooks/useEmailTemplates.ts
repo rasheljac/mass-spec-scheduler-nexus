@@ -54,21 +54,28 @@ export const useEmailTemplates = () => {
       const templateData = {
         template_type: template.templateType,
         subject: template.subject,
-        html_content: template.htmlContent,
-        updated_at: new Date().toISOString()
+        html_content: template.htmlContent
       };
+
+      console.log("Saving email template:", templateData);
 
       const { error } = await supabase
         .from('email_templates')
-        .upsert(templateData, { onConflict: 'template_type' });
+        .upsert(templateData, { 
+          onConflict: 'template_type',
+          ignoreDuplicates: false 
+        });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
+      }
 
       await loadEmailTemplates();
       toast.success("Email template saved successfully");
     } catch (error) {
       console.error("Error saving email template:", error);
-      toast.error("Failed to save email template");
+      toast.error("Failed to save email template: " + (error as Error).message);
       throw error;
     } finally {
       setIsLoading(false);

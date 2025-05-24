@@ -22,6 +22,7 @@ const SmtpSettings: React.FC = () => {
   });
   const [testEmail, setTestEmail] = useState("");
   const [isSendingTest, setIsSendingTest] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
 
   useEffect(() => {
@@ -53,10 +54,13 @@ const SmtpSettings: React.FC = () => {
     }
 
     try {
+      setIsSaving(true);
       await saveSmtpSettings(formData);
       setHasChanges(false);
     } catch (error) {
       console.error("Error saving SMTP settings:", error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -74,14 +78,24 @@ const SmtpSettings: React.FC = () => {
       return;
     }
 
+    if (hasChanges) {
+      toast.error("Please save SMTP settings first before sending a test email");
+      return;
+    }
+
     if (!smtpSettings) {
       toast.error("Please save SMTP settings first");
       return;
     }
     
-    setIsSendingTest(true);
-    await sendTestEmail(testEmail);
-    setIsSendingTest(false);
+    try {
+      setIsSendingTest(true);
+      await sendTestEmail(testEmail);
+    } catch (error) {
+      console.error("Error sending test email:", error);
+    } finally {
+      setIsSendingTest(false);
+    }
   };
 
   return (
@@ -175,14 +189,14 @@ const SmtpSettings: React.FC = () => {
             <Label htmlFor="useTls">Use TLS/SSL encryption</Label>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
             <Button 
               type="submit" 
-              disabled={isLoading || !hasChanges}
+              disabled={isLoading || isSaving || !hasChanges}
               className="flex items-center gap-2"
             >
               <Save className="w-4 h-4" />
-              {isLoading ? "Saving..." : "Save SMTP Settings"}
+              {isSaving ? "Saving..." : "Save SMTP Settings"}
             </Button>
             
             {hasChanges && (
@@ -193,38 +207,37 @@ const SmtpSettings: React.FC = () => {
           </div>
         </form>
 
-        {smtpSettings && (
-          <div className="border-t pt-6">
-            <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
-              <TestTube className="w-4 h-4" />
-              Test Email Configuration
-            </h4>
-            <div className="flex gap-4 items-end">
-              <div className="flex-1">
-                <Label htmlFor="testEmail">Test Email Address</Label>
-                <Input
-                  id="testEmail"
-                  type="email"
-                  value={testEmail}
-                  onChange={(e) => setTestEmail(e.target.value)}
-                  placeholder="test@example.com"
-                />
-              </div>
-              <Button 
-                onClick={handleSendTestEmail}
-                disabled={!testEmail || isSendingTest || !smtpSettings}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <Mail className="w-4 h-4" />
-                {isSendingTest ? "Sending..." : "Send Test Email"}
-              </Button>
+        <div className="border-t pt-6">
+          <h4 className="text-md font-semibold mb-4 flex items-center gap-2">
+            <TestTube className="w-4 h-4" />
+            Test Email Configuration
+          </h4>
+          <div className="flex gap-4 items-end">
+            <div className="flex-1">
+              <Label htmlFor="testEmail">Test Email Address</Label>
+              <Input
+                id="testEmail"
+                type="email"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                placeholder="test@example.com"
+              />
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Send a test email to verify your SMTP configuration is working correctly.
-            </p>
+            <Button 
+              onClick={handleSendTestEmail}
+              disabled={!testEmail || isSendingTest || !smtpSettings || hasChanges}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <Mail className="w-4 h-4" />
+              {isSendingTest ? "Sending..." : "Send Test Email"}
+            </Button>
           </div>
-        )}
+          <p className="text-xs text-muted-foreground mt-2">
+            Send a test email to verify your SMTP configuration is working correctly. 
+            {hasChanges && " Please save your settings first."}
+          </p>
+        </div>
       </div>
     </Card>
   );

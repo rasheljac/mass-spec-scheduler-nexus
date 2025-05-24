@@ -66,41 +66,28 @@ export const useSmtpSettings = () => {
         password: settings.password,
         from_email: settings.fromEmail,
         from_name: settings.fromName,
-        use_tls: settings.useTls,
-        updated_at: new Date().toISOString()
+        use_tls: settings.useTls
       };
 
-      // First check if any settings exist
-      const { data: existingData } = await supabase
+      console.log("Saving SMTP settings:", settingsData);
+
+      const { error } = await supabase
         .from('smtp_settings')
-        .select('id')
-        .maybeSingle();
+        .upsert(settingsData, { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        });
 
-      let result;
-      if (existingData) {
-        // Update existing record
-        result = await supabase
-          .from('smtp_settings')
-          .update(settingsData)
-          .eq('id', existingData.id)
-          .select()
-          .single();
-      } else {
-        // Insert new record
-        result = await supabase
-          .from('smtp_settings')
-          .insert(settingsData)
-          .select()
-          .single();
+      if (error) {
+        console.error("Supabase error:", error);
+        throw error;
       }
-
-      if (result.error) throw result.error;
 
       await loadSmtpSettings();
       toast.success("SMTP settings saved successfully");
     } catch (error) {
       console.error("Error saving SMTP settings:", error);
-      toast.error("Failed to save SMTP settings");
+      toast.error("Failed to save SMTP settings: " + (error as Error).message);
       throw error;
     } finally {
       setIsLoading(false);
@@ -110,6 +97,8 @@ export const useSmtpSettings = () => {
   const sendTestEmail = async (testEmail: string) => {
     try {
       setIsLoading(true);
+      
+      console.log("Sending test email to:", testEmail);
       
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
@@ -126,13 +115,18 @@ export const useSmtpSettings = () => {
         }
       });
 
-      if (error) throw error;
+      console.log("Email function response:", { data, error });
+
+      if (error) {
+        console.error("Email function error:", error);
+        throw error;
+      }
 
       toast.success("Test email sent successfully!");
       return true;
     } catch (error) {
       console.error("Error sending test email:", error);
-      toast.error("Failed to send test email");
+      toast.error("Failed to send test email: " + (error as Error).message);
       return false;
     } finally {
       setIsLoading(false);
