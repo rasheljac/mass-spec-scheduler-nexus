@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { format, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay, parseISO, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval } from "date-fns";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Pencil } from "lucide-react";
@@ -21,7 +22,7 @@ type ViewMode = "day" | "week" | "month";
 const CalendarView: React.FC = () => {
   const { bookings, updateBooking } = useBooking();
   const { user } = useAuth();
-  const { loadStatusColors } = useStatusColors();
+  const { statusColors, loadStatusColors, getStatusColor } = useStatusColors();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
@@ -210,7 +211,7 @@ const CalendarView: React.FC = () => {
         </h2>
         {dayBookings.length > 0 ? (
           dayBookings.map(booking => (
-            <Card key={booking.id} className="p-4 border-l-4 border-l-mslab-400">
+            <Card key={booking.id} className="p-4 border-l-4" style={{ borderLeftColor: getStatusColor(booking.status) }}>
               <div className="flex justify-between items-center">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
@@ -298,7 +299,7 @@ const CalendarView: React.FC = () => {
                 {dayBookings.length > 0 ? (
                   <div className="space-y-2">
                     {dayBookings.map(booking => (
-                      <Card key={booking.id} className="p-2 border-l-4 border-l-mslab-400">
+                      <Card key={booking.id} className="p-2 border-l-4" style={{ borderLeftColor: getStatusColor(booking.status) }}>
                         <div className="flex justify-between items-center">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
@@ -415,7 +416,8 @@ const CalendarView: React.FC = () => {
                         {dayBookings.slice(0, 2).map((booking) => (
                           <div 
                             key={booking.id}
-                            className="bg-primary/10 p-1 rounded truncate cursor-pointer flex items-center justify-between"
+                            className="p-1 rounded truncate cursor-pointer flex items-center justify-between"
+                            style={{ backgroundColor: `${getStatusColor(booking.status)}20`, borderLeft: `3px solid ${getStatusColor(booking.status)}` }}
                             onClick={() => handleEditBooking(booking)}
                             title={`${booking.instrumentName} - ${booking.userName} - ${booking.status}`}
                           >
