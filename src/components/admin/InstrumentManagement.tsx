@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { Card } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,10 +17,10 @@ import { format } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
 import { cn } from "@/lib/utils";
-import { useBooking } from "../../contexts/BookingContext";
+import { useInstruments } from "../../hooks/useInstruments";
 import { Instrument } from "../../types";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "../ui/alert-dialog";
-import { useToast } from "../../hooks/use-toast";
+import { toast } from "sonner";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -34,12 +35,22 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const InstrumentManagement: React.FC = () => {
-  const { instruments, addInstrument, updateInstrument, deleteInstrument } = useBooking();
+  const { instruments, loadInstruments, addInstrument, updateInstrument, deleteInstrument } = useInstruments();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedInstrument, setSelectedInstrument] = useState<Instrument | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const { toast } = useToast();
+
+  // Load instruments when component mounts
+  useEffect(() => {
+    console.log("InstrumentManagement - Loading instruments on mount");
+    loadInstruments();
+  }, [loadInstruments]);
+
+  // Log instruments for debugging
+  useEffect(() => {
+    console.log("InstrumentManagement - Instruments updated:", instruments.length);
+  }, [instruments]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -65,66 +76,73 @@ const InstrumentManagement: React.FC = () => {
     }
   });
 
-  const handleAddInstrument = (data: FormValues) => {
-    addInstrument({
-      name: data.name,
-      type: data.type,
-      model: data.model,
-      location: data.location,
-      status: data.status,
-      description: data.description || "",
-      specifications: "",
-      image: "",
-      calibrationDue: data.calibrationDue ? format(data.calibrationDue, "yyyy-MM-dd") : undefined,
-    });
-    setIsAddDialogOpen(false);
-    form.reset();
-    
-    toast({
-      title: "Instrument added",
-      description: `${data.name} has been added and saved successfully.`
-    });
+  const handleAddInstrument = async (data: FormValues) => {
+    console.log("Adding instrument:", data);
+    try {
+      await addInstrument({
+        name: data.name,
+        type: data.type,
+        model: data.model,
+        location: data.location,
+        status: data.status,
+        description: data.description || "",
+        specifications: "",
+        image: "",
+        calibrationDue: data.calibrationDue ? format(data.calibrationDue, "yyyy-MM-dd") : undefined,
+        maintenanceHistory: []
+      });
+      
+      setIsAddDialogOpen(false);
+      form.reset();
+      
+      toast.success("Instrument added successfully!");
+    } catch (error) {
+      console.error("Error adding instrument:", error);
+      toast.error("Failed to add instrument");
+    }
   };
 
-  const handleEditInstrument = (data: FormValues) => {
+  const handleEditInstrument = async (data: FormValues) => {
     if (!selectedInstrument) return;
     
-    const updatedInstrument = {
-      ...selectedInstrument,
-      name: data.name,
-      type: data.type,
-      model: data.model,
-      location: data.location,
-      status: data.status,
-      description: data.description || "",
-      calibrationDue: data.calibrationDue ? format(data.calibrationDue, "yyyy-MM-dd") : undefined,
-    };
+    console.log("Updating instrument:", data);
+    try {
+      const updatedInstrument = {
+        ...selectedInstrument,
+        name: data.name,
+        type: data.type,
+        model: data.model,
+        location: data.location,
+        status: data.status,
+        description: data.description || "",
+        calibrationDue: data.calibrationDue ? format(data.calibrationDue, "yyyy-MM-dd") : undefined,
+      };
 
-    console.log("Updating instrument:", updatedInstrument);
-    updateInstrument(updatedInstrument);
-    setIsEditDialogOpen(false);
-    setSelectedInstrument(null);
-    
-    toast({
-      title: "Instrument updated",
-      description: `${data.name} has been updated and saved successfully.`
-    });
+      await updateInstrument(updatedInstrument);
+      setIsEditDialogOpen(false);
+      setSelectedInstrument(null);
+      
+      toast.success("Instrument updated successfully!");
+    } catch (error) {
+      console.error("Error updating instrument:", error);
+      toast.error("Failed to update instrument");
+    }
   };
 
-  const handleDeleteInstrument = () => {
+  const handleDeleteInstrument = async () => {
     if (!selectedInstrument) return;
     
     console.log("Deleting instrument:", selectedInstrument.id);
-    deleteInstrument(selectedInstrument.id);
-    setIsDeleteDialogOpen(false);
-    
-    toast({
-      title: "Instrument deleted",
-      description: `${selectedInstrument.name} has been deleted and changes saved.`,
-      variant: "destructive"
-    });
-    
-    setSelectedInstrument(null);
+    try {
+      await deleteInstrument(selectedInstrument.id);
+      setIsDeleteDialogOpen(false);
+      setSelectedInstrument(null);
+      
+      toast.success("Instrument deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting instrument:", error);
+      toast.error("Failed to delete instrument");
+    }
   };
 
   const handleEditClick = (instrument: Instrument) => {
@@ -176,47 +194,53 @@ const InstrumentManagement: React.FC = () => {
           <Button onClick={() => setIsAddDialogOpen(true)}>Add Instrument</Button>
         </div>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Model</TableHead>
-              <TableHead>Location</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Calibration Due</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {instruments.map(instrument => (
-              <TableRow key={instrument.id}>
-                <TableCell className="font-medium">{instrument.name}</TableCell>
-                <TableCell>{instrument.type || "-"}</TableCell>
-                <TableCell>{instrument.model || "-"}</TableCell>
-                <TableCell>{instrument.location}</TableCell>
-                <TableCell>{renderStatusBadge(instrument.status)}</TableCell>
-                <TableCell>{instrument.calibrationDue || "-"}</TableCell>
-                <TableCell className="text-right space-x-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => handleEditClick(instrument)}
-                  >
-                    Edit
-                  </Button>
-                  <Button 
-                    variant="destructive" 
-                    size="sm"
-                    onClick={() => handleDeleteClick(instrument)}
-                  >
-                    Delete
-                  </Button>
-                </TableCell>
+        {instruments.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-muted-foreground">No instruments found. Add your first instrument to get started.</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Model</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Calibration Due</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {instruments.map(instrument => (
+                <TableRow key={instrument.id}>
+                  <TableCell className="font-medium">{instrument.name}</TableCell>
+                  <TableCell>{instrument.type || "-"}</TableCell>
+                  <TableCell>{instrument.model || "-"}</TableCell>
+                  <TableCell>{instrument.location}</TableCell>
+                  <TableCell>{renderStatusBadge(instrument.status)}</TableCell>
+                  <TableCell>{instrument.calibrationDue || "-"}</TableCell>
+                  <TableCell className="text-right space-x-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleEditClick(instrument)}
+                    >
+                      Edit
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => handleDeleteClick(instrument)}
+                    >
+                      Delete
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
       </Card>
 
       {/* Add Instrument Dialog */}
