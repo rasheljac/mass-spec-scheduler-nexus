@@ -13,6 +13,7 @@ import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
+import MyBookingsPage from "./pages/MyBookingsPage";
 import "./App.css";
 import Index from "./pages/Index";
 import { Toaster } from "./components/ui/sonner";
@@ -123,6 +124,7 @@ function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/instruments" element={<InstrumentsPage />} />
+            <Route path="/my-bookings" element={<MyBookingsPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/profile" element={<ProfilePage />} />

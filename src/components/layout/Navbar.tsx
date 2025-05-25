@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Calendar, Settings, LayoutDashboard, Settings as SettingsIcon, User } from "lucide-react";
+import { Calendar, Settings, LayoutDashboard, Settings as SettingsIcon, User, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "../../contexts/AuthContext";
 import { Menubar, MenubarContent, MenubarItem, MenubarMenu, MenubarTrigger } from "../ui/menubar";
@@ -68,6 +68,18 @@ const Navbar: React.FC = () => {
                 <Link to="/calendar" className="flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
                   Calendar
+                </Link>
+              </MenubarTrigger>
+            </MenubarMenu>
+            
+            <MenubarMenu>
+              <MenubarTrigger className={cn(
+                "cursor-pointer",
+                isActive("/my-bookings") && "bg-muted text-foreground"
+              )}>
+                <Link to="/my-bookings" className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  My Bookings
                 </Link>
               </MenubarTrigger>
             </MenubarMenu>
@@ -141,6 +153,12 @@ const Navbar: React.FC = () => {
                   </div>
                 </div>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/my-bookings" className="flex items-center cursor-pointer w-full">
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    My Bookings
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/profile" className="flex items-center cursor-pointer w-full">
                     <User className="mr-2 h-4 w-4" />
