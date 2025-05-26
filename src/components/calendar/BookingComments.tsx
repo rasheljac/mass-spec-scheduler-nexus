@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
@@ -70,23 +71,42 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
             const recipientEmail = bookingOwner?.email || booking.userId;
             
             console.log("Recipient email:", recipientEmail);
+            console.log("Booking details:", {
+              instrumentName: booking.instrumentName,
+              start: booking.start,
+              commenter: user.name,
+              comment: commentContent
+            });
             
             const { data, error } = await supabase.functions.invoke('send-email', {
               body: {
                 to: recipientEmail,
                 subject: `New Comment on Your Booking: ${booking.instrumentName}`,
                 htmlContent: `
-                  <h2>New Comment on Your Booking</h2>
-                  <p><strong>Instrument:</strong> ${booking.instrumentName}</p>
-                  <p><strong>Date:</strong> ${format(new Date(booking.start), "PPP 'at' p")}</p>
-                  <p><strong>Comment by:</strong> ${user.name}</p>
-                  <p><strong>Comment:</strong> ${commentContent}</p>
-                  <br>
-                  <p>Best regards,<br>Lab Management Team</p>
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+                    <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                      <h2 style="color: #333; margin-bottom: 20px; border-bottom: 2px solid #007bff; padding-bottom: 10px;">New Comment on Your Booking</h2>
+                      
+                      <div style="margin-bottom: 20px;">
+                        <p style="margin: 5px 0;"><strong>Instrument:</strong> ${booking.instrumentName}</p>
+                        <p style="margin: 5px 0;"><strong>Date:</strong> ${format(new Date(booking.start), "PPP 'at' p")}</p>
+                        <p style="margin: 5px 0;"><strong>Comment by:</strong> ${user.name}</p>
+                      </div>
+                      
+                      <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0;">
+                        <h4 style="margin: 0 0 10px 0; color: #333;">Comment:</h4>
+                        <p style="margin: 0; line-height: 1.5;">${commentContent}</p>
+                      </div>
+                      
+                      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666;">
+                        <p>Best regards,<br>Lab Management Team</p>
+                      </div>
+                    </div>
+                  </div>
                 `,
                 templateType: 'comment_notification',
                 variables: {
-                  userName: booking.userName,
+                  userName: booking.userName || bookingOwner?.name || 'User',
                   instrumentName: booking.instrumentName,
                   commentBy: user.name,
                   comment: commentContent,
@@ -97,13 +117,17 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
             
             if (error) {
               console.error("Email sending error:", error);
+              toast.error("Comment added but email notification failed");
             } else {
               console.log("Comment notification email sent successfully:", data);
+              toast.success("Comment added and notification sent");
             }
           } catch (emailError) {
             console.error("Failed to send comment notification email:", emailError);
-            // Don't show error to user for email failure
+            toast.error("Comment added but email notification failed");
           }
+        } else {
+          toast.success("Comment added successfully");
         }
       }
     } catch (error) {
