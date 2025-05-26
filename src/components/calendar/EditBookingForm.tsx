@@ -35,7 +35,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   onCancel,
   isSubmitting = false,
 }) => {
-  const { instruments } = useBooking();
+  const { instruments, updateBooking } = useBooking();
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [formData, setFormData] = useState({
@@ -105,8 +105,10 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   }, [booking, user]);
 
   const handleDurationChange = (durationMinutes: number) => {
-    const totalHours = durationMinutes / 60;
-    const roundedHours = Math.ceil(totalHours * 2) / 2;
+    // Add 15 minutes setup time
+    const totalMinutes = durationMinutes + 15;
+    const totalHours = totalMinutes / 60;
+    const roundedHours = Math.ceil(totalHours * 2) / 2; // Round to nearest 0.5 hours
     setFormData(prev => ({ ...prev, duration: roundedHours.toString() }));
   };
 
@@ -128,6 +130,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
     e.preventDefault();
     
     if (!booking || !user) {
+      console.error("Missing booking or user data");
       toast.error("Missing required information");
       return;
     }
@@ -140,29 +143,33 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
       const endDate = calculateEndDateTime();
 
       // Build details with sample information
-      let detailsText = formData.details;
+      let detailsText = formData.details.replace(/\n\nSample Information:[\s\S]*$/, '');
       if (formData.sampleNumber && formData.sampleRunTime) {
-        // Remove existing sample information from details first
-        detailsText = detailsText.replace(/\n\nSample Information:[\s\S]*$/, '');
-        
         detailsText += `\n\nSample Information:`;
         detailsText += `\n- Total Samples: ${formData.sampleNumber}`;
         detailsText += `\n- Run Time per Sample: ${formData.sampleRunTime} minutes`;
         detailsText += `\n- Calculated Duration: ${formData.duration} hours`;
       }
 
+      const updatedBooking = {
+        ...booking,
+        instrumentId: formData.instrumentId,
+        instrumentName: formData.instrumentName,
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+        purpose: formData.purpose,
+        details: detailsText,
+        status: formData.status,
+        comments: comments
+      };
+
+      console.log("Updating booking with data:", updatedBooking);
+      
       if (onSubmit) {
-        await onSubmit({
-          ...booking,
-          instrumentId: formData.instrumentId,
-          instrumentName: formData.instrumentName,
-          start: startDate.toISOString(),
-          end: endDate.toISOString(),
-          purpose: formData.purpose,
-          details: detailsText,
-          status: formData.status,
-          comments: comments
-        });
+        await onSubmit(updatedBooking);
+      } else {
+        await updateBooking(updatedBooking);
+        toast.success("Booking updated successfully");
       }
       
       onOpenChange(false);

@@ -11,6 +11,7 @@ import { Comment } from "../../types";
 import { useAuth } from "../../contexts/AuthContext";
 import { useBooking } from "../../contexts/BookingContext";
 import { toast } from "sonner";
+import { supabase } from "../../integrations/supabase/client";
 
 interface BookingCommentsProps {
   bookingId: string;
@@ -24,7 +25,7 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
   onCommentsChange
 }) => {
   const { user } = useAuth();
-  const { addCommentToBooking, deleteCommentFromBooking } = useBooking();
+  const { addCommentToBooking, deleteCommentFromBooking, bookings } = useBooking();
   const [newComment, setNewComment] = useState("");
   const [isAddingComment, setIsAddingComment] = useState(false);
   const [deletingComments, setDeletingComments] = useState<Set<string>>(new Set());
@@ -58,6 +59,41 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
         
         onCommentsChange([...comments, newCommentObj]);
         setNewComment("");
+
+        // Send email notification to booking owner
+        const booking = bookings.find(b => b.id === bookingId);
+        if (booking && booking.userId !== user.id) {
+          try {
+            console.log("Sending comment notification email");
+            await supabase.functions.invoke('send-email', {
+              body: {
+                to: booking.userEmail || booking.userId, // Use email if available
+                subject: `New Comment on Your Booking: ${booking.instrumentName}`,
+                htmlContent: `
+                  <h2>New Comment on Your Booking</h2>
+                  <p><strong>Instrument:</strong> ${booking.instrumentName}</p>
+                  <p><strong>Date:</strong> ${format(new Date(booking.start), "PPP 'at' p")}</p>
+                  <p><strong>Comment by:</strong> ${user.name}</p>
+                  <p><strong>Comment:</strong> ${commentContent}</p>
+                  <br>
+                  <p>Best regards,<br>Lab Management Team</p>
+                `,
+                templateType: 'comment_notification',
+                variables: {
+                  userName: booking.userName,
+                  instrumentName: booking.instrumentName,
+                  commentBy: user.name,
+                  comment: commentContent,
+                  bookingDate: format(new Date(booking.start), "PPP 'at' p")
+                }
+              }
+            });
+            console.log("Comment notification email sent successfully");
+          } catch (emailError) {
+            console.error("Failed to send comment notification email:", emailError);
+            // Don't show error to user for email failure
+          }
+        }
       }
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -79,6 +115,7 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
       
       await deleteCommentFromBooking(bookingId, commentId);
       onCommentsChange(comments.filter(comment => comment.id !== commentId));
+      toast.success("Comment deleted successfully");
     } catch (error) {
       console.error("Error deleting comment:", error);
       toast.error("Failed to delete comment");
