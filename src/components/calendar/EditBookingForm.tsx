@@ -17,7 +17,7 @@ import { Textarea } from "../ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
 import { CalendarIcon } from "lucide-react";
-import { format } from "date-fns";
+import { format, addMinutes } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Booking, Comment } from "../../types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "sonner";
 import BookingComments from "./BookingComments";
+import DurationCalculator from "./DurationCalculator";
 
 const formSchema = z.object({
   instrumentId: z.string(),
@@ -61,13 +62,15 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   const [comments, setComments] = useState<Comment[]>([]);
   const [formInitialized, setFormInitialized] = useState(false);
   
-  // Generate time options in 30-minute increments for 24 hours
-  const timeOptions = Array.from({ length: 48 }, (_, i) => {
-    const hour = Math.floor(i / 2);
-    const minute = i % 2 === 0 ? "00" : "30";
+  // Generate time options in 15-minute increments for 24 hours
+  const timeOptions = Array.from({ length: 96 }, (_, i) => {
+    const totalMinutes = i * 15;
+    const hour = Math.floor(totalMinutes / 60);
+    const minute = totalMinutes % 60;
     const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
     const ampm = hour < 12 ? "AM" : "PM";
-    return `${hour12}:${minute} ${ampm}`;
+    const minuteStr = minute.toString().padStart(2, '0');
+    return `${hour12}:${minuteStr} ${ampm}`;
   });
   
   // Initialize form when booking changes
@@ -131,6 +134,38 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
     console.log("Missing booking or user data for EditBookingForm");
     return null;
   }
+
+  const handleDurationChange = (durationMinutes: number) => {
+    const startDate = form.getValues("startDate");
+    const startTime = form.getValues("startTime");
+    
+    if (startDate && startTime) {
+      const parseTime = (date: Date, timeStr: string) => {
+        const [timePart, ampm] = timeStr.split(" ");
+        const [hourStr, minuteStr] = timePart.split(":");
+        let hour = parseInt(hourStr, 10);
+        const minute = parseInt(minuteStr, 10);
+        
+        // Convert to 24-hour format
+        if (ampm === "PM" && hour !== 12) {
+          hour += 12;
+        } else if (ampm === "AM" && hour === 12) {
+          hour = 0;
+        }
+        
+        const result = new Date(date);
+        result.setHours(hour, minute, 0, 0);
+        return result;
+      };
+
+      const startDateTime = parseTime(startDate, startTime);
+      const endDateTime = addMinutes(startDateTime, durationMinutes);
+      
+      // Update end date and time
+      form.setValue("endDate", endDateTime);
+      form.setValue("endTime", format(endDateTime, "h:mm a"));
+    }
+  };
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -205,6 +240,12 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
                     <FormMessage />
                   </FormItem>
                 )}
+              />
+
+              <DurationCalculator 
+                onDurationChange={handleDurationChange}
+                initialSamples={1}
+                initialRunTime={30}
               />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

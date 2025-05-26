@@ -27,6 +27,7 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
   const { addCommentToBooking, deleteCommentFromBooking } = useBooking();
   const [newComment, setNewComment] = useState("");
   const [isAddingComment, setIsAddingComment] = useState(false);
+  const [deletingComments, setDeletingComments] = useState<Set<string>>(new Set());
 
   const handleAddComment = async () => {
     const commentContent = newComment.trim();
@@ -57,7 +58,6 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
         
         onCommentsChange([...comments, newCommentObj]);
         setNewComment("");
-        toast.success("Comment added successfully");
       }
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -68,14 +68,26 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
   };
 
   const handleDeleteComment = async (commentId: string) => {
+    if (deletingComments.has(commentId)) {
+      console.log("Comment deletion already in progress:", commentId);
+      return;
+    }
+
     try {
+      setDeletingComments(prev => new Set(prev).add(commentId));
       console.log("Deleting comment:", commentId);
+      
       await deleteCommentFromBooking(bookingId, commentId);
       onCommentsChange(comments.filter(comment => comment.id !== commentId));
-      toast.success("Comment deleted successfully");
     } catch (error) {
       console.error("Error deleting comment:", error);
       toast.error("Failed to delete comment");
+    } finally {
+      setDeletingComments(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(commentId);
+        return newSet;
+      });
     }
   };
 
@@ -111,6 +123,7 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
                           variant="ghost" 
                           size="icon" 
                           onClick={() => handleDeleteComment(comment.id)}
+                          disabled={deletingComments.has(comment.id)}
                           className="h-8 w-8 text-destructive hover:text-destructive/90"
                           title="Delete comment"
                         >
