@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,19 +16,15 @@ import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
-import { CalendarIcon, MessageSquare, Trash2 } from "lucide-react";
-import { format, addHours, isSameDay } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Booking, Comment } from "../../types";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { useAuth } from "../../contexts/AuthContext";
-import { Card, CardContent } from "../ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Separator } from "../ui/separator";
-import { v4 as uuidv4 } from 'uuid';
-import { useBooking } from "../../contexts/BookingContext";
 import { toast } from "sonner";
+import BookingComments from "./BookingComments";
 
 const formSchema = z.object({
   instrumentId: z.string(),
@@ -41,7 +38,6 @@ const formSchema = z.object({
   }),
   details: z.string().optional(),
   status: z.enum(["Not-Started", "In-Progress", "Completed", "Delayed", "confirmed", "pending", "cancelled"]),
-  newComment: z.string().optional(),
 });
 
 interface EditBookingFormProps {
@@ -62,10 +58,8 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   isSubmitting = false,
 }) => {
   const { user } = useAuth();
-  const { addCommentToBooking, deleteCommentFromBooking, refreshData } = useBooking();
   const [comments, setComments] = useState<Comment[]>([]);
   const [formInitialized, setFormInitialized] = useState(false);
-  const [isAddingComment, setIsAddingComment] = useState(false);
   
   // Generate time options in 30-minute increments for 24 hours
   const timeOptions = Array.from({ length: 48 }, (_, i) => {
@@ -89,7 +83,6 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
       purpose: "",
       details: "",
       status: "pending" as const,
-      newComment: "",
     },
   });
   
@@ -126,7 +119,6 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
         purpose: booking?.purpose || "",
         details: booking?.details || "",
         status: normalizeStatus(booking?.status || "pending") as any,
-        newComment: "",
       });
       
       setComments(booking.comments || []);
@@ -190,78 +182,6 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
       onCancel();
     }
     onOpenChange(false);
-  };
-
-  const handleAddComment = async () => {
-    const newCommentContent = form.getValues("newComment")?.trim();
-    if (!newCommentContent || !booking || !user) {
-      console.log("Missing required data for comment:", { newCommentContent, booking: !!booking, user: !!user });
-      return;
-    }
-
-    try {
-      setIsAddingComment(true);
-      console.log("Adding comment with content:", newCommentContent);
-      
-      // Add comment to database
-      const commentId = await addCommentToBooking(booking.id, {
-        userId: user.id,
-        userName: user.name,
-        content: newCommentContent,
-        createdAt: new Date().toISOString()
-      });
-      
-      if (commentId) {
-        // Update local state immediately
-        const newCommentObj: Comment = {
-          id: commentId,
-          userId: user.id,
-          userName: user.name,
-          content: newCommentContent,
-          createdAt: new Date().toISOString()
-        };
-        
-        setComments(prev => [...prev, newCommentObj]);
-        
-        // Reset comment field
-        form.setValue("newComment", "");
-        
-        // Refresh the booking data in the background
-        setTimeout(() => {
-          refreshData();
-        }, 500);
-        
-        toast.success("Comment added successfully");
-      } else {
-        console.error("No comment ID returned from addCommentToBooking");
-        toast.error("Failed to add comment - no ID returned");
-      }
-    } catch (error) {
-      console.error("Error adding comment:", error);
-      toast.error("Failed to add comment");
-    } finally {
-      setIsAddingComment(false);
-    }
-  };
-  
-  const handleDeleteComment = async (commentId: string) => {
-    if (!booking) return;
-    
-    try {
-      console.log("Deleting comment:", commentId);
-      await deleteCommentFromBooking(booking.id, commentId);
-      // Update local state after successful deletion from database
-      setComments(currentComments => currentComments.filter(comment => comment.id !== commentId));
-      toast.success("Comment deleted successfully");
-    } catch (error) {
-      console.error("Error deleting comment:", error);
-      toast.error("Failed to delete comment");
-    }
-  };
-  
-  // Helper function to check if user can delete a comment
-  const canDeleteComment = (comment: Comment) => {
-    return user.role === "admin" || comment.userId === user.id;
   };
 
   return (
@@ -486,80 +406,11 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
                 )}
               />
 
-              <div className="pt-4">
-                <h3 className="text-lg font-medium flex items-center mb-2">
-                  <MessageSquare className="h-5 w-5 mr-2" />
-                  Comments
-                </h3>
-                <Card className="mb-4">
-                  <CardContent className="pt-4">
-                    {(comments && comments.length > 0) ? (
-                      <div className="space-y-4">
-                        {comments.map((comment) => (
-                          <div key={comment.id} className="flex space-x-3">
-                            <Avatar>
-                              <AvatarFallback>{comment.userName.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center space-x-2">
-                                  <h4 className="font-medium">{comment.userName}</h4>
-                                  <span className="text-xs text-muted-foreground">
-                                    {format(new Date(comment.createdAt), "MMM d, yyyy 'at' h:mm a")}
-                                  </span>
-                                </div>
-                                {canDeleteComment(comment) && (
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    onClick={() => handleDeleteComment(comment.id)}
-                                    className="h-8 w-8 text-destructive hover:text-destructive/90"
-                                    title="Delete comment"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                )}
-                              </div>
-                              <p className="text-sm mt-1">{comment.content}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-muted-foreground text-sm text-center py-4">No comments yet</p>
-                    )}
-
-                    <Separator className="my-4" />
-                    
-                    <div className="flex space-x-2">
-                      <FormField
-                        control={form.control}
-                        name="newComment"
-                        render={({ field }) => (
-                          <FormItem className="flex-1">
-                            <FormControl>
-                              <Textarea 
-                                placeholder="Add a comment..." 
-                                className="min-h-[60px]"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <Button
-                        type="button"
-                        onClick={handleAddComment}
-                        className="self-end"
-                        disabled={isAddingComment || !form.getValues("newComment")?.trim()}
-                      >
-                        {isAddingComment ? "Adding..." : "Add Comment"}
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              <BookingComments
+                bookingId={booking.id}
+                comments={comments}
+                onCommentsChange={setComments}
+              />
 
               <div className="flex justify-end space-x-2">
                 <Button type="button" variant="outline" onClick={handleCancel}>

@@ -147,7 +147,7 @@ export const useBookings = (users: User[]) => {
         // Reload bookings to get the updated list
         await loadBookings();
         
-        // Send email notification for new booking using send-email function
+        // Send email notification for new booking
         try {
           const userEmail = getUserEmailById(bookingData.userId);
           if (userEmail) {
@@ -178,16 +178,17 @@ export const useBookings = (users: User[]) => {
           console.error("Failed to send booking confirmation email:", emailError);
         }
         
-        toast.success("Booking created successfully");
+        return data[0];
       }
     } catch (error) {
       console.error("Error creating booking:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to create booking");
+      const errorMessage = error instanceof Error ? error.message : "Failed to create booking";
+      toast.error(errorMessage);
       throw error;
     }
   };
 
-  // Function to update a booking - FIXED: Only check for booking field changes, not comment changes
+  // Function to update a booking
   const updateBooking = async (bookingData: Booking) => {
     try {
       console.log("Updating booking with data:", bookingData);
@@ -296,7 +297,7 @@ export const useBookings = (users: User[]) => {
   };
 
   // Function to add a comment to a booking
-  const addCommentToBooking = async (bookingId: string, comment: Omit<Comment, "id">) => {
+  const addCommentToBooking = async (bookingId: string, comment: Omit<Comment, "id">): Promise<string | undefined> => {
     try {
       console.log("Adding comment to booking:", bookingId, comment);
       
@@ -314,15 +315,16 @@ export const useBookings = (users: User[]) => {
           user_id: comment.userId,
           content: comment.content
         })
-        .select();
+        .select()
+        .single();
 
       if (error) {
         console.error("Error inserting comment:", error);
         throw error;
       }
 
-      if (data && data[0]) {
-        console.log("Comment added successfully:", data[0]);
+      if (data) {
+        console.log("Comment added successfully:", data);
         
         // Send email notification for new comment
         try {
@@ -358,9 +360,8 @@ export const useBookings = (users: User[]) => {
           console.error("Failed to send comment notification email:", emailError);
         }
         
-        // Reload bookings to get the updated comments
-        await loadBookings();
-        return data[0].id; // Return the new comment ID
+        // Return the new comment ID
+        return data.id;
       }
     } catch (error) {
       console.error("Error adding comment:", error);

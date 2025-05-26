@@ -92,7 +92,11 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !selectedInstrument) return;
+    if (!user || !selectedInstrument) {
+      console.error("Missing user or instrument data");
+      toast.error("Missing required information");
+      return;
+    }
 
     setIsSubmitting(true);
     
@@ -163,7 +167,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
       });
     } catch (error) {
       console.error("Error creating booking:", error);
-      toast.error("Failed to create booking");
+      toast.error("Failed to create booking. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
