@@ -1,92 +1,80 @@
 
 import React, { useEffect, useState } from "react";
-import { Navigate, useNavigate, useLocation } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import AuthModal from "../components/auth/AuthModal";
-import { Alert, AlertDescription } from "../components/ui/alert";
+import LoginForm from "../components/auth/LoginForm";
+import PasswordResetDialog from "../components/auth/PasswordResetDialog";
+import { Button } from "../components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Loader2 } from "lucide-react";
 
 const LoginPage: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [showAutoLogoutAlert, setShowAutoLogoutAlert] = useState(false);
+  const { user, isLoading, isAuthenticated } = useAuth();
   const [redirectAttempted, setRedirectAttempted] = useState(false);
-  
-  // Get the redirect path from location state, or default to dashboard
-  const from = (location.state as { from?: string })?.from || "/dashboard";
-  const autoLogout = (location.state as { autoLogout?: boolean })?.autoLogout || false;
-  
-  // Show auto-logout message if applicable
+  const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
+
+  console.log("Login page render - Auth loading state:", isLoading, "isAuthenticated:", isAuthenticated, "redirectAttempted:", redirectAttempted);
+
   useEffect(() => {
-    if (autoLogout) {
-      setShowAutoLogoutAlert(true);
-      // Hide the alert after 5 seconds
-      const timer = setTimeout(() => setShowAutoLogoutAlert(false), 5000);
-      return () => clearTimeout(timer);
+    if (!isLoading && isAuthenticated && !redirectAttempted) {
+      console.log("User is already authenticated on initial render, redirecting to:", "/");
+      setRedirectAttempted(true);
     }
-  }, [autoLogout]);
-  
-  // Effect to handle authentication state changes - with debounce to prevent excessive redirects
+  }, [isLoading, isAuthenticated, redirectAttempted]);
+
   useEffect(() => {
     if (!isLoading) {
       console.log("Auth loading complete on login page, authenticated:", isAuthenticated);
-      
-      if (isAuthenticated) {
-        console.log("User is authenticated, redirecting to:", from);
-        // Use a short timeout to ensure state updates have propagated
-        const redirectTimer = setTimeout(() => {
-          navigate(from, { replace: true });
-          setRedirectAttempted(true);
-        }, 100);
-        
-        return () => clearTimeout(redirectTimer);
-      }
     }
-  }, [isAuthenticated, from, navigate, isLoading]);
+  }, [isLoading, isAuthenticated]);
 
-  // Debug logging
-  console.log("Login page render - Auth loading state:", isLoading, "isAuthenticated:", isAuthenticated, "redirectAttempted:", redirectAttempted);
+  // Show loading while checking authentication
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
+          <span className="text-lg text-mslab-400">Loading...</span>
+        </div>
+      </div>
+    );
+  }
 
-  // Immediate redirect if already authenticated and not loading
-  if (isAuthenticated && !isLoading && !redirectAttempted) {
-    console.log("User is already authenticated on initial render, redirecting to:", from);
-    return <Navigate to={from} replace />;
+  // Redirect if authenticated
+  if (isAuthenticated && !isLoading) {
+    console.log("User is authenticated, redirecting to:", "/");
+    return <Navigate to="/" replace />;
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-white to-mslab-100 p-4">
-      {showAutoLogoutAlert && (
-        <div className="absolute top-4 w-full max-w-md">
-          <Alert variant="default" className="bg-amber-50 border-amber-200">
-            <AlertDescription>
-              You have been automatically logged out due to inactivity.
-            </AlertDescription>
-          </Alert>
-        </div>
-      )}
-      <div className="mb-8">
-        <div className="mx-auto w-16 h-16 mb-4">
-          <img 
-            src="/lovable-uploads/d1df28cb-f0ae-4b17-aacf-f7e08d48d146.png" 
-            alt="MSLab Logo" 
-            className="h-full w-full object-contain" 
-          />
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <Card>
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl text-center">Welcome to MSLab Scheduler</CardTitle>
+            <CardDescription className="text-center">
+              Sign in to your account to manage laboratory instruments and bookings
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <LoginForm />
+            <div className="text-center">
+              <Button
+                variant="link"
+                onClick={() => setIsPasswordResetOpen(true)}
+                className="text-sm text-muted-foreground hover:text-primary"
+              >
+                Forgot your password?
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
       
-      {isLoading ? (
-        <div className="flex flex-col items-center space-y-4">
-          <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
-          <span className="text-mslab-400">Checking authentication...</span>
-        </div>
-      ) : (
-        <AuthModal />
-      )}
-      
-      <div className="mt-8 text-center text-sm text-muted-foreground">
-        &copy; {new Date().getFullYear()} MSLab Scheduler. All rights reserved.
-      </div>
+      <PasswordResetDialog
+        isOpen={isPasswordResetOpen}
+        onClose={() => setIsPasswordResetOpen(false)}
+      />
     </div>
   );
 };

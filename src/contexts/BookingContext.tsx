@@ -1,5 +1,5 @@
 
-import React, { createContext, useState, useContext, useEffect, useCallback } from "react";
+import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from "react";
 import { Instrument, Booking, BookingStatistics, Comment } from "../types";
 import { useAuth } from "./AuthContext";
 import { toast } from "sonner";
@@ -55,6 +55,7 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
   const { users, isLoading: authLoading, isAuthenticated } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   
   // Use our custom hooks
   const { 
@@ -81,7 +82,7 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
   
   const statistics = useBookingStatistics(bookings, instruments);
 
-  // Memoize the refresh function
+  // Memoize the refresh function to prevent unnecessary re-renders
   const refreshData = useCallback(async () => {
     if (!isAuthenticated) {
       console.log("Not authenticated, skipping data refresh");
@@ -99,6 +100,8 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
         loadStatusColors()
       ]);
       console.log("BookingContext: Data refresh complete");
+      // Force a re-render by incrementing refresh key
+      setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error("BookingContext: Error refreshing data:", error);
       toast.error("Failed to refresh data");
@@ -107,19 +110,15 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
     }
   }, [isAuthenticated, loadInstruments, loadBookings, loadStatusColors]);
 
-  // Initial data load
+  // Initial data load - use useMemo to prevent recreating the effect dependencies
+  const shouldInitialize = useMemo(() => 
+    !isInitialized && !authLoading && isAuthenticated, 
+    [isInitialized, authLoading, isAuthenticated]
+  );
+
   useEffect(() => {
     const initializeData = async () => {
-      // Don't initialize if already done or if auth is loading
-      if (isInitialized || authLoading) {
-        return;
-      }
-      
-      // If not authenticated, stop loading
-      if (!isAuthenticated) {
-        console.log("BookingContext: Not authenticated, stopping loading");
-        setIsLoading(false);
-        setIsInitialized(true);
+      if (!shouldInitialize) {
         return;
       }
       
@@ -129,34 +128,59 @@ export const BookingProvider = ({ children }: { children: React.ReactNode }) => 
     };
 
     initializeData();
-  }, [authLoading, isAuthenticated, isInitialized, refreshData]);
+  }, [shouldInitialize, refreshData]);
 
   // Reset when auth changes
   useEffect(() => {
     if (authLoading) {
       setIsInitialized(false);
+    } else if (!isAuthenticated) {
+      console.log("BookingContext: Not authenticated, stopping loading");
+      setIsLoading(false);
+      setIsInitialized(true);
     }
-  }, [authLoading]);
+  }, [authLoading, isAuthenticated]);
+
+  // Memoize the context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    bookings,
+    setBookings,
+    instruments,
+    addInstrument,
+    updateInstrument,
+    deleteInstrument,
+    deleteBooking,
+    createBooking,
+    updateBooking,
+    applyDelay,
+    statistics,
+    addCommentToBooking,
+    deleteCommentFromBooking,
+    getStatusColor,
+    isLoading,
+    refreshData
+  }), [
+    bookings,
+    setBookings,
+    instruments,
+    addInstrument,
+    updateInstrument,
+    deleteInstrument,
+    deleteBooking,
+    createBooking,
+    updateBooking,
+    applyDelay,
+    statistics,
+    addCommentToBooking,
+    deleteCommentFromBooking,
+    getStatusColor,
+    isLoading,
+    refreshData,
+    refreshKey // Include refresh key to force updates when needed
+  ]);
 
   return (
-    <BookingContext.Provider value={{
-      bookings,
-      setBookings,
-      instruments,
-      addInstrument,
-      updateInstrument,
-      deleteInstrument,
-      deleteBooking,
-      createBooking,
-      updateBooking,
-      applyDelay,
-      statistics,
-      addCommentToBooking,
-      deleteCommentFromBooking,
-      getStatusColor,
-      isLoading,
-      refreshData
-    }}>
+    <BookingContext.Provider value={contextValue}>
       {children}
     </BookingContext.Provider>
   );

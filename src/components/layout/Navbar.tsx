@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "../ui/button";
 import {
@@ -20,15 +20,19 @@ const Navbar: React.FC = () => {
   const location = useLocation();
   const { user, logout } = useAuth();
   
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = useCallback((path: string) => location.pathname === path, [location.pathname]);
   
-  const getInitials = (name: string) => {
+  const getInitials = useCallback((name: string) => {
     return name
       .split(" ")
       .map(part => part[0])
       .join("")
       .toUpperCase();
-  };
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    logout();
+  }, [logout]);
 
   return (
     <header className="sticky top-0 z-30 w-full bg-background border-b shadow-sm">
@@ -174,7 +178,7 @@ const Navbar: React.FC = () => {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="cursor-pointer"
-                  onClick={logout}
+                  onClick={handleLogout}
                 >
                   Log Out
                 </DropdownMenuItem>

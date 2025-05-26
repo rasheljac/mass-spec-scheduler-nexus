@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { useAuth } from "../contexts/AuthContext";
 import { useBooking } from "../contexts/BookingContext";
@@ -22,10 +22,10 @@ const AdminPage: React.FC = () => {
     return <Navigate to="/" replace />;
   }
 
-  const handleTabChange = (value: string) => {
+  const handleTabChange = useCallback((value: string) => {
     console.log(`AdminPage: Switching to tab: ${value}`);
     setActiveTab(value);
-  };
+  }, []);
 
   return (
     <div className="container py-6 space-y-6">
@@ -49,27 +49,27 @@ const AdminPage: React.FC = () => {
         </TabsList>
         
         <TabsContent value="users" className="mt-6">
-          <UserManagement />
+          {activeTab === "users" && <UserManagement />}
         </TabsContent>
         
         <TabsContent value="instruments" className="mt-6">
-          <InstrumentManagement />
+          {activeTab === "instruments" && <InstrumentManagement />}
         </TabsContent>
         
         <TabsContent value="delays" className="mt-6">
-          <DelaySchedule />
+          {activeTab === "delays" && <DelaySchedule />}
         </TabsContent>
         
         <TabsContent value="status-colors" className="mt-6">
-          <StatusColorManagement />
+          {activeTab === "status-colors" && <StatusColorManagement />}
         </TabsContent>
         
         <TabsContent value="smtp" className="mt-6">
-          <SmtpSettings />
+          {activeTab === "smtp" && <SmtpSettings />}
         </TabsContent>
         
         <TabsContent value="email-templates" className="mt-6">
-          <EmailTemplatesManagement />
+          {activeTab === "email-templates" && <EmailTemplatesManagement />}
         </TabsContent>
       </Tabs>
     </div>
