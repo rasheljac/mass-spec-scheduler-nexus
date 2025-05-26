@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useBooking } from "../../contexts/BookingContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { Button } from "../ui/button";
@@ -37,9 +37,35 @@ const BookingForm: React.FC<BookingFormProps> = ({
     duration: "1",
     purpose: "",
     details: "",
+    sampleNumber: ""
   });
 
   const selectedInstrument = instruments.find(i => i.id === formData.selectedInstrument);
+
+  // Auto-calculate duration based on sample number
+  useEffect(() => {
+    const sampleNum = parseInt(formData.sampleNumber);
+    if (!isNaN(sampleNum) && sampleNum > 0) {
+      let calculatedDuration = "1"; // Default 1 hour
+      
+      // Duration calculation logic based on sample number
+      if (sampleNum <= 5) {
+        calculatedDuration = "1";
+      } else if (sampleNum <= 10) {
+        calculatedDuration = "2";
+      } else if (sampleNum <= 20) {
+        calculatedDuration = "3";
+      } else if (sampleNum <= 30) {
+        calculatedDuration = "4";
+      } else if (sampleNum <= 50) {
+        calculatedDuration = "6";
+      } else {
+        calculatedDuration = "8";
+      }
+      
+      setFormData(prev => ({ ...prev, duration: calculatedDuration }));
+    }
+  }, [formData.sampleNumber]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,7 +92,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
         start: startDate.toISOString(),
         end: endDate.toISOString(),
         purpose: formData.purpose,
-        details: formData.details,
+        details: formData.details + (formData.sampleNumber ? `\n\nSample Number: ${formData.sampleNumber}` : ""),
         status: initialStatus,
         comments: []
       });
@@ -85,6 +111,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
         duration: "1",
         purpose: "",
         details: "",
+        sampleNumber: ""
       });
     } catch (error) {
       console.error("Error creating booking:", error);
@@ -153,6 +180,21 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 })}
               </SelectContent>
             </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="sampleNumber">Sample Number (Optional)</Label>
+            <Input
+              id="sampleNumber"
+              type="number"
+              value={formData.sampleNumber}
+              onChange={(e) => setFormData(prev => ({ ...prev, sampleNumber: e.target.value }))}
+              placeholder="Enter number of samples"
+              min="1"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              Duration will be automatically calculated based on sample number
+            </p>
           </div>
 
           <div>

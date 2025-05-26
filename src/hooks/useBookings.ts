@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { Booking, Comment, User } from "../types";
 import { supabase } from "../integrations/supabase/client";
@@ -149,7 +148,8 @@ export const useBookings = (users: User[]) => {
         
         // Send email notification for new booking
         try {
-          await supabase.functions.invoke('send-email', {
+          console.log("Sending booking confirmation email to:", getUserEmailById(bookingData.userId));
+          const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
             body: {
               to: getUserEmailById(bookingData.userId),
               templateType: 'booking_confirmation',
@@ -162,6 +162,12 @@ export const useBookings = (users: User[]) => {
               }
             }
           });
+          
+          if (emailError) {
+            console.error("Email sending error:", emailError);
+          } else {
+            console.log("Booking confirmation email sent successfully:", emailData);
+          }
         } catch (emailError) {
           console.error("Failed to send booking confirmation email:", emailError);
         }
@@ -215,7 +221,8 @@ export const useBookings = (users: User[]) => {
       // Send status update notification only if booking fields have changed (not comments)
       if (bookingFieldsChanged) {
         try {
-          await supabase.functions.invoke('send-email', {
+          console.log("Sending booking update email to:", getUserEmailById(bookingData.userId));
+          const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
             body: {
               to: getUserEmailById(bookingData.userId),
               templateType: 'booking_update',
@@ -228,6 +235,12 @@ export const useBookings = (users: User[]) => {
               }
             }
           });
+          
+          if (emailError) {
+            console.error("Email update error:", emailError);
+          } else {
+            console.log("Booking update email sent successfully:", emailData);
+          }
         } catch (emailError) {
           console.error("Failed to send booking update email:", emailError);
         }
@@ -307,7 +320,7 @@ export const useBookings = (users: User[]) => {
             commentTime
           });
           
-          await supabase.functions.invoke('send-email', {
+          const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
             body: {
               to: getUserEmailById(booking.userId),
               subject: `New Comment on Your Booking: ${booking.instrumentName}`,
@@ -325,7 +338,11 @@ export const useBookings = (users: User[]) => {
             }
           });
           
-          console.log("Comment notification email sent successfully");
+          if (emailError) {
+            console.error("Comment notification email error:", emailError);
+          } else {
+            console.log("Comment notification email sent successfully:", emailData);
+          }
         } catch (emailError) {
           console.error("Failed to send comment notification email:", emailError);
         }
