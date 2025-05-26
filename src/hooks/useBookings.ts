@@ -147,38 +147,61 @@ export const useBookings = (users: User[]) => {
         // Reload bookings to get the updated list
         await loadBookings();
         
-        // Send email notification for new booking
+        // Send email notification for new booking - improved error handling
         try {
           const userEmail = getUserEmailById(bookingData.userId);
           if (userEmail) {
             console.log("Sending booking confirmation email to:", userEmail);
+            
+            // Use the send-email edge function with proper error handling
             const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
               body: {
                 to: userEmail,
+                subject: `Booking Confirmation: ${bookingData.instrumentName}`,
                 templateType: 'booking_confirmation',
+                htmlContent: `
+                  <h2>Booking Confirmation</h2>
+                  <p>Dear ${bookingData.userName},</p>
+                  <p>Your booking for <strong>${bookingData.instrumentName}</strong> has been created.</p>
+                  <p><strong>Details:</strong></p>
+                  <ul>
+                    <li>Start: ${new Date(bookingData.start).toLocaleString()}</li>
+                    <li>End: ${new Date(bookingData.end).toLocaleString()}</li>
+                    <li>Status: ${bookingData.status}</li>
+                    <li>Purpose: ${bookingData.purpose}</li>
+                  </ul>
+                  <p>Thank you for using the Lab Management System.</p>
+                `,
                 variables: {
                   userName: bookingData.userName || "User",
                   instrumentName: bookingData.instrumentName || "Instrument",
                   startDate: new Date(bookingData.start).toLocaleString(),
                   endDate: new Date(bookingData.end).toLocaleString(),
-                  status: bookingData.status || "pending"
+                  status: bookingData.status || "pending",
+                  purpose: bookingData.purpose || ""
                 }
               }
             });
             
             if (emailError) {
               console.error("Email sending error:", emailError);
+              toast.error("Booking created but email notification failed");
             } else {
               console.log("Booking confirmation email sent successfully:", emailData);
+              toast.success("Booking created and confirmation email sent");
             }
           } else {
             console.warn("No email found for user:", bookingData.userId);
+            toast.success("Booking created (no email configured)");
           }
         } catch (emailError) {
           console.error("Failed to send booking confirmation email:", emailError);
+          toast.success("Booking created but email notification failed");
         }
         
         return data[0];
+      } else {
+        throw new Error("No data returned from booking creation");
       }
     } catch (error) {
       console.error("Error creating booking:", error);
@@ -236,10 +259,25 @@ export const useBookings = (users: User[]) => {
           const userEmail = getUserEmailById(bookingData.userId);
           if (userEmail) {
             console.log("Sending booking update email to:", userEmail);
+            
             const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
               body: {
                 to: userEmail,
+                subject: `Booking Update: ${bookingData.instrumentName}`,
                 templateType: 'booking_update',
+                htmlContent: `
+                  <h2>Booking Update</h2>
+                  <p>Dear ${bookingData.userName},</p>
+                  <p>Your booking for <strong>${bookingData.instrumentName}</strong> has been updated.</p>
+                  <p><strong>Updated Details:</strong></p>
+                  <ul>
+                    <li>Start: ${new Date(bookingData.start).toLocaleString()}</li>
+                    <li>End: ${new Date(bookingData.end).toLocaleString()}</li>
+                    <li>Status: ${bookingData.status}</li>
+                    <li>Purpose: ${bookingData.purpose}</li>
+                  </ul>
+                  <p>Thank you for using the Lab Management System.</p>
+                `,
                 variables: {
                   userName: bookingData.userName || "User",
                   instrumentName: bookingData.instrumentName || "Instrument",
@@ -326,7 +364,10 @@ export const useBookings = (users: User[]) => {
       if (data) {
         console.log("Comment added successfully:", data);
         
-        // Send email notification for new comment
+        // Reload bookings to update comments
+        await loadBookings();
+        
+        // Send email notification for new comment - improved implementation
         try {
           const userEmail = getUserEmailById(booking.userId);
           const commentAuthor = comment.userName || getUserNameById(comment.userId);
@@ -334,10 +375,29 @@ export const useBookings = (users: User[]) => {
           
           if (userEmail && comment.userId !== booking.userId) { // Don't email the comment author
             console.log("Sending comment notification email to:", userEmail);
+            
             const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
               body: {
                 to: userEmail,
+                subject: `New Comment on Your Booking: ${booking.instrumentName}`,
                 templateType: 'comment_added',
+                htmlContent: `
+                  <h2>New Comment Added</h2>
+                  <p>Dear ${booking.userName},</p>
+                  <p>A new comment has been added to your booking for <strong>${booking.instrumentName}</strong>.</p>
+                  <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0;">
+                    <p><strong>Comment by ${commentAuthor}:</strong></p>
+                    <p style="margin: 10px 0;">${comment.content}</p>
+                    <p style="color: #666; font-size: 14px;">Time: ${commentTime}</p>
+                  </div>
+                  <p><strong>Booking Details:</strong></p>
+                  <ul>
+                    <li>Instrument: ${booking.instrumentName}</li>
+                    <li>Start: ${new Date(booking.start).toLocaleString()}</li>
+                    <li>End: ${new Date(booking.end).toLocaleString()}</li>
+                  </ul>
+                  <p>Thank you for using the Lab Management System.</p>
+                `,
                 variables: {
                   userName: booking.userName || "User",
                   instrumentName: booking.instrumentName || "Instrument",
@@ -352,12 +412,17 @@ export const useBookings = (users: User[]) => {
             
             if (emailError) {
               console.error("Comment notification email error:", emailError);
+              toast.success("Comment added (email notification failed)");
             } else {
               console.log("Comment notification email sent successfully:", emailData);
+              toast.success("Comment added and notification sent");
             }
+          } else {
+            toast.success("Comment added successfully");
           }
         } catch (emailError) {
           console.error("Failed to send comment notification email:", emailError);
+          toast.success("Comment added (email notification failed)");
         }
         
         // Return the new comment ID
@@ -390,6 +455,7 @@ export const useBookings = (users: User[]) => {
       
       // Reload bookings to get the updated comments
       await loadBookings();
+      toast.success("Comment deleted successfully");
     } catch (error) {
       console.error("Error deleting comment:", error);
       toast.error("Failed to delete comment");
