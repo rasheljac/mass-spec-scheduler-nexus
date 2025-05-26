@@ -60,15 +60,24 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
   // Auto-calculate duration when sample data changes
   useEffect(() => {
+    console.log("Duration calculation triggered:", { 
+      sampleNumber: formData.sampleNumber, 
+      sampleRunTime: formData.sampleRunTime 
+    });
+    
     if (formData.sampleNumber && formData.sampleRunTime) {
       const totalSamples = parseInt(formData.sampleNumber);
       const runTimePerSample = parseFloat(formData.sampleRunTime);
+      
+      console.log("Parsed values:", { totalSamples, runTimePerSample });
       
       if (totalSamples > 0 && runTimePerSample > 0) {
         // Calculate total runtime + 15 minutes setup time
         const totalMinutes = (totalSamples * runTimePerSample) + 15;
         const totalHours = totalMinutes / 60;
         const roundedHours = Math.ceil(totalHours * 2) / 2; // Round to nearest 0.5 hours
+        
+        console.log("Calculated duration:", { totalMinutes, totalHours, roundedHours });
         
         setFormData(prev => ({ ...prev, duration: roundedHours.toString() }));
       }
@@ -87,6 +96,18 @@ const BookingForm: React.FC<BookingFormProps> = ({
     endDate.setMinutes(startDate.getMinutes() + ((durationHours % 1) * 60));
     
     return endDate;
+  };
+
+  // Handle sample number change
+  const handleSampleNumberChange = (value: string) => {
+    console.log("Sample number changed:", value);
+    setFormData(prev => ({ ...prev, sampleNumber: value }));
+  };
+
+  // Handle sample run time change
+  const handleSampleRunTimeChange = (value: string) => {
+    console.log("Sample run time changed:", value);
+    setFormData(prev => ({ ...prev, sampleRunTime: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -250,7 +271,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 id="sampleNumber"
                 type="number"
                 value={formData.sampleNumber}
-                onChange={(e) => setFormData(prev => ({ ...prev, sampleNumber: e.target.value }))}
+                onChange={(e) => handleSampleNumberChange(e.target.value)}
                 placeholder="Number of samples"
                 min="1"
               />
@@ -262,7 +283,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 type="number"
                 step="0.1"
                 value={formData.sampleRunTime}
-                onChange={(e) => setFormData(prev => ({ ...prev, sampleRunTime: e.target.value }))}
+                onChange={(e) => handleSampleRunTimeChange(e.target.value)}
                 placeholder="Minutes per sample"
                 min="0.1"
               />
