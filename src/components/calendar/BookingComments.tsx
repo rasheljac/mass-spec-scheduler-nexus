@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "../ui/button";
 import { Textarea } from "../ui/textarea";
@@ -24,7 +23,7 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
   comments,
   onCommentsChange
 }) => {
-  const { user } = useAuth();
+  const { user, users } = useAuth();
   const { addCommentToBooking, deleteCommentFromBooking, bookings } = useBooking();
   const [newComment, setNewComment] = useState("");
   const [isAddingComment, setIsAddingComment] = useState(false);
@@ -65,9 +64,16 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
         if (booking && booking.userId !== user.id) {
           try {
             console.log("Sending comment notification email");
-            await supabase.functions.invoke('send-email', {
+            
+            // Find the booking owner's email from the users array
+            const bookingOwner = users.find(u => u.id === booking.userId);
+            const recipientEmail = bookingOwner?.email || booking.userId;
+            
+            console.log("Recipient email:", recipientEmail);
+            
+            const { data, error } = await supabase.functions.invoke('send-email', {
               body: {
-                to: booking.userEmail || booking.userId, // Use email if available
+                to: recipientEmail,
                 subject: `New Comment on Your Booking: ${booking.instrumentName}`,
                 htmlContent: `
                   <h2>New Comment on Your Booking</h2>
@@ -88,7 +94,12 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
                 }
               }
             });
-            console.log("Comment notification email sent successfully");
+            
+            if (error) {
+              console.error("Email sending error:", error);
+            } else {
+              console.log("Comment notification email sent successfully:", data);
+            }
           } catch (emailError) {
             console.error("Failed to send comment notification email:", emailError);
             // Don't show error to user for email failure
