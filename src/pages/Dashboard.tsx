@@ -4,7 +4,6 @@ import InstrumentStatus from "../components/dashboard/InstrumentStatus";
 import UpcomingBookings from "../components/dashboard/UpcomingBookings";
 import CurrentBookings from "../components/dashboard/CurrentBookings";
 import UsageStatistics from "../components/dashboard/UsageStatistics";
-import DeleteCompletedBookingsButton from "../components/admin/DeleteCompletedBookingsButton";
 import { supabase } from "../integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
@@ -49,7 +48,6 @@ const Dashboard: React.FC = () => {
     <div className="container mx-auto px-4 py-6 max-w-7xl">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-        {user?.role === "admin" && <DeleteCompletedBookingsButton />}
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

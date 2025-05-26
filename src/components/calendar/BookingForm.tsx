@@ -1,536 +1,185 @@
-import React, { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { format, addHours, setHours, setMinutes, addMinutes, isSameDay, addDays } from "date-fns";
-import { CalendarIcon, Clock } from "lucide-react";
-import { useToast } from "../../hooks/use-toast";
-import { Button } from "../ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "../ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
-import { Input } from "../ui/input";
-import { Textarea } from "../ui/textarea";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Calendar } from "../ui/calendar";
-import { cn } from "@/lib/utils";
+
+import React, { useState } from "react";
 import { useBooking } from "../../contexts/BookingContext";
 import { useAuth } from "../../contexts/AuthContext";
-import { Switch } from "../ui/switch";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Textarea } from "../ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { Loader2 } from "lucide-react";
 
 interface BookingFormProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  selectedDate?: Date;
+  selectedDate: Date;
+  selectedTime: string;
+  instrumentId: string;
+  onClose: () => void;
 }
 
-const formSchema = z.object({
-  instrumentId: z.string({ required_error: "Please select an instrument" }),
-  startDate: z.date({ required_error: "Please select a date" }),
-  endDate: z.date({ required_error: "Please select an end date" }),
-  startTime: z.string({ required_error: "Please select a start time" }),
-  endTime: z.string({ required_error: "Please select an end time" }),
-  purpose: z.string().min(5, { message: "Purpose must be at least 5 characters" }),
-  useAutoDuration: z.boolean().default(false),
-  sampleCount: z.coerce.number().int().min(1).optional(),
-  timePerSample: z.coerce.number().int().min(1).optional(),
-});
-
-type FormValues = z.infer<typeof formSchema>;
-
-const BookingForm: React.FC<BookingFormProps> = ({ open, onOpenChange, selectedDate }) => {
-  const { instruments, createBooking } = useBooking();
+const BookingForm: React.FC<BookingFormProps> = ({
+  selectedDate,
+  selectedTime,
+  instrumentId,
+  onClose
+}) => {
+  const { createBooking, instruments } = useBooking();
   const { user } = useAuth();
-  const { toast: hookToast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  const [useAutoDuration, setUseAutoDuration] = useState(false);
-
-  // Generate time options in 30-minute increments
-  const timeOptions = Array.from({ length: 24 * 2 }, (_, i) => {
-    const hour = Math.floor(i / 2);
-    const minute = i % 2 === 0 ? "00" : "30";
-    const ampm = hour < 12 ? "AM" : "PM";
-    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${hour12}:${minute} ${ampm}`;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    duration: "1",
+    purpose: "",
+    details: "",
   });
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      instrumentId: "",
-      startDate: selectedDate || new Date(),
-      endDate: selectedDate || new Date(),
-      startTime: "9:00 AM",
-      endTime: "10:00 AM",
-      purpose: "",
-      useAutoDuration: false,
-      sampleCount: 1,
-      timePerSample: 30,
-    },
-  });
+  const selectedInstrument = instruments.find(i => i.id === instrumentId);
 
-  // Reset form when selected date changes
-  React.useEffect(() => {
-    if (selectedDate) {
-      form.setValue("startDate", selectedDate);
-      form.setValue("endDate", selectedDate);
-    }
-  }, [selectedDate, form]);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !selectedInstrument) return;
 
-  // Auto-calculate end time when relevant fields change
-  useEffect(() => {
-    const autoDuration = form.watch("useAutoDuration");
-    const sampleCount = form.watch("sampleCount");
-    const timePerSample = form.watch("timePerSample");
-    const startTime = form.watch("startTime");
-    const startDate = form.watch("startDate");
+    setIsSubmitting(true);
     
-    if (autoDuration && sampleCount && timePerSample && startTime && startDate) {
-      // Parse the start time
-      const parseTime = (timeStr: string) => {
-        const [timePart, ampm] = timeStr.split(" ");
-        const [hourStr, minuteStr] = timePart.split(":");
-        let hour = parseInt(hourStr, 10);
-        const minute = parseInt(minuteStr, 10);
-        
-        // Convert to 24-hour format
-        if (ampm === "PM" && hour !== 12) {
-          hour += 12;
-        } else if (ampm === "AM" && hour === 12) {
-          hour = 0;
-        }
-        
-        return { hour, minute };
-      };
-
-      // Format time to options format
-      const formatTimeOption = (date: Date) => {
-        let hours = date.getHours();
-        const minutes = date.getMinutes();
-        const ampm = hours >= 12 ? "PM" : "AM";
-        
-        hours = hours % 12;
-        hours = hours ? hours : 12; // the hour '0' should be '12'
-        const minutesStr = minutes < 10 ? `0${minutes}` : `${minutes}`;
-        
-        return `${hours}:${minutesStr} ${ampm}`;
-      };
-
-      try {
-        const { hour, minute } = parseTime(startTime);
-        const totalMinutes = Number(sampleCount) * Number(timePerSample);
-        
-        // Create a date with the start time and add the calculated duration
-        const startDateTime = new Date(startDate);
-        startDateTime.setHours(hour, minute, 0, 0);
-        const endDateTime = new Date(startDateTime.getTime() + totalMinutes * 60 * 1000);
-        
-        // Find the closest 30-minute time slot
-        const roundedMinutes = Math.ceil(endDateTime.getMinutes() / 30) * 30;
-        endDateTime.setMinutes(roundedMinutes % 60);
-        if (roundedMinutes >= 60) {
-          endDateTime.setHours(endDateTime.getHours() + Math.floor(roundedMinutes / 60));
-        }
-        
-        // Set the end date if it's different from the start date
-        if (!isSameDay(startDateTime, endDateTime)) {
-          form.setValue("endDate", endDateTime);
-        }
-        
-        // Format and set the end time
-        const endTimeStr = formatTimeOption(endDateTime);
-        if (timeOptions.includes(endTimeStr)) {
-          form.setValue("endTime", endTimeStr);
-        }
-      } catch (e) {
-        console.error("Error calculating end time:", e);
-      }
-    }
-  }, [
-    form.watch("useAutoDuration"),
-    form.watch("sampleCount"),
-    form.watch("timePerSample"),
-    form.watch("startTime"),
-    form.watch("startDate")
-  ]);
-
-  const onSubmit = async (values: FormValues) => {
-    if (!user) {
-      toast.error("Authentication required. Please log in to book an instrument");
-      return;
-    }
-
     try {
-      setIsLoading(true);
+      const [hours, minutes] = selectedTime.split(':').map(Number);
+      const startDate = new Date(selectedDate);
+      startDate.setHours(hours, minutes, 0, 0);
+      
+      const endDate = new Date(startDate);
+      endDate.setHours(startDate.getHours() + parseInt(formData.duration));
 
-      // Parse times
-      const parseTime = (dateStr: Date, timeStr: string) => {
-        const [timePart, ampm] = timeStr.split(" ");
-        const [hourStr, minuteStr] = timePart.split(":");
-        let hour = parseInt(hourStr, 10);
-        const minute = parseInt(minuteStr, 10);
-        
-        // Convert to 24-hour format
-        if (ampm === "PM" && hour !== 12) {
-          hour += 12;
-        } else if (ampm === "AM" && hour === 12) {
-          hour = 0;
-        }
-        
-        const result = new Date(dateStr);
-        result.setHours(hour, minute, 0, 0);
-        return result;
-      };
-
-      const start = parseTime(values.startDate, values.startTime);
-      const end = parseTime(values.endDate, values.endTime);
-
-      // Validate that end time is after start time
-      if (end <= start) {
-        toast.error("End time must be after start time");
-        return;
-      }
-
-      const selectedInstrument = instruments.find(i => i.id === values.instrumentId);
-      if (!selectedInstrument) {
-        toast.error("Selected instrument not found");
-        return;
-      }
-
-      console.log("Creating booking with data:", {
-        userId: user.id,
-        userName: user.name,
-        instrumentId: values.instrumentId,
-        instrumentName: selectedInstrument.name,
-        start: start.toISOString(),
-        end: end.toISOString(),
-        purpose: values.purpose,
-        status: "confirmed"
-      });
+      // Set initial status based on user role
+      const initialStatus = user.role === "admin" ? "confirmed" : "pending";
 
       await createBooking({
         userId: user.id,
         userName: user.name,
-        instrumentId: values.instrumentId,
+        instrumentId: selectedInstrument.id,
         instrumentName: selectedInstrument.name,
-        start: start.toISOString(),
-        end: end.toISOString(),
-        purpose: values.purpose,
-        details: values.purpose,
-        status: "confirmed",
-        comments: [] 
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+        purpose: formData.purpose,
+        details: formData.details,
+        status: initialStatus,
+        comments: []
       });
 
-      toast.success(`You've booked ${selectedInstrument.name} from ${format(start, "PPP p")} to ${format(end, "PPP p")}`);
+      if (user.role === "admin") {
+        toast.success("Booking created successfully");
+      } else {
+        toast.success("Booking request submitted for admin approval");
+      }
       
-      onOpenChange(false);
+      onClose();
     } catch (error) {
-      console.error("Booking creation error:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to create booking. Please try again.");
+      console.error("Error creating booking:", error);
+      toast.error("Failed to create booking");
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
+  if (!selectedInstrument) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <p className="text-center text-muted-foreground">Instrument not found</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle>Schedule Instrument Time</DialogTitle>
-          <DialogDescription>
-            Book an instrument for your experiment or analysis.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-            <FormField
-              control={form.control}
-              name="instrumentId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Instrument</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select instrument" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {instruments
-                        .filter(i => i.status === "available")
-                        .map(instrument => (
-                          <SelectItem key={instrument.id} value={instrument.id}>
-                            {instrument.name} - {instrument.location}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Select the instrument you want to use
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
+    <Card>
+      <CardHeader>
+        <CardTitle>Book {selectedInstrument.name}</CardTitle>
+        <p className="text-sm text-muted-foreground">
+          {format(selectedDate, "EEEE, MMMM d, yyyy")} at {selectedTime}
+        </p>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="duration">Duration (hours)</Label>
+            <Select
+              value={formData.duration}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, duration: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select duration" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0.5">30 minutes</SelectItem>
+                <SelectItem value="1">1 hour</SelectItem>
+                <SelectItem value="1.5">1.5 hours</SelectItem>
+                <SelectItem value="2">2 hours</SelectItem>
+                <SelectItem value="3">3 hours</SelectItem>
+                <SelectItem value="4">4 hours</SelectItem>
+                <SelectItem value="6">6 hours</SelectItem>
+                <SelectItem value="8">8 hours</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="purpose">Purpose</Label>
+            <Input
+              id="purpose"
+              value={formData.purpose}
+              onChange={(e) => setFormData(prev => ({ ...prev, purpose: e.target.value }))}
+              placeholder="Brief description of the purpose"
+              required
             />
-            
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="startDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Start Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={(date) => date && field.onChange(date)}
-                          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="endDate"
-                render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>End Date</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant={"outline"}
-                            className={cn(
-                              "pl-3 text-left font-normal",
-                              !field.value && "text-muted-foreground"
-                            )}
-                            disabled={form.watch("useAutoDuration")}
-                          >
-                            {field.value ? (
-                              format(field.value, "PPP")
-                            ) : (
-                              <span>Pick a date</span>
-                            )}
-                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={field.value}
-                          onSelect={(date) => date && field.onChange(date)}
-                          disabled={(date) => 
-                            date < form.getValues("startDate") || 
-                            date < new Date(new Date().setHours(0, 0, 0, 0))
-                          }
-                          initialFocus
-                          className={cn("p-3 pointer-events-auto")}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="startTime"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Start Time</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select start time" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {timeOptions.map(time => (
-                          <SelectItem key={time} value={time}>
-                            {time}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="endTime"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>End Time</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      value={field.value}
-                      disabled={form.watch("useAutoDuration")}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select end time" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {timeOptions.map(time => (
-                          <SelectItem key={time} value={time}>
-                            {time}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            
-            <FormField
-              control={form.control}
-              name="useAutoDuration"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Auto-calculate duration</FormLabel>
-                    <FormDescription>
-                      Calculate end time based on sample quantity and time per sample
-                    </FormDescription>
-                  </div>
-                  <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                </FormItem>
-              )}
+          </div>
+
+          <div>
+            <Label htmlFor="details">Additional Details (Optional)</Label>
+            <Textarea
+              id="details"
+              value={formData.details}
+              onChange={(e) => setFormData(prev => ({ ...prev, details: e.target.value }))}
+              placeholder="Any additional details or special requirements"
+              className="min-h-[80px]"
             />
-            
-            {form.watch("useAutoDuration") && (
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="sampleCount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sample Quantity</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="1" {...field} />
-                      </FormControl>
-                      <FormDescription>Number of samples to process</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="timePerSample"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Minutes Per Sample</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="1" {...field} />
-                      </FormControl>
-                      <FormDescription>Average time to process each sample</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
-            
-            <FormField
-              control={form.control}
-              name="purpose"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Purpose</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Briefly describe what you'll be using the instrument for"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    This helps lab managers prioritize requests if needed
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <div className="flex justify-end space-x-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isLoading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Creating booking..." : "Book Instrument"}
-              </Button>
+          </div>
+
+          {user?.role !== "admin" && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> Your booking will be submitted for admin approval and will be pending until confirmed.
+              </p>
             </div>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+          )}
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              type="submit"
+              disabled={isSubmitting || !formData.purpose.trim()}
+              className="flex-1"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {user?.role === "admin" ? "Creating..." : "Submitting..."}
+                </>
+              ) : (
+                user?.role === "admin" ? "Create Booking" : "Submit for Approval"
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   );
 };
 

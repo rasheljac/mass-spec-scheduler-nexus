@@ -5,18 +5,30 @@ import { useBooking } from "../contexts/BookingContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Badge } from "../components/ui/badge";
-import { Calendar, Clock, MapPin, FileText, MessageCircle, Loader2 } from "lucide-react";
+import { Calendar, Clock, FileText, MessageCircle, Loader2, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "../components/ui/button";
 import { useState } from "react";
 import { Textarea } from "../components/ui/textarea";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../components/ui/alert-dialog";
 
 const MyBookingsPage: React.FC = () => {
   const { user } = useAuth();
-  const { bookings, isLoading, addCommentToBooking } = useBooking();
+  const { bookings, isLoading, addCommentToBooking, deleteBooking } = useBooking();
   const [commentContent, setCommentContent] = useState<{ [key: string]: string }>({});
   const [addingComment, setAddingComment] = useState<{ [key: string]: boolean }>({});
+  const [deletingBooking, setDeletingBooking] = useState<{ [key: string]: boolean }>({});
 
   // Filter bookings for the current user
   const userBookings = useMemo(() => {
@@ -70,10 +82,25 @@ const MyBookingsPage: React.FC = () => {
     }
   };
 
+  const handleDeleteBooking = async (bookingId: string) => {
+    setDeletingBooking(prev => ({ ...prev, [bookingId]: true }));
+    
+    try {
+      await deleteBooking(bookingId);
+      toast.success("Booking deleted successfully");
+    } catch (error) {
+      toast.error("Failed to delete booking");
+    } finally {
+      setDeletingBooking(prev => ({ ...prev, [bookingId]: false }));
+    }
+  };
+
   const getStatusVariant = (status: string) => {
     switch (status) {
       case "confirmed":
         return "default";
+      case "pending":
+        return "secondary";
       case "In-Progress":
         return "secondary";
       case "Completed":
@@ -84,6 +111,15 @@ const MyBookingsPage: React.FC = () => {
         return "secondary";
       default:
         return "outline";
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "pending":
+        return "Pending Approval";
+      default:
+        return status;
     }
   };
 
@@ -98,9 +134,51 @@ const MyBookingsPage: React.FC = () => {
               {format(new Date(booking.start), "PPP")}
             </CardDescription>
           </div>
-          <Badge variant={getStatusVariant(booking.status)}>
-            {booking.status}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant={getStatusVariant(booking.status)}>
+              {getStatusText(booking.status)}
+            </Badge>
+            {user?.role === "admin" && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    disabled={deletingBooking[booking.id]}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Booking</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Are you sure you want to delete this booking for {booking.instrumentName}? 
+                      This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={deletingBooking[booking.id]}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => handleDeleteBooking(booking.id)}
+                      disabled={deletingBooking[booking.id]}
+                      className="bg-red-600 hover:bg-red-700"
+                    >
+                      {deletingBooking[booking.id] ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        "Delete Booking"
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -119,6 +197,14 @@ const MyBookingsPage: React.FC = () => {
         {booking.details && (
           <div className="text-sm">
             <strong>Details:</strong> {booking.details}
+          </div>
+        )}
+
+        {booking.status === "pending" && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+            <p className="text-sm text-yellow-800">
+              <strong>Pending Approval:</strong> This booking is waiting for administrator approval.
+            </p>
           </div>
         )}
 

@@ -9,13 +9,15 @@ import DelaySchedule from "../components/admin/DelaySchedule";
 import StatusColorManagement from "../components/admin/StatusColorManagement";
 import SmtpSettings from "../components/admin/SmtpSettings";
 import EmailTemplatesManagement from "../components/admin/EmailTemplatesManagement";
+import PendingBookingsManagement from "../components/admin/PendingBookingsManagement";
+import DeleteCompletedBookingsButton from "../components/admin/DeleteCompletedBookingsButton";
 import { Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
 const AdminPage: React.FC = () => {
   const { user } = useAuth();
   const { isLoading } = useBooking();
-  const [activeTab, setActiveTab] = useState("users");
+  const [activeTab, setActiveTab] = useState("pending-bookings");
 
   // Redirect if user is not admin
   if (!user || user.role !== "admin") {
@@ -29,7 +31,10 @@ const AdminPage: React.FC = () => {
 
   return (
     <div className="container py-6 space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight">Administration</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Administration</h1>
+        <DeleteCompletedBookingsButton />
+      </div>
       
       {isLoading && (
         <div className="flex items-center justify-center py-4">
@@ -39,7 +44,8 @@ const AdminPage: React.FC = () => {
       )}
       
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid grid-cols-6 w-[700px]">
+        <TabsList className="grid grid-cols-7 w-[800px]">
+          <TabsTrigger value="pending-bookings">Pending Bookings</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="instruments">Instruments</TabsTrigger>
           <TabsTrigger value="delays">Schedule Delays</TabsTrigger>
@@ -47,6 +53,10 @@ const AdminPage: React.FC = () => {
           <TabsTrigger value="smtp">SMTP Settings</TabsTrigger>
           <TabsTrigger value="email-templates">Email Templates</TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="pending-bookings" className="mt-6">
+          {activeTab === "pending-bookings" && <PendingBookingsManagement />}
+        </TabsContent>
         
         <TabsContent value="users" className="mt-6">
           {activeTab === "users" && <UserManagement />}
