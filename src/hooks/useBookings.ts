@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { Booking, Comment, User } from "../types";
 import { supabase } from "../integrations/supabase/client";
@@ -146,27 +147,32 @@ export const useBookings = (users: User[]) => {
         // Reload bookings to get the updated list
         await loadBookings();
         
-        // Send email notification for new booking
+        // Send email notification for new booking using send-email function
         try {
-          console.log("Sending booking confirmation email to:", getUserEmailById(bookingData.userId));
-          const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
-            body: {
-              to: getUserEmailById(bookingData.userId),
-              templateType: 'booking_confirmation',
-              variables: {
-                userName: bookingData.userName,
-                instrumentName: bookingData.instrumentName,
-                startDate: new Date(bookingData.start).toLocaleString(),
-                endDate: new Date(bookingData.end).toLocaleString(),
-                status: bookingData.status
+          const userEmail = getUserEmailById(bookingData.userId);
+          if (userEmail) {
+            console.log("Sending booking confirmation email to:", userEmail);
+            const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
+              body: {
+                to: userEmail,
+                templateType: 'booking_confirmation',
+                variables: {
+                  userName: bookingData.userName || "User",
+                  instrumentName: bookingData.instrumentName || "Instrument",
+                  startDate: new Date(bookingData.start).toLocaleString(),
+                  endDate: new Date(bookingData.end).toLocaleString(),
+                  status: bookingData.status || "pending"
+                }
               }
+            });
+            
+            if (emailError) {
+              console.error("Email sending error:", emailError);
+            } else {
+              console.log("Booking confirmation email sent successfully:", emailData);
             }
-          });
-          
-          if (emailError) {
-            console.error("Email sending error:", emailError);
           } else {
-            console.log("Booking confirmation email sent successfully:", emailData);
+            console.warn("No email found for user:", bookingData.userId);
           }
         } catch (emailError) {
           console.error("Failed to send booking confirmation email:", emailError);
@@ -184,6 +190,8 @@ export const useBookings = (users: User[]) => {
   // Function to update a booking - FIXED: Only check for booking field changes, not comment changes
   const updateBooking = async (bookingData: Booking) => {
     try {
+      console.log("Updating booking with data:", bookingData);
+      
       // Find the existing booking to compare status and other fields
       const existingBooking = bookings.find(booking => booking.id === bookingData.id);
       
@@ -212,8 +220,11 @@ export const useBookings = (users: User[]) => {
         .eq('id', bookingData.id);
 
       if (error) {
+        console.error("Error updating booking:", error);
         throw error;
       }
+
+      console.log("Booking updated successfully in database");
 
       // Reload bookings to get the updated list
       await loadBookings();
@@ -221,25 +232,28 @@ export const useBookings = (users: User[]) => {
       // Send status update notification only if booking fields have changed (not comments)
       if (bookingFieldsChanged) {
         try {
-          console.log("Sending booking update email to:", getUserEmailById(bookingData.userId));
-          const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
-            body: {
-              to: getUserEmailById(bookingData.userId),
-              templateType: 'booking_update',
-              variables: {
-                userName: bookingData.userName,
-                instrumentName: bookingData.instrumentName,
-                startDate: new Date(bookingData.start).toLocaleString(),
-                endDate: new Date(bookingData.end).toLocaleString(),
-                status: bookingData.status
+          const userEmail = getUserEmailById(bookingData.userId);
+          if (userEmail) {
+            console.log("Sending booking update email to:", userEmail);
+            const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
+              body: {
+                to: userEmail,
+                templateType: 'booking_update',
+                variables: {
+                  userName: bookingData.userName || "User",
+                  instrumentName: bookingData.instrumentName || "Instrument",
+                  startDate: new Date(bookingData.start).toLocaleString(),
+                  endDate: new Date(bookingData.end).toLocaleString(),
+                  status: bookingData.status || "pending"
+                }
               }
+            });
+            
+            if (emailError) {
+              console.error("Email update error:", emailError);
+            } else {
+              console.log("Booking update email sent successfully:", emailData);
             }
-          });
-          
-          if (emailError) {
-            console.error("Email update error:", emailError);
-          } else {
-            console.log("Booking update email sent successfully:", emailData);
           }
         } catch (emailError) {
           console.error("Failed to send booking update email:", emailError);
@@ -257,6 +271,8 @@ export const useBookings = (users: User[]) => {
   // Function to delete a booking
   const deleteBooking = async (bookingId: string) => {
     try {
+      console.log("Deleting booking:", bookingId);
+      
       // Delete from Supabase
       const { error } = await supabase
         .from('bookings')
@@ -264,9 +280,12 @@ export const useBookings = (users: User[]) => {
         .eq('id', bookingId);
 
       if (error) {
+        console.error("Error deleting booking:", error);
         throw error;
       }
 
+      console.log("Booking deleted successfully");
+      
       // Reload bookings to get the updated list
       await loadBookings();
       toast.success("Booking deleted successfully");
@@ -307,41 +326,33 @@ export const useBookings = (users: User[]) => {
         
         // Send email notification for new comment
         try {
+          const userEmail = getUserEmailById(booking.userId);
           const commentAuthor = comment.userName || getUserNameById(comment.userId);
           const commentTime = new Date().toLocaleString();
           
-          console.log("Sending comment notification email with variables:", {
-            userName: booking.userName,
-            instrumentName: booking.instrumentName,
-            startDate: new Date(booking.start).toLocaleString(),
-            endDate: new Date(booking.end).toLocaleString(),
-            commentAuthor,
-            commentContent: comment.content,
-            commentTime
-          });
-          
-          const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
-            body: {
-              to: getUserEmailById(booking.userId),
-              subject: `New Comment on Your Booking: ${booking.instrumentName}`,
-              htmlContent: "", // Will be replaced by template
-              templateType: 'comment_added',
-              variables: {
-                userName: booking.userName || "User",
-                instrumentName: booking.instrumentName || "Instrument",
-                startDate: new Date(booking.start).toLocaleString(),
-                endDate: new Date(booking.end).toLocaleString(),
-                commentAuthor: commentAuthor,
-                commentContent: comment.content || "",
-                commentTime: commentTime
+          if (userEmail && comment.userId !== booking.userId) { // Don't email the comment author
+            console.log("Sending comment notification email to:", userEmail);
+            const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
+              body: {
+                to: userEmail,
+                templateType: 'comment_added',
+                variables: {
+                  userName: booking.userName || "User",
+                  instrumentName: booking.instrumentName || "Instrument",
+                  startDate: new Date(booking.start).toLocaleString(),
+                  endDate: new Date(booking.end).toLocaleString(),
+                  commentAuthor: commentAuthor || "Someone",
+                  commentContent: comment.content || "",
+                  commentTime: commentTime
+                }
               }
+            });
+            
+            if (emailError) {
+              console.error("Comment notification email error:", emailError);
+            } else {
+              console.log("Comment notification email sent successfully:", emailData);
             }
-          });
-          
-          if (emailError) {
-            console.error("Comment notification email error:", emailError);
-          } else {
-            console.log("Comment notification email sent successfully:", emailData);
           }
         } catch (emailError) {
           console.error("Failed to send comment notification email:", emailError);

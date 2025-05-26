@@ -47,6 +47,17 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
   const selectedInstrument = instruments.find(i => i.id === formData.selectedInstrument);
 
+  // Generate time options in 30-minute increments for 24 hours
+  const timeOptions = Array.from({ length: 48 }, (_, i) => {
+    const hour = Math.floor(i / 2);
+    const minute = i % 2 === 0 ? "00" : "30";
+    const timeStr = `${hour.toString().padStart(2, '0')}:${minute}`;
+    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    const ampm = hour < 12 ? "AM" : "PM";
+    const displayTime = `${hour12}:${minute} ${ampm}`;
+    return { value: timeStr, display: displayTime };
+  });
+
   // Auto-calculate duration based on sample number and run time
   useEffect(() => {
     const sampleNum = parseInt(formData.sampleNumber);
@@ -105,6 +116,19 @@ const BookingForm: React.FC<BookingFormProps> = ({
       } else if (formData.sampleNumber) {
         detailsText += `\n\nSample Number: ${formData.sampleNumber}`;
       }
+
+      console.log("Submitting booking with data:", {
+        userId: user.id,
+        userName: user.name,
+        instrumentId: selectedInstrument.id,
+        instrumentName: selectedInstrument.name,
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+        purpose: formData.purpose,
+        details: detailsText,
+        status: initialStatus,
+        comments: []
+      });
 
       await createBooking({
         userId: user.id,
@@ -210,16 +234,12 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 <Clock className="mr-2 h-4 w-4" />
                 <SelectValue placeholder="Select time" />
               </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 9 }, (_, i) => {
-                  const hour = 9 + i;
-                  const timeStr = `${hour.toString().padStart(2, '0')}:00`;
-                  return (
-                    <SelectItem key={timeStr} value={timeStr}>
-                      {hour === 12 ? "12:00 PM" : hour > 12 ? `${hour - 12}:00 PM` : `${hour}:00 AM`}
-                    </SelectItem>
-                  );
-                })}
+              <SelectContent className="max-h-60 overflow-y-auto">
+                {timeOptions.map((time) => (
+                  <SelectItem key={time.value} value={time.value}>
+                    {time.display}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

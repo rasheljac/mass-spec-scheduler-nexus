@@ -67,6 +67,15 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   const [formInitialized, setFormInitialized] = useState(false);
   const [isAddingComment, setIsAddingComment] = useState(false);
   
+  // Generate time options in 30-minute increments for 24 hours
+  const timeOptions = Array.from({ length: 48 }, (_, i) => {
+    const hour = Math.floor(i / 2);
+    const minute = i % 2 === 0 ? "00" : "30";
+    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    const ampm = hour < 12 ? "AM" : "PM";
+    return `${hour12}:${minute} ${ampm}`;
+  });
+  
   // Initialize form when booking changes
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -131,15 +140,6 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
     return null;
   }
 
-  // Generate time options in 30-minute increments
-  const timeOptions = Array.from({ length: 24 * 2 }, (_, i) => {
-    const hour = Math.floor(i / 2);
-    const minute = i % 2 === 0 ? "00" : "30";
-    const ampm = hour < 12 ? "AM" : "PM";
-    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${hour12}:${minute} ${ampm}`;
-  });
-
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       const parseTime = (date: Date, timeStr: string) => {
@@ -165,7 +165,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
 
       // Submit the form with updated booking data
       if (onSubmit) {
-        onSubmit({
+        await onSubmit({
           ...booking,
           instrumentId: values.instrumentId,
           instrumentName: values.instrumentName,
@@ -193,18 +193,21 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   };
 
   const handleAddComment = async () => {
-    const newComment = form.getValues("newComment")?.trim();
-    if (!newComment || !booking || !user) return;
+    const newCommentContent = form.getValues("newComment")?.trim();
+    if (!newCommentContent || !booking || !user) {
+      console.log("Missing required data for comment:", { newCommentContent, booking: !!booking, user: !!user });
+      return;
+    }
 
     try {
       setIsAddingComment(true);
-      console.log("Adding comment with content:", newComment);
+      console.log("Adding comment with content:", newCommentContent);
       
       // Add comment to database
       const commentId = await addCommentToBooking(booking.id, {
         userId: user.id,
         userName: user.name,
-        content: newComment,
+        content: newCommentContent,
         createdAt: new Date().toISOString()
       });
       
@@ -214,7 +217,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
           id: commentId,
           userId: user.id,
           userName: user.name,
-          content: newComment,
+          content: newCommentContent,
           createdAt: new Date().toISOString()
         };
         
@@ -224,9 +227,14 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
         form.setValue("newComment", "");
         
         // Refresh the booking data in the background
-        await refreshData();
+        setTimeout(() => {
+          refreshData();
+        }, 500);
         
         toast.success("Comment added successfully");
+      } else {
+        console.error("No comment ID returned from addCommentToBooking");
+        toast.error("Failed to add comment - no ID returned");
       }
     } catch (error) {
       console.error("Error adding comment:", error);
@@ -237,13 +245,14 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   };
   
   const handleDeleteComment = async (commentId: string) => {
+    if (!booking) return;
+    
     try {
-      if (booking) {
-        await deleteCommentFromBooking(booking.id, commentId);
-        // Update local state after successful deletion from database
-        setComments(currentComments => currentComments.filter(comment => comment.id !== commentId));
-        toast.success("Comment deleted successfully");
-      }
+      console.log("Deleting comment:", commentId);
+      await deleteCommentFromBooking(booking.id, commentId);
+      // Update local state after successful deletion from database
+      setComments(currentComments => currentComments.filter(comment => comment.id !== commentId));
+      toast.success("Comment deleted successfully");
     } catch (error) {
       console.error("Error deleting comment:", error);
       toast.error("Failed to delete comment");
@@ -336,7 +345,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
                               <SelectValue placeholder="Select time" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent className="max-h-60 overflow-y-auto">
                             {timeOptions.map(time => (
                               <SelectItem key={`start-${time}`} value={time}>
                                 {time}
@@ -407,7 +416,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
                               <SelectValue placeholder="Select time" />
                             </SelectTrigger>
                           </FormControl>
-                          <SelectContent>
+                          <SelectContent className="max-h-60 overflow-y-auto">
                             {timeOptions.map(time => (
                               <SelectItem key={`end-${time}`} value={time}>
                                 {time}
@@ -543,7 +552,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
                         type="button"
                         onClick={handleAddComment}
                         className="self-end"
-                        disabled={isAddingComment}
+                        disabled={isAddingComment || !form.getValues("newComment")?.trim()}
                       >
                         {isAddingComment ? "Adding..." : "Add Comment"}
                       </Button>
