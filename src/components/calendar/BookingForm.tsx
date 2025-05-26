@@ -37,35 +37,29 @@ const BookingForm: React.FC<BookingFormProps> = ({
     duration: "1",
     purpose: "",
     details: "",
-    sampleNumber: ""
+    sampleNumber: "",
+    sampleRunTime: "" // New field for sample run time in minutes
   });
 
   const selectedInstrument = instruments.find(i => i.id === formData.selectedInstrument);
 
-  // Auto-calculate duration based on sample number
+  // Auto-calculate duration based on sample number and run time
   useEffect(() => {
     const sampleNum = parseInt(formData.sampleNumber);
-    if (!isNaN(sampleNum) && sampleNum > 0) {
-      let calculatedDuration = "1"; // Default 1 hour
+    const runTime = parseFloat(formData.sampleRunTime);
+    
+    if (!isNaN(sampleNum) && sampleNum > 0 && !isNaN(runTime) && runTime > 0) {
+      // Calculate total time: (number of samples * run time per sample) + setup time
+      const setupTime = 15; // 15 minutes setup time
+      const totalMinutes = (sampleNum * runTime) + setupTime;
+      const totalHours = totalMinutes / 60;
       
-      // Duration calculation logic based on sample number
-      if (sampleNum <= 5) {
-        calculatedDuration = "1";
-      } else if (sampleNum <= 10) {
-        calculatedDuration = "2";
-      } else if (sampleNum <= 20) {
-        calculatedDuration = "3";
-      } else if (sampleNum <= 30) {
-        calculatedDuration = "4";
-      } else if (sampleNum <= 50) {
-        calculatedDuration = "6";
-      } else {
-        calculatedDuration = "8";
-      }
+      // Round up to nearest 0.5 hour increment
+      const roundedHours = Math.ceil(totalHours * 2) / 2;
       
-      setFormData(prev => ({ ...prev, duration: calculatedDuration }));
+      setFormData(prev => ({ ...prev, duration: roundedHours.toString() }));
     }
-  }, [formData.sampleNumber]);
+  }, [formData.sampleNumber, formData.sampleRunTime]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,10 +73,22 @@ const BookingForm: React.FC<BookingFormProps> = ({
       startDate.setHours(hours, minutes, 0, 0);
       
       const endDate = new Date(startDate);
-      endDate.setHours(startDate.getHours() + parseInt(formData.duration));
+      endDate.setHours(startDate.getHours() + Math.floor(parseFloat(formData.duration)));
+      endDate.setMinutes(startDate.getMinutes() + ((parseFloat(formData.duration) % 1) * 60));
 
       // Set initial status based on user role
       const initialStatus = user.role === "admin" ? "confirmed" : "pending";
+
+      // Build details with sample information
+      let detailsText = formData.details;
+      if (formData.sampleNumber && formData.sampleRunTime) {
+        detailsText += `\n\nSample Information:`;
+        detailsText += `\n- Total Samples: ${formData.sampleNumber}`;
+        detailsText += `\n- Run Time per Sample: ${formData.sampleRunTime} minutes`;
+        detailsText += `\n- Calculated Duration: ${formData.duration} hours`;
+      } else if (formData.sampleNumber) {
+        detailsText += `\n\nSample Number: ${formData.sampleNumber}`;
+      }
 
       await createBooking({
         userId: user.id,
@@ -92,7 +98,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
         start: startDate.toISOString(),
         end: endDate.toISOString(),
         purpose: formData.purpose,
-        details: formData.details + (formData.sampleNumber ? `\n\nSample Number: ${formData.sampleNumber}` : ""),
+        details: detailsText,
         status: initialStatus,
         comments: []
       });
@@ -111,7 +117,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
         duration: "1",
         purpose: "",
         details: "",
-        sampleNumber: ""
+        sampleNumber: "",
+        sampleRunTime: ""
       });
     } catch (error) {
       console.error("Error creating booking:", error);
@@ -123,7 +130,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Booking</DialogTitle>
         </DialogHeader>
@@ -160,7 +167,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
           </div>
 
           <div>
-            <Label htmlFor="time">Time</Label>
+            <Label htmlFor="time">Start Time</Label>
             <Select
               value={formData.selectedTime}
               onValueChange={(value) => setFormData(prev => ({ ...prev, selectedTime: value }))}
@@ -182,20 +189,39 @@ const BookingForm: React.FC<BookingFormProps> = ({
             </Select>
           </div>
 
-          <div>
-            <Label htmlFor="sampleNumber">Sample Number (Optional)</Label>
-            <Input
-              id="sampleNumber"
-              type="number"
-              value={formData.sampleNumber}
-              onChange={(e) => setFormData(prev => ({ ...prev, sampleNumber: e.target.value }))}
-              placeholder="Enter number of samples"
-              min="1"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Duration will be automatically calculated based on sample number
-            </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="sampleNumber">Total Samples</Label>
+              <Input
+                id="sampleNumber"
+                type="number"
+                value={formData.sampleNumber}
+                onChange={(e) => setFormData(prev => ({ ...prev, sampleNumber: e.target.value }))}
+                placeholder="Number of samples"
+                min="1"
+              />
+            </div>
+            <div>
+              <Label htmlFor="sampleRunTime">Run Time (min/sample)</Label>
+              <Input
+                id="sampleRunTime"
+                type="number"
+                step="0.1"
+                value={formData.sampleRunTime}
+                onChange={(e) => setFormData(prev => ({ ...prev, sampleRunTime: e.target.value }))}
+                placeholder="Minutes per sample"
+                min="0.1"
+              />
+            </div>
           </div>
+
+          {formData.sampleNumber && formData.sampleRunTime && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-sm text-blue-800">
+                <strong>Auto-calculated:</strong> {formData.sampleNumber} samples × {formData.sampleRunTime} min + 15 min setup = {formData.duration} hours total
+              </p>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="duration">Duration (hours)</Label>
@@ -217,6 +243,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
                 <SelectItem value="8">8 hours</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Duration is auto-calculated when both sample fields are filled
+            </p>
           </div>
 
           <div>
