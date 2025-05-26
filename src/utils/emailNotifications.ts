@@ -19,37 +19,52 @@ export const sendEmail = async (notification: EmailNotification & { emailType?: 
   }
 
   try {
-    console.log("Sending email notification:", {
+    console.log("Preparing to send email notification:", {
       to: notification.to,
       subject: notification.subject,
       templateType: notification.templateType,
-      hasVariables: !!notification.variables && Object.keys(notification.variables).length > 0
+      hasVariables: !!notification.variables && Object.keys(notification.variables).length > 0,
+      variables: notification.variables
     });
     
+    // Ensure all variables have string values and handle undefined/null
+    const safeVariables: Record<string, string> = {};
+    if (notification.variables) {
+      Object.entries(notification.variables).forEach(([key, value]) => {
+        safeVariables[key] = value != null ? String(value) : "";
+      });
+    }
+    
+    const emailPayload = {
+      to: notification.to,
+      subject: notification.subject,
+      htmlContent: notification.htmlContent || `<p>${notification.body.replace(/\n/g, '<br>')}</p>`,
+      templateType: notification.templateType || null,
+      variables: safeVariables
+    };
+    
+    console.log("Calling send-email function with payload:", emailPayload);
+    
     const { data, error } = await supabase.functions.invoke('send-email', {
-      body: {
-        to: notification.to,
-        subject: notification.subject,
-        htmlContent: notification.htmlContent || `<p>${notification.body.replace(/\n/g, '<br>')}</p>`,
-        templateType: notification.templateType || null,
-        variables: notification.variables || {}
-      }
+      body: emailPayload
     });
 
     if (error) {
-      console.error("Email sending error:", error);
+      console.error("Email sending error from function invoke:", error);
       throw error;
     }
 
+    console.log("Email function response received:", data);
+
     if (data && !data.success) {
-      console.error("Email sending failed:", data.error);
+      console.error("Email sending failed:", data.error || data);
       throw new Error(data.error || "Email sending failed");
     }
 
     console.log(`Email sent successfully to ${notification.to}:`, data);
     return true;
   } catch (error) {
-    console.error("Failed to send email:", error);
+    console.error("Failed to send email - full error:", error);
     return false;
   }
 };
@@ -77,8 +92,8 @@ Lab Management Team
     `,
     templateType: "booking_confirmation",
     variables: {
-      userName,
-      instrumentName,
+      userName: userName || "",
+      instrumentName: instrumentName || "",
       startDate: new Date(startDate).toLocaleString(),
       endDate: new Date(endDate).toLocaleString(),
       status: "confirmed"
@@ -108,11 +123,11 @@ Lab Management Team
     `,
     templateType: "booking_update",
     variables: {
-      userName,
-      instrumentName,
+      userName: userName || "",
+      instrumentName: instrumentName || "",
       startDate: new Date().toLocaleString(),
       endDate: new Date().toLocaleString(),
-      status
+      status: status || ""
     }
   };
 };
@@ -138,9 +153,9 @@ Best regards,
 Lab Management Team
     `,
     variables: {
-      userName,
-      instrumentName,
-      delayMinutes: delayMinutes.toString(),
+      userName: userName || "",
+      instrumentName: instrumentName || "",
+      delayMinutes: delayMinutes ? delayMinutes.toString() : "0",
       startDate: new Date().toLocaleString(),
       endDate: new Date().toLocaleString()
     }
@@ -155,6 +170,29 @@ export const createCommentNotification = (
   commentContent: string,
   bookingDate: string
 ): EmailNotification => {
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+      <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h2 style="color: #333; margin-bottom: 20px; border-bottom: 2px solid #007bff; padding-bottom: 10px;">New Comment on Your Booking</h2>
+        
+        <div style="margin-bottom: 20px;">
+          <p style="margin: 5px 0;"><strong>Instrument:</strong> ${instrumentName}</p>
+          <p style="margin: 5px 0;"><strong>Date:</strong> ${bookingDate}</p>
+          <p style="margin: 5px 0;"><strong>Comment by:</strong> ${commentBy}</p>
+        </div>
+        
+        <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0;">
+          <h4 style="margin: 0 0 10px 0; color: #333;">Comment:</h4>
+          <p style="margin: 0; line-height: 1.5;">${commentContent}</p>
+        </div>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666;">
+          <p>Best regards,<br>Lab Management Team</p>
+        </div>
+      </div>
+    </div>
+  `;
+
   return {
     to: userEmail,
     subject: `New Comment on Your Booking: ${instrumentName}`,
@@ -172,35 +210,14 @@ Thank you for using the Lab Management System.
 Best regards,
 Lab Management Team
     `,
-    htmlContent: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-        <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-          <h2 style="color: #333; margin-bottom: 20px; border-bottom: 2px solid #007bff; padding-bottom: 10px;">New Comment on Your Booking</h2>
-          
-          <div style="margin-bottom: 20px;">
-            <p style="margin: 5px 0;"><strong>Instrument:</strong> ${instrumentName}</p>
-            <p style="margin: 5px 0;"><strong>Date:</strong> ${bookingDate}</p>
-            <p style="margin: 5px 0;"><strong>Comment by:</strong> ${commentBy}</p>
-          </div>
-          
-          <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0;">
-            <h4 style="margin: 0 0 10px 0; color: #333;">Comment:</h4>
-            <p style="margin: 0; line-height: 1.5;">${commentContent}</p>
-          </div>
-          
-          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666;">
-            <p>Best regards,<br>Lab Management Team</p>
-          </div>
-        </div>
-      </div>
-    `,
+    htmlContent: htmlContent,
     templateType: "comment_notification",
     variables: {
-      userName,
-      instrumentName,
-      commentBy,
-      commentContent,
-      bookingDate
+      userName: userName || "",
+      instrumentName: instrumentName || "",
+      commentBy: commentBy || "",
+      commentContent: commentContent || "",
+      bookingDate: bookingDate || ""
     }
   };
 };

@@ -175,7 +175,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { to, subject, htmlContent, templateType, variables }: EmailRequest = await req.json();
 
-    console.log("Email request received:", { to, subject, templateType, variables });
+    console.log("Email request received:", { 
+      to, 
+      subject, 
+      templateType, 
+      variables: variables ? Object.keys(variables) : [],
+      variableValues: variables
+    });
 
     // Validate email parameters
     if (!to || !to.includes('@')) {
@@ -235,147 +241,32 @@ const handler = async (req: Request): Promise<Response> => {
           contentLength: finalHtmlContent.length 
         });
       } else {
-        console.log("No template found for type:", templateType, "using default content");
-        // Provide fallback content with consistent styling for comment notifications
-        if (templateType === 'comment_added') {
-          finalSubject = "New Comment on Your Booking: {{instrumentName}}";
-          finalHtmlContent = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <style>
-                body {
-                  font-family: Arial, sans-serif;
-                  margin: 0;
-                  padding: 20px;
-                  background-color: #f5f5f5;
-                }
-                .container {
-                  max-width: 600px;
-                  margin: 0 auto;
-                  background-color: white;
-                  padding: 30px;
-                  border-radius: 8px;
-                  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }
-                .header {
-                  color: #333;
-                  font-size: 24px;
-                  margin-bottom: 20px;
-                  text-align: center;
-                  border-bottom: 2px solid #007bff;
-                  padding-bottom: 15px;
-                }
-                .content {
-                  color: #555;
-                  line-height: 1.6;
-                  margin-bottom: 20px;
-                }
-                .comment-box {
-                  background-color: #f8f9fa;
-                  padding: 20px;
-                  margin: 20px 0;
-                  border-left: 4px solid #007bff;
-                  border-radius: 4px;
-                }
-                .comment-header {
-                  font-weight: bold;
-                  color: #333;
-                  margin-bottom: 10px;
-                }
-                .comment-meta {
-                  color: #666;
-                  font-size: 14px;
-                  margin-bottom: 15px;
-                }
-                .comment-content {
-                  color: #333;
-                  font-size: 16px;
-                  line-height: 1.5;
-                }
-                .booking-details {
-                  background-color: #f8f9fa;
-                  padding: 15px;
-                  border-radius: 4px;
-                  margin: 20px 0;
-                }
-                .booking-details h4 {
-                  margin: 0 0 10px 0;
-                  color: #333;
-                }
-                .booking-details ul {
-                  margin: 0;
-                  padding-left: 20px;
-                  color: #555;
-                }
-                .footer {
-                  margin-top: 30px;
-                  padding-top: 20px;
-                  border-top: 1px solid #eee;
-                  text-align: center;
-                  color: #666;
-                  font-size: 14px;
-                }
-                .btn {
-                  display: inline-block;
-                  background-color: #007bff;
-                  color: white;
-                  padding: 12px 24px;
-                  text-decoration: none;
-                  border-radius: 4px;
-                  margin: 20px 0;
-                }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <div class="header">New Comment Added</div>
-                <div class="content">
-                  <p>Dear {{userName}},</p>
-                  <p>A new comment has been added to your booking for <strong>{{instrumentName}}</strong>.</p>
-                </div>
-                
-                <div class="comment-box">
-                  <div class="comment-header">Comment by {{commentAuthor}}</div>
-                  <div class="comment-meta">Time: {{commentTime}}</div>
-                  <div class="comment-content">{{commentContent}}</div>
-                </div>
-                
-                <div class="booking-details">
-                  <h4>Booking Details:</h4>
-                  <ul>
-                    <li><strong>Instrument:</strong> {{instrumentName}}</li>
-                    <li><strong>Start:</strong> {{startDate}}</li>
-                    <li><strong>End:</strong> {{endDate}}</li>
-                  </ul>
-                </div>
-                
-                <div class="footer">
-                  <p>Thank you for using the Lab Management System.</p>
-                </div>
-              </div>
-            </body>
-            </html>
-          `;
-        }
+        console.log("No template found for type:", templateType, "using provided content");
       }
     }
 
-    // Replace variables in subject and content - FIXED: Handle undefined values safely
+    // Replace variables in subject and content with proper error handling
     if (variables && Object.keys(variables).length > 0) {
       console.log("Replacing variables:", variables);
       Object.entries(variables).forEach(([key, value]) => {
         const placeholder = `{{${key}}}`;
-        const safeValue = value || ""; // Handle undefined/null values
-        finalSubject = finalSubject.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), safeValue);
-        finalHtmlContent = finalHtmlContent.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), safeValue);
+        const safeValue = value != null ? String(value) : ""; // Handle undefined/null values safely
+        const regex = new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g');
+        
+        finalSubject = finalSubject.replace(regex, safeValue);
+        finalHtmlContent = finalHtmlContent.replace(regex, safeValue);
+        
+        console.log(`Replaced ${placeholder} with: ${safeValue}`);
       });
-      console.log("Variable replacement completed. Final content length:", finalHtmlContent.length);
+      console.log("Variable replacement completed");
     }
 
-    console.log("Final email content:", {
+    // Log final email content for debugging
+    console.log("Final email details:", {
+      to,
       subject: finalSubject,
-      contentPreview: finalHtmlContent.substring(0, 200) + "..."
+      contentPreview: finalHtmlContent.substring(0, 200) + "...",
+      contentLength: finalHtmlContent.length
     });
 
     console.log("Attempting to send email via SMTP...");
@@ -394,7 +285,7 @@ const handler = async (req: Request): Promise<Response> => {
       finalHtmlContent
     );
 
-    console.log("Email sent successfully");
+    console.log("Email sent successfully via SMTP");
 
     return new Response(
       JSON.stringify({ 
@@ -418,6 +309,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         error: error.message || "Failed to send email",
+        success: false,
         details: error.toString()
       }),
       {

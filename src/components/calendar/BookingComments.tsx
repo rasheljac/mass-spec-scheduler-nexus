@@ -11,7 +11,7 @@ import { Comment } from "../../types";
 import { useAuth } from "../../contexts/AuthContext";
 import { useBooking } from "../../contexts/BookingContext";
 import { toast } from "sonner";
-import { sendEmail } from "../../utils/emailNotifications";
+import { createCommentNotification, sendEmail } from "../../utils/emailNotifications";
 
 interface BookingCommentsProps {
   bookingId: string;
@@ -65,47 +65,32 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
         const booking = bookings.find(b => b.id === bookingId);
         if (booking && booking.userId !== user.id) {
           try {
-            console.log("Sending comment notification email");
+            console.log("Sending comment notification email for booking:", booking.id);
             
             // Find the booking owner's email from the users array
             const bookingOwner = users.find(u => u.id === booking.userId);
             if (bookingOwner?.email) {
-              console.log("Sending email to:", bookingOwner.email);
+              console.log("Sending comment notification to:", bookingOwner.email);
+              
+              // Create the notification using the centralized function
+              const emailNotification = createCommentNotification(
+                bookingOwner.email,
+                bookingOwner.name || 'User',
+                booking.instrumentName,
+                user.name,
+                commentContent,
+                format(new Date(booking.start), "PPP 'at' p")
+              );
+              
+              console.log("Email notification object created:", {
+                to: emailNotification.to,
+                subject: emailNotification.subject,
+                hasVariables: !!emailNotification.variables,
+                variableCount: Object.keys(emailNotification.variables || {}).length
+              });
               
               const emailSent = await sendEmail({
-                to: bookingOwner.email,
-                subject: `New Comment on Your Booking: ${booking.instrumentName}`,
-                body: `A new comment has been added to your booking for ${booking.instrumentName}.`,
-                htmlContent: `
-                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
-                    <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                      <h2 style="color: #333; margin-bottom: 20px; border-bottom: 2px solid #007bff; padding-bottom: 10px;">New Comment on Your Booking</h2>
-                      
-                      <div style="margin-bottom: 20px;">
-                        <p style="margin: 5px 0;"><strong>Instrument:</strong> ${booking.instrumentName}</p>
-                        <p style="margin: 5px 0;"><strong>Date:</strong> ${format(new Date(booking.start), "PPP 'at' p")}</p>
-                        <p style="margin: 5px 0;"><strong>Comment by:</strong> ${user.name}</p>
-                      </div>
-                      
-                      <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0;">
-                        <h4 style="margin: 0 0 10px 0; color: #333;">Comment:</h4>
-                        <p style="margin: 0; line-height: 1.5;">${commentContent}</p>
-                      </div>
-                      
-                      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666;">
-                        <p>Best regards,<br>Lab Management Team</p>
-                      </div>
-                    </div>
-                  </div>
-                `,
-                templateType: 'comment_notification',
-                variables: {
-                  userName: bookingOwner.name || 'User',
-                  instrumentName: booking.instrumentName,
-                  commentBy: user.name,
-                  commentContent: commentContent,
-                  bookingDate: format(new Date(booking.start), "PPP 'at' p")
-                },
+                ...emailNotification,
                 emailType: 'notification'
               });
               
@@ -113,18 +98,19 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
                 console.log("Comment notification email sent successfully");
                 toast.success("Comment added and notification sent");
               } else {
-                console.log("Comment added but email notification failed");
-                toast.success("Comment added successfully");
+                console.error("Comment notification email failed to send");
+                toast.success("Comment added but notification failed to send");
               }
             } else {
-              console.log("No email found for booking owner");
+              console.log("No email found for booking owner:", booking.userId);
               toast.success("Comment added successfully");
             }
           } catch (emailError) {
             console.error("Failed to send comment notification email:", emailError);
-            toast.success("Comment added successfully");
+            toast.success("Comment added but notification failed to send");
           }
         } else {
+          console.log("Not sending email - same user or booking not found");
           toast.success("Comment added successfully");
         }
       } else {
