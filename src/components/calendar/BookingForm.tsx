@@ -15,7 +15,6 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Loader2, CalendarIcon, Clock } from "lucide-react";
 import { cn } from "../../lib/utils";
-import DurationCalculator from "./DurationCalculator";
 
 interface BookingFormProps {
   open: boolean;
@@ -59,11 +58,22 @@ const BookingForm: React.FC<BookingFormProps> = ({
     return { value: timeStr, display: displayTime };
   });
 
-  const handleDurationChange = (durationMinutes: number) => {
-    const totalHours = durationMinutes / 60;
-    const roundedHours = Math.ceil(totalHours * 2) / 2;
-    setFormData(prev => ({ ...prev, duration: roundedHours.toString() }));
-  };
+  // Auto-calculate duration when sample data changes
+  useEffect(() => {
+    if (formData.sampleNumber && formData.sampleRunTime) {
+      const totalSamples = parseInt(formData.sampleNumber);
+      const runTimePerSample = parseFloat(formData.sampleRunTime);
+      
+      if (totalSamples > 0 && runTimePerSample > 0) {
+        // Calculate total runtime + 15 minutes setup time
+        const totalMinutes = (totalSamples * runTimePerSample) + 15;
+        const totalHours = totalMinutes / 60;
+        const roundedHours = Math.ceil(totalHours * 2) / 2; // Round to nearest 0.5 hours
+        
+        setFormData(prev => ({ ...prev, duration: roundedHours.toString() }));
+      }
+    }
+  }, [formData.sampleNumber, formData.sampleRunTime]);
 
   // Calculate end date/time
   const calculateEndDateTime = () => {
@@ -232,12 +242,6 @@ const BookingForm: React.FC<BookingFormProps> = ({
               </SelectContent>
             </Select>
           </div>
-
-          <DurationCalculator 
-            onDurationChange={handleDurationChange}
-            initialSamples={parseInt(formData.sampleNumber) || 1}
-            initialRunTime={parseFloat(formData.sampleRunTime) || 30}
-          />
 
           <div className="grid grid-cols-2 gap-3">
             <div>
