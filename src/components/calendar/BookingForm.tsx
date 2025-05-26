@@ -8,33 +8,38 @@ import { Label } from "../ui/label";
 import { Textarea } from "../ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Loader2 } from "lucide-react";
 
 interface BookingFormProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   selectedDate: Date;
-  selectedTime: string;
-  instrumentId: string;
-  onClose: () => void;
+  selectedTime?: string;
+  instrumentId?: string;
 }
 
 const BookingForm: React.FC<BookingFormProps> = ({
+  open,
+  onOpenChange,
   selectedDate,
-  selectedTime,
-  instrumentId,
-  onClose
+  selectedTime = "09:00",
+  instrumentId
 }) => {
   const { createBooking, instruments } = useBooking();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
+    selectedInstrument: instrumentId || "",
+    selectedTime: selectedTime,
     duration: "1",
     purpose: "",
     details: "",
   });
 
-  const selectedInstrument = instruments.find(i => i.id === instrumentId);
+  const selectedInstrument = instruments.find(i => i.id === formData.selectedInstrument);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +48,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
     setIsSubmitting(true);
     
     try {
-      const [hours, minutes] = selectedTime.split(':').map(Number);
+      const [hours, minutes] = formData.selectedTime.split(':').map(Number);
       const startDate = new Date(selectedDate);
       startDate.setHours(hours, minutes, 0, 0);
       
@@ -72,7 +77,15 @@ const BookingForm: React.FC<BookingFormProps> = ({
         toast.success("Booking request submitted for admin approval");
       }
       
-      onClose();
+      onOpenChange(false);
+      // Reset form
+      setFormData({
+        selectedInstrument: "",
+        selectedTime: "09:00",
+        duration: "1",
+        purpose: "",
+        details: "",
+      });
     } catch (error) {
       console.error("Error creating booking:", error);
       toast.error("Failed to create booking");
@@ -81,26 +94,67 @@ const BookingForm: React.FC<BookingFormProps> = ({
     }
   };
 
-  if (!selectedInstrument) {
-    return (
-      <Card>
-        <CardContent className="p-6">
-          <p className="text-center text-muted-foreground">Instrument not found</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Book {selectedInstrument.name}</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          {format(selectedDate, "EEEE, MMMM d, yyyy")} at {selectedTime}
-        </p>
-      </CardHeader>
-      <CardContent>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Create New Booking</DialogTitle>
+        </DialogHeader>
+        
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <Label htmlFor="instrument">Instrument</Label>
+            <Select
+              value={formData.selectedInstrument}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, selectedInstrument: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select an instrument" />
+              </SelectTrigger>
+              <SelectContent>
+                {instruments.map(instrument => (
+                  <SelectItem key={instrument.id} value={instrument.id}>
+                    {instrument.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="date">Date</Label>
+            <Input
+              id="date"
+              type="text"
+              value={format(selectedDate, "EEEE, MMMM d, yyyy")}
+              readOnly
+              className="bg-gray-50"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="time">Time</Label>
+            <Select
+              value={formData.selectedTime}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, selectedTime: value }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select time" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 9 }, (_, i) => {
+                  const hour = 9 + i;
+                  const timeStr = `${hour.toString().padStart(2, '0')}:00`;
+                  return (
+                    <SelectItem key={timeStr} value={timeStr}>
+                      {hour === 12 ? "12:00 PM" : hour > 12 ? `${hour - 12}:00 PM` : `${hour}:00 AM`}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div>
             <Label htmlFor="duration">Duration (hours)</Label>
             <Select
@@ -156,7 +210,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
           <div className="flex gap-2 pt-4">
             <Button
               type="submit"
-              disabled={isSubmitting || !formData.purpose.trim()}
+              disabled={isSubmitting || !formData.purpose.trim() || !formData.selectedInstrument}
               className="flex-1"
             >
               {isSubmitting ? (
@@ -171,15 +225,15 @@ const BookingForm: React.FC<BookingFormProps> = ({
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
             >
               Cancel
             </Button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </DialogContent>
+    </Dialog>
   );
 };
 
