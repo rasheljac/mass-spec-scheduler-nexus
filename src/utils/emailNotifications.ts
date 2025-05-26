@@ -19,7 +19,12 @@ export const sendEmail = async (notification: EmailNotification & { emailType?: 
   }
 
   try {
-    console.log("Sending email notification:", notification);
+    console.log("Sending email notification:", {
+      to: notification.to,
+      subject: notification.subject,
+      templateType: notification.templateType,
+      hasVariables: !!notification.variables && Object.keys(notification.variables).length > 0
+    });
     
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
@@ -36,7 +41,12 @@ export const sendEmail = async (notification: EmailNotification & { emailType?: 
       throw error;
     }
 
-    console.log(`Email sent successfully to ${notification.to}`);
+    if (data && !data.success) {
+      console.error("Email sending failed:", data.error);
+      throw new Error(data.error || "Email sending failed");
+    }
+
+    console.log(`Email sent successfully to ${notification.to}:`, data);
     return true;
   } catch (error) {
     console.error("Failed to send email:", error);
@@ -133,6 +143,64 @@ Lab Management Team
       delayMinutes: delayMinutes.toString(),
       startDate: new Date().toLocaleString(),
       endDate: new Date().toLocaleString()
+    }
+  };
+};
+
+export const createCommentNotification = (
+  userEmail: string,
+  userName: string,
+  instrumentName: string,
+  commentBy: string,
+  commentContent: string,
+  bookingDate: string
+): EmailNotification => {
+  return {
+    to: userEmail,
+    subject: `New Comment on Your Booking: ${instrumentName}`,
+    body: `
+Dear ${userName},
+
+A new comment has been added to your booking for ${instrumentName}.
+
+Comment by: ${commentBy}
+Comment: ${commentContent}
+Booking Date: ${bookingDate}
+
+Thank you for using the Lab Management System.
+
+Best regards,
+Lab Management Team
+    `,
+    htmlContent: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+        <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <h2 style="color: #333; margin-bottom: 20px; border-bottom: 2px solid #007bff; padding-bottom: 10px;">New Comment on Your Booking</h2>
+          
+          <div style="margin-bottom: 20px;">
+            <p style="margin: 5px 0;"><strong>Instrument:</strong> ${instrumentName}</p>
+            <p style="margin: 5px 0;"><strong>Date:</strong> ${bookingDate}</p>
+            <p style="margin: 5px 0;"><strong>Comment by:</strong> ${commentBy}</p>
+          </div>
+          
+          <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0;">
+            <h4 style="margin: 0 0 10px 0; color: #333;">Comment:</h4>
+            <p style="margin: 0; line-height: 1.5;">${commentContent}</p>
+          </div>
+          
+          <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666;">
+            <p>Best regards,<br>Lab Management Team</p>
+          </div>
+        </div>
+      </div>
+    `,
+    templateType: "comment_notification",
+    variables: {
+      userName,
+      instrumentName,
+      commentBy,
+      commentContent,
+      bookingDate
     }
   };
 };
