@@ -10,7 +10,6 @@ import StatusColorManagement from "../components/admin/StatusColorManagement";
 import SmtpSettings from "../components/admin/SmtpSettings";
 import EmailTemplatesManagement from "../components/admin/EmailTemplatesManagement";
 import PendingBookingsManagement from "../components/admin/PendingBookingsManagement";
-import DeleteCompletedBookingsButton from "../components/admin/DeleteCompletedBookingsButton";
 import { Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
@@ -33,7 +32,6 @@ const AdminPage: React.FC = () => {
     <div className="container py-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Administration</h1>
-        <DeleteCompletedBookingsButton />
       </div>
       
       {isLoading && (
