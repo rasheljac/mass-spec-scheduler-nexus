@@ -9,14 +9,17 @@ import { Textarea } from "../ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Calendar } from "../ui/calendar";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { Loader2, CalendarIcon, Clock } from "lucide-react";
+import { cn } from "../../lib/utils";
 
 interface BookingFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedDate: Date;
+  selectedDate?: Date;
   selectedTime?: string;
   instrumentId?: string;
 }
@@ -33,12 +36,13 @@ const BookingForm: React.FC<BookingFormProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     selectedInstrument: instrumentId || "",
+    selectedDate: selectedDate || new Date(),
     selectedTime: selectedTime,
     duration: "1",
     purpose: "",
     details: "",
     sampleNumber: "",
-    sampleRunTime: "" // New field for sample run time in minutes
+    sampleRunTime: ""
   });
 
   const selectedInstrument = instruments.find(i => i.id === formData.selectedInstrument);
@@ -61,6 +65,20 @@ const BookingForm: React.FC<BookingFormProps> = ({
     }
   }, [formData.sampleNumber, formData.sampleRunTime]);
 
+  // Calculate end date/time
+  const calculateEndDateTime = () => {
+    const [hours, minutes] = formData.selectedTime.split(':').map(Number);
+    const startDate = new Date(formData.selectedDate);
+    startDate.setHours(hours, minutes, 0, 0);
+    
+    const endDate = new Date(startDate);
+    const durationHours = parseFloat(formData.duration);
+    endDate.setHours(startDate.getHours() + Math.floor(durationHours));
+    endDate.setMinutes(startDate.getMinutes() + ((durationHours % 1) * 60));
+    
+    return endDate;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !selectedInstrument) return;
@@ -69,12 +87,10 @@ const BookingForm: React.FC<BookingFormProps> = ({
     
     try {
       const [hours, minutes] = formData.selectedTime.split(':').map(Number);
-      const startDate = new Date(selectedDate);
+      const startDate = new Date(formData.selectedDate);
       startDate.setHours(hours, minutes, 0, 0);
       
-      const endDate = new Date(startDate);
-      endDate.setHours(startDate.getHours() + Math.floor(parseFloat(formData.duration)));
-      endDate.setMinutes(startDate.getMinutes() + ((parseFloat(formData.duration) % 1) * 60));
+      const endDate = calculateEndDateTime();
 
       // Set initial status based on user role
       const initialStatus = user.role === "admin" ? "confirmed" : "pending";
@@ -113,6 +129,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
       // Reset form
       setFormData({
         selectedInstrument: "",
+        selectedDate: new Date(),
         selectedTime: "09:00",
         duration: "1",
         purpose: "",
@@ -157,13 +174,30 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
           <div>
             <Label htmlFor="date">Date</Label>
-            <Input
-              id="date"
-              type="text"
-              value={format(selectedDate, "EEEE, MMMM d, yyyy")}
-              readOnly
-              className="bg-gray-50"
-            />
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !formData.selectedDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {formData.selectedDate ? format(formData.selectedDate, "PPP") : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={formData.selectedDate}
+                  onSelect={(date) => date && setFormData(prev => ({ ...prev, selectedDate: date }))}
+                  disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div>
@@ -173,6 +207,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
               onValueChange={(value) => setFormData(prev => ({ ...prev, selectedTime: value }))}
             >
               <SelectTrigger>
+                <Clock className="mr-2 h-4 w-4" />
                 <SelectValue placeholder="Select time" />
               </SelectTrigger>
               <SelectContent>
@@ -247,6 +282,14 @@ const BookingForm: React.FC<BookingFormProps> = ({
               Duration is auto-calculated when both sample fields are filled
             </p>
           </div>
+
+          {formData.selectedDate && formData.selectedTime && formData.duration && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <p className="text-sm text-green-800">
+                <strong>End Time:</strong> {format(calculateEndDateTime(), "PPP 'at' p")}
+              </p>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="purpose">Purpose</Label>

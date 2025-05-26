@@ -49,6 +49,13 @@ const LoginPage: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
+        <div className="text-center">
+          <img 
+            src="/lovable-uploads/40965317-613a-41b7-bc11-d9e8b6cba9ae.png" 
+            alt="TeSlab Lab Logo" 
+            className="mx-auto h-16 w-auto object-contain mb-4"
+          />
+        </div>
         <Card>
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">Welcome to MSLab Scheduler</CardTitle>

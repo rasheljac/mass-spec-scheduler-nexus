@@ -53,7 +53,11 @@ const Navbar: React.FC = () => {
         <div className="flex justify-between h-16">
           <div className="flex items-center space-x-8">
             <Link to="/" className="flex items-center">
-              <Beaker className="h-8 w-8 text-mslab-600" />
+              <img 
+                src="/lovable-uploads/40965317-613a-41b7-bc11-d9e8b6cba9ae.png" 
+                alt="TeSlab Lab Logo" 
+                className="h-8 w-auto object-contain"
+              />
               <span className="ml-2 text-xl font-bold text-gray-900">
                 MSLab Scheduler
               </span>
