@@ -77,11 +77,7 @@ const ProfilePage: React.FC = () => {
           profileImageUrl = urlData.publicUrl;
         } catch (uploadError) {
           console.error("Upload error:", uploadError);
-          toast({
-            title: "Upload failed",
-            description: "Failed to upload profile image. Saving other changes.",
-            variant: "destructive",
-          });
+          toast.error("Failed to upload profile image. Saving other changes.");
         } finally {
           setIsUploadingImage(false);
         }
@@ -97,17 +93,10 @@ const ProfilePage: React.FC = () => {
       
       setIsEditing(false);
       setSelectedFile(null);
-      toast({
-        title: "Profile updated",
-        description: "Your profile information has been updated successfully.",
-      });
+      toast.success("Your profile information has been updated successfully.");
     } catch (error) {
       console.error("Error updating profile:", error);
-      toast({
-        title: "Update failed",
-        description: "There was a problem updating your profile.",
-        variant: "destructive",
-      });
+      toast.error("There was a problem updating your profile.");
     } finally {
       setIsUpdating(false);
     }
@@ -118,21 +107,13 @@ const ProfilePage: React.FC = () => {
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        toast({
-          title: "Invalid file type",
-          description: "Please upload an image file (JPEG, PNG, etc.).",
-          variant: "destructive",
-        });
+        toast.error("Please upload an image file (JPEG, PNG, etc.).");
         return;
       }
 
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        toast({
-          title: "File too large",
-          description: "Please upload an image smaller than 5MB.",
-          variant: "destructive",
-        });
+        toast.error("Please upload an image smaller than 5MB.");
         return;
       }
 
@@ -149,20 +130,12 @@ const ProfilePage: React.FC = () => {
 
   const handleChangePassword = useCallback(async () => {
     if (!newPassword.trim()) {
-      toast({
-        title: "Password not updated",
-        description: "Please provide a valid password.",
-        variant: "destructive"
-      });
+      toast.error("Please provide a valid password.");
       return;
     }
 
     if (newPassword.length < 6) {
-      toast({
-        title: "Password too short",
-        description: "Password must be at least 6 characters long.",
-        variant: "destructive"
-      });
+      toast.error("Password must be at least 6 characters long.");
       return;
     }
 
@@ -171,18 +144,11 @@ const ProfilePage: React.FC = () => {
     try {
       await updateUserPassword(user.id, newPassword);
       
-      toast({
-        title: "Password updated",
-        description: "Your password has been updated successfully."
-      });
+      toast.success("Your password has been updated successfully.");
       setIsPasswordDialogOpen(false);
       setNewPassword("");
     } catch (error) {
-      toast({
-        title: "Error updating password",
-        description: "There was an error updating the password.",
-        variant: "destructive"
-      });
+      toast.error("There was an error updating the password.");
     } finally {
       setIsSubmittingPassword(false);
     }

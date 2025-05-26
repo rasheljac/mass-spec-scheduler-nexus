@@ -1,253 +1,269 @@
 
-import React, { useState } from "react";
-import { useBooking } from "../contexts/BookingContext";
+import React, { useMemo } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
-import { Button } from "../components/ui/button";
+import { useBooking } from "../contexts/BookingContext";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Calendar, Clock, MapPin, User, FileText, MessageSquare } from "lucide-react";
+import { Badge } from "../components/ui/badge";
+import { Calendar, Clock, MapPin, FileText, MessageCircle, Loader2 } from "lucide-react";
 import { format } from "date-fns";
-import StatusBadge from "../components/calendar/StatusBadge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../components/ui/dialog";
+import { Button } from "../components/ui/button";
+import { useState } from "react";
 import { Textarea } from "../components/ui/textarea";
 import { toast } from "sonner";
 
 const MyBookingsPage: React.FC = () => {
-  const { bookings, addCommentToBooking } = useBooking();
   const { user } = useAuth();
-  const [newComment, setNewComment] = useState("");
-  const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
+  const { bookings, isLoading, addCommentToBooking } = useBooking();
+  const [commentContent, setCommentContent] = useState<{ [key: string]: string }>({});
+  const [addingComment, setAddingComment] = useState<{ [key: string]: boolean }>({});
 
   // Filter bookings for the current user
-  const userBookings = bookings.filter(booking => booking.userId === user?.id);
+  const userBookings = useMemo(() => {
+    if (!user) return [];
+    return bookings.filter(booking => booking.userId === user.id);
+  }, [bookings, user]);
 
   // Categorize bookings
-  const now = new Date();
-  const upcomingBookings = userBookings.filter(booking => 
-    new Date(booking.start) > now
-  ).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+  const categorizedBookings = useMemo(() => {
+    const now = new Date();
+    
+    const upcoming = userBookings.filter(booking => {
+      const startTime = new Date(booking.start);
+      return startTime > now && booking.status !== "Completed" && booking.status !== "cancelled";
+    });
 
-  const currentBookings = userBookings.filter(booking => 
-    new Date(booking.start) <= now && new Date(booking.end) >= now
-  ).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    const current = userBookings.filter(booking => {
+      const startTime = new Date(booking.start);
+      const endTime = new Date(booking.end);
+      return startTime <= now && endTime >= now && booking.status === "In-Progress";
+    });
 
-  const pastBookings = userBookings.filter(booking => 
-    new Date(booking.end) < now
-  ).sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime());
+    const past = userBookings.filter(booking => {
+      const endTime = new Date(booking.end);
+      return endTime < now || booking.status === "Completed" || booking.status === "cancelled";
+    });
 
-  const handleAddComment = async () => {
-    if (!selectedBookingId || !newComment.trim()) {
-      toast.error("Please enter a comment");
-      return;
-    }
+    return { upcoming, current, past };
+  }, [userBookings]);
 
+  const handleAddComment = async (bookingId: string) => {
+    const content = commentContent[bookingId]?.trim();
+    if (!content || !user) return;
+
+    setAddingComment(prev => ({ ...prev, [bookingId]: true }));
+    
     try {
-      await addCommentToBooking(selectedBookingId, {
-        userId: user!.id,
-        userName: user!.name,
-        content: newComment.trim(),
+      await addCommentToBooking(bookingId, {
+        userId: user.id,
+        userName: user.name,
+        content,
         createdAt: new Date().toISOString()
       });
       
-      setNewComment("");
-      setSelectedBookingId(null);
+      setCommentContent(prev => ({ ...prev, [bookingId]: "" }));
       toast.success("Comment added successfully");
     } catch (error) {
-      console.error("Error adding comment:", error);
       toast.error("Failed to add comment");
+    } finally {
+      setAddingComment(prev => ({ ...prev, [bookingId]: false }));
     }
   };
 
-  const renderBookingCard = (booking: any) => (
-    <Card key={booking.id} className="mb-4">
-      <CardHeader className="pb-3">
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+      case "confirmed":
+        return "default";
+      case "In-Progress":
+        return "secondary";
+      case "Completed":
+        return "outline";
+      case "cancelled":
+        return "destructive";
+      case "Delayed":
+        return "secondary";
+      default:
+        return "outline";
+    }
+  };
+
+  const BookingCard = ({ booking }: { booking: any }) => (
+    <Card className="mb-4">
+      <CardHeader>
         <div className="flex justify-between items-start">
-          <CardTitle className="text-lg font-semibold">
-            {booking.instrumentName}
-          </CardTitle>
-          <StatusBadge status={booking.status} />
+          <div>
+            <CardTitle className="text-lg">{booking.instrumentName}</CardTitle>
+            <CardDescription className="flex items-center gap-2 mt-1">
+              <Calendar className="h-4 w-4" />
+              {format(new Date(booking.start), "PPP")}
+            </CardDescription>
+          </div>
+          <Badge variant={getStatusVariant(booking.status)}>
+            {booking.status}
+          </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span>{format(new Date(booking.start), "MMM dd, yyyy")}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span>
-              {format(new Date(booking.start), "HH:mm")} - {format(new Date(booking.end), "HH:mm")}
-            </span>
-          </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Clock className="h-4 w-4" />
+          {format(new Date(booking.start), "p")} - {format(new Date(booking.end), "p")}
         </div>
         
-        <div className="flex items-center gap-2 text-sm">
-          <FileText className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">Purpose:</span>
-          <span>{booking.purpose}</span>
-        </div>
-        
-        {booking.details && (
-          <div className="text-sm">
-            <span className="font-medium">Details:</span>
-            <p className="mt-1 text-muted-foreground">{booking.details}</p>
+        {booking.purpose && (
+          <div className="flex items-start gap-2 text-sm">
+            <FileText className="h-4 w-4 mt-0.5" />
+            <span><strong>Purpose:</strong> {booking.purpose}</span>
           </div>
         )}
         
+        {booking.details && (
+          <div className="text-sm">
+            <strong>Details:</strong> {booking.details}
+          </div>
+        )}
+
+        {/* Comments section */}
         {booking.comments && booking.comments.length > 0 && (
           <div className="border-t pt-3">
-            <div className="flex items-center gap-2 mb-2">
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              <span className="font-medium text-sm">Comments ({booking.comments.length})</span>
-            </div>
-            <div className="space-y-2 max-h-32 overflow-y-auto">
+            <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
+              <MessageCircle className="h-4 w-4" />
+              Comments ({booking.comments.length})
+            </h4>
+            <div className="space-y-2">
               {booking.comments.map((comment: any) => (
-                <div key={comment.id} className="text-xs bg-muted p-2 rounded">
-                  <div className="flex justify-between items-start mb-1">
-                    <span className="font-medium">{comment.userName}</span>
-                    <span className="text-muted-foreground">
-                      {format(new Date(comment.createdAt), "MMM dd, HH:mm")}
-                    </span>
+                <div key={comment.id} className="bg-muted p-2 rounded text-sm">
+                  <div className="font-medium">{comment.userName}</div>
+                  <div className="text-muted-foreground">{comment.content}</div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {format(new Date(comment.createdAt), "PPp")}
                   </div>
-                  <p>{comment.content}</p>
                 </div>
               ))}
             </div>
           </div>
         )}
-        
-        <div className="flex justify-end pt-2">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button 
-                variant="outline" 
+
+        {/* Add comment section for active bookings */}
+        {(booking.status === "confirmed" || booking.status === "In-Progress") && (
+          <div className="border-t pt-3">
+            <div className="space-y-2">
+              <Textarea
+                placeholder="Add a comment..."
+                value={commentContent[booking.id] || ""}
+                onChange={(e) => setCommentContent(prev => ({ ...prev, [booking.id]: e.target.value }))}
+                className="min-h-[60px]"
+              />
+              <Button
                 size="sm"
-                onClick={() => setSelectedBookingId(booking.id)}
+                onClick={() => handleAddComment(booking.id)}
+                disabled={!commentContent[booking.id]?.trim() || addingComment[booking.id]}
               >
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Add Comment
+                {addingComment[booking.id] ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  "Add Comment"
+                )}
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add Comment to Booking</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div>
-                  <p className="font-medium">{booking.instrumentName}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {format(new Date(booking.start), "MMM dd, yyyy HH:mm")} - {format(new Date(booking.end), "HH:mm")}
-                  </p>
-                </div>
-                <Textarea
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Enter your comment..."
-                  rows={3}
-                />
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => {
-                    setNewComment("");
-                    setSelectedBookingId(null);
-                  }}>
-                    Cancel
-                  </Button>
-                  <Button onClick={handleAddComment}>
-                    Add Comment
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 
+  if (!user) {
+    return (
+      <div className="container py-8 text-center">
+        <h1 className="text-2xl font-bold mb-4">Please log in to view your bookings</h1>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-6 max-w-7xl flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
+        <span className="ml-2 text-lg text-mslab-400">Loading your bookings...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="container py-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div>
         <h1 className="text-3xl font-bold tracking-tight">My Bookings</h1>
-        <div className="text-sm text-muted-foreground">
-          Total bookings: {userBookings.length}
-        </div>
+        <p className="text-muted-foreground">
+          View and manage your laboratory instrument bookings
+        </p>
       </div>
 
-      <Tabs defaultValue="upcoming" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="upcoming" className="relative">
-            Upcoming
-            {upcomingBookings.length > 0 && (
-              <Badge variant="secondary" className="ml-2 h-5 w-5 p-0 text-xs">
-                {upcomingBookings.length}
-              </Badge>
-            )}
+      <Tabs defaultValue="upcoming" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="upcoming">
+            Upcoming ({categorizedBookings.upcoming.length})
           </TabsTrigger>
-          <TabsTrigger value="current" className="relative">
-            Current
-            {currentBookings.length > 0 && (
-              <Badge variant="default" className="ml-2 h-5 w-5 p-0 text-xs">
-                {currentBookings.length}
-              </Badge>
-            )}
+          <TabsTrigger value="current">
+            Current ({categorizedBookings.current.length})
           </TabsTrigger>
-          <TabsTrigger value="past" className="relative">
-            Past
-            {pastBookings.length > 0 && (
-              <Badge variant="outline" className="ml-2 h-5 w-5 p-0 text-xs">
-                {pastBookings.length}
-              </Badge>
-            )}
+          <TabsTrigger value="past">
+            Past ({categorizedBookings.past.length})
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="upcoming" className="space-y-4">
-          {upcomingBookings.length === 0 ? (
+          {categorizedBookings.upcoming.length === 0 ? (
             <Card>
-              <CardContent className="pt-6">
-                <div className="text-center text-muted-foreground">
-                  <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No upcoming bookings</p>
-                  <p className="text-sm">Your future reservations will appear here</p>
-                </div>
+              <CardContent className="py-8 text-center">
+                <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">No upcoming bookings</h3>
+                <p className="text-muted-foreground">
+                  You don't have any upcoming instrument bookings scheduled.
+                </p>
               </CardContent>
             </Card>
           ) : (
-            upcomingBookings.map(renderBookingCard)
+            categorizedBookings.upcoming.map(booking => (
+              <BookingCard key={booking.id} booking={booking} />
+            ))
           )}
         </TabsContent>
 
         <TabsContent value="current" className="space-y-4">
-          {currentBookings.length === 0 ? (
+          {categorizedBookings.current.length === 0 ? (
             <Card>
-              <CardContent className="pt-6">
-                <div className="text-center text-muted-foreground">
-                  <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No current bookings</p>
-                  <p className="text-sm">Your active reservations will appear here</p>
-                </div>
+              <CardContent className="py-8 text-center">
+                <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">No current bookings</h3>
+                <p className="text-muted-foreground">
+                  You don't have any instruments currently in use.
+                </p>
               </CardContent>
             </Card>
           ) : (
-            currentBookings.map(renderBookingCard)
+            categorizedBookings.current.map(booking => (
+              <BookingCard key={booking.id} booking={booking} />
+            ))
           )}
         </TabsContent>
 
         <TabsContent value="past" className="space-y-4">
-          {pastBookings.length === 0 ? (
+          {categorizedBookings.past.length === 0 ? (
             <Card>
-              <CardContent className="pt-6">
-                <div className="text-center text-muted-foreground">
-                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No past bookings</p>
-                  <p className="text-sm">Your booking history will appear here</p>
-                </div>
+              <CardContent className="py-8 text-center">
+                <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-lg font-medium mb-2">No past bookings</h3>
+                <p className="text-muted-foreground">
+                  Your completed bookings will appear here.
+                </p>
               </CardContent>
             </Card>
           ) : (
-            pastBookings.map(renderBookingCard)
+            categorizedBookings.past.map(booking => (
+              <BookingCard key={booking.id} booking={booking} />
+            ))
           )}
         </TabsContent>
       </Tabs>
