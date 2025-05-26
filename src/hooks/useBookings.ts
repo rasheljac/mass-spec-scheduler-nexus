@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { Booking, Comment, User } from "../types";
 import { supabase } from "../integrations/supabase/client";
@@ -370,7 +371,6 @@ export const useBookings = (users: User[]) => {
           try {
             const userEmail = getUserEmailById(booking.userId);
             const commentAuthor = comment.userName || getUserNameById(comment.userId);
-            const commentTime = new Date().toLocaleString();
             
             if (userEmail) {
               console.log("Sending comment notification email to:", userEmail);
@@ -387,7 +387,7 @@ export const useBookings = (users: User[]) => {
                     <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0;">
                       <p><strong>Comment by ${commentAuthor}:</strong></p>
                       <p style="margin: 10px 0;">${comment.content}</p>
-                      <p style="color: #666; font-size: 14px;">Time: ${commentTime}</p>
+                      <p style="color: #666; font-size: 14px;">Time: ${new Date().toLocaleString()}</p>
                     </div>
                     <p><strong>Booking Details:</strong></p>
                     <ul>
@@ -404,20 +404,24 @@ export const useBookings = (users: User[]) => {
                     endDate: new Date(booking.end).toLocaleString(),
                     commentAuthor: commentAuthor || "Someone",
                     commentContent: comment.content || "",
-                    commentTime: commentTime
+                    commentTime: new Date().toLocaleString()
                   }
                 }
               });
               
               if (emailError) {
                 console.error("Comment notification email error:", emailError);
+                toast.success("Comment added (email notification failed)");
               } else {
                 console.log("Comment notification email sent successfully:", emailData);
                 toast.success("Comment added and notification sent");
               }
+            } else {
+              toast.success("Comment added successfully");
             }
           } catch (emailError) {
             console.error("Failed to send comment notification email:", emailError);
+            toast.success("Comment added (email notification failed)");
           }
         } else {
           toast.success("Comment added successfully");

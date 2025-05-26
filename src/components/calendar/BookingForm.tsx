@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Loader2, CalendarIcon, Clock } from "lucide-react";
 import { cn } from "../../lib/utils";
+import DurationCalculator from "./DurationCalculator";
 
 interface BookingFormProps {
   open: boolean;
@@ -58,23 +59,11 @@ const BookingForm: React.FC<BookingFormProps> = ({
     return { value: timeStr, display: displayTime };
   });
 
-  // Auto-calculate duration based on sample number and run time
-  useEffect(() => {
-    const sampleNum = parseInt(formData.sampleNumber);
-    const runTime = parseFloat(formData.sampleRunTime);
-    
-    if (!isNaN(sampleNum) && sampleNum > 0 && !isNaN(runTime) && runTime > 0) {
-      // Calculate total time: (number of samples * run time per sample) + setup time
-      const setupTime = 15; // 15 minutes setup time
-      const totalMinutes = (sampleNum * runTime) + setupTime;
-      const totalHours = totalMinutes / 60;
-      
-      // Round up to nearest 0.5 hour increment
-      const roundedHours = Math.ceil(totalHours * 2) / 2;
-      
-      setFormData(prev => ({ ...prev, duration: roundedHours.toString() }));
-    }
-  }, [formData.sampleNumber, formData.sampleRunTime]);
+  const handleDurationChange = (durationMinutes: number) => {
+    const totalHours = durationMinutes / 60;
+    const roundedHours = Math.ceil(totalHours * 2) / 2;
+    setFormData(prev => ({ ...prev, duration: roundedHours.toString() }));
+  };
 
   // Calculate end date/time
   const calculateEndDateTime = () => {
@@ -107,8 +96,8 @@ const BookingForm: React.FC<BookingFormProps> = ({
       
       const endDate = calculateEndDateTime();
 
-      // Set initial status based on user role
-      const initialStatus = user.role === "admin" ? "confirmed" : "pending";
+      // Always set status as pending for new bookings
+      const initialStatus = "pending";
 
       // Build details with sample information
       let detailsText = formData.details;
@@ -147,11 +136,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
         comments: []
       });
 
-      if (user.role === "admin") {
-        toast.success("Booking created successfully");
-      } else {
-        toast.success("Booking request submitted for admin approval");
-      }
+      toast.success("Booking request submitted for admin approval");
       
       onOpenChange(false);
       // Reset form
@@ -248,6 +233,12 @@ const BookingForm: React.FC<BookingFormProps> = ({
             </Select>
           </div>
 
+          <DurationCalculator 
+            onDurationChange={handleDurationChange}
+            initialSamples={parseInt(formData.sampleNumber) || 1}
+            initialRunTime={parseFloat(formData.sampleRunTime) || 30}
+          />
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="sampleNumber">Total Samples</Label>
@@ -337,13 +328,11 @@ const BookingForm: React.FC<BookingFormProps> = ({
             />
           </div>
 
-          {user?.role !== "admin" && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-sm text-blue-800">
-                <strong>Note:</strong> Your booking will be submitted for admin approval and will be pending until confirmed.
-              </p>
-            </div>
-          )}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> Your booking will be submitted for admin approval and will be pending until confirmed.
+            </p>
+          </div>
 
           <div className="flex gap-2 pt-4">
             <Button
@@ -354,10 +343,10 @@ const BookingForm: React.FC<BookingFormProps> = ({
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  {user?.role === "admin" ? "Creating..." : "Submitting..."}
+                  Submitting...
                 </>
               ) : (
-                user?.role === "admin" ? "Create Booking" : "Submit for Approval"
+                "Submit for Approval"
               )}
             </Button>
             <Button
