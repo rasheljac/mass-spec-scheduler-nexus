@@ -92,8 +92,10 @@ const BookingForm: React.FC<BookingFormProps> = ({
     
     const endDate = new Date(startDate);
     const durationHours = parseFloat(formData.duration);
-    endDate.setHours(startDate.getHours() + Math.floor(durationHours));
-    endDate.setMinutes(startDate.getMinutes() + ((durationHours % 1) * 60));
+    
+    // Handle durations longer than 24 hours by adding days
+    const totalMinutes = durationHours * 60;
+    endDate.setTime(startDate.getTime() + totalMinutes * 60 * 1000);
     
     return endDate;
   };
@@ -109,6 +111,15 @@ const BookingForm: React.FC<BookingFormProps> = ({
     console.log("Sample run time changed:", value);
     setFormData(prev => ({ ...prev, sampleRunTime: value }));
   };
+
+  // Handle duration change (both from select and direct input)
+  const handleDurationChange = (value: string) => {
+    setFormData(prev => ({ ...prev, duration: value }));
+  };
+
+  // Check if duration is a predefined option
+  const predefinedDurations = ["0.5", "1", "1.5", "2", "3", "4", "6", "8"];
+  const isCustomDuration = !predefinedDurations.includes(formData.duration);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -300,24 +311,55 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
           <div>
             <Label htmlFor="duration">Duration (hours)</Label>
-            <Select
-              value={formData.duration}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, duration: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select duration" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0.5">30 minutes</SelectItem>
-                <SelectItem value="1">1 hour</SelectItem>
-                <SelectItem value="1.5">1.5 hours</SelectItem>
-                <SelectItem value="2">2 hours</SelectItem>
-                <SelectItem value="3">3 hours</SelectItem>
-                <SelectItem value="4">4 hours</SelectItem>
-                <SelectItem value="6">6 hours</SelectItem>
-                <SelectItem value="8">8 hours</SelectItem>
-              </SelectContent>
-            </Select>
+            {isCustomDuration ? (
+              <div className="space-y-2">
+                <Input
+                  type="number"
+                  step="0.5"
+                  min="0.5"
+                  value={formData.duration}
+                  onChange={(e) => handleDurationChange(e.target.value)}
+                  placeholder="Enter duration in hours"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData(prev => ({ ...prev, duration: "1" }))}
+                >
+                  Use predefined durations
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Select
+                  value={formData.duration}
+                  onValueChange={handleDurationChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select duration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.5">30 minutes</SelectItem>
+                    <SelectItem value="1">1 hour</SelectItem>
+                    <SelectItem value="1.5">1.5 hours</SelectItem>
+                    <SelectItem value="2">2 hours</SelectItem>
+                    <SelectItem value="3">3 hours</SelectItem>
+                    <SelectItem value="4">4 hours</SelectItem>
+                    <SelectItem value="6">6 hours</SelectItem>
+                    <SelectItem value="8">8 hours</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData(prev => ({ ...prev, duration: "12" }))}
+                >
+                  Enter custom duration
+                </Button>
+              </div>
+            )}
             <p className="text-xs text-muted-foreground mt-1">
               Duration is auto-calculated when both sample fields are filled
             </p>
