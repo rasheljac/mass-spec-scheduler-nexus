@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { supabase } from "../integrations/supabase/client";
@@ -155,7 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) throw error;
   };
 
-  const signup = async (email: string, password: string, name: string, role: 'admin' | 'user' = 'user') => {
+  const signup = async (email: string, password: string, name: string, role: 'admin' | 'user' = 'user'): Promise<void> => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -170,7 +169,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) throw error;
     
     // The profile will be created automatically by the trigger
-    return data;
+    // No need to return the data since the interface expects void
   };
 
   const logout = async () => {
