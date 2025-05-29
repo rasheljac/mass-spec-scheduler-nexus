@@ -51,8 +51,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .eq('id', session.user.id)
           .single();
         
-        const extendedUser = createExtendedUser(session.user, profileData);
-        setUser(extendedUser);
+        if (profileData) {
+          const profile: Profile = {
+            id: profileData.id,
+            name: profileData.name,
+            email: profileData.email,
+            role: profileData.role as 'admin' | 'user',
+            department: profileData.department,
+            profileImage: profileData.profile_image
+          };
+          const extendedUser = createExtendedUser(session.user, profile);
+          setUser(extendedUser);
+        }
       }
       setIsLoading(false);
     };
@@ -70,8 +80,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .eq('id', session.user.id)
           .single();
         
-        const extendedUser = createExtendedUser(session.user, profileData);
-        setUser(extendedUser);
+        if (profileData) {
+          const profile: Profile = {
+            id: profileData.id,
+            name: profileData.name,
+            email: profileData.email,
+            role: profileData.role as 'admin' | 'user',
+            department: profileData.department,
+            profileImage: profileData.profile_image
+          };
+          const extendedUser = createExtendedUser(session.user, profile);
+          setUser(extendedUser);
+        }
       } else {
         setUser(null);
       }
@@ -92,7 +112,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: profile.id,
           email: profile.email,
           name: profile.name,
-          role: profile.role,
+          role: profile.role as 'admin' | 'user',
           department: profile.department,
           profileImage: profile.profile_image,
           // Add required Supabase User properties with defaults
@@ -112,7 +132,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           phone: null,
           new_phone: null,
           last_sign_in_at: null,
-          role: profile.role,
           is_anonymous: false
         })) as User[];
         
@@ -200,14 +219,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // Create extended user for local state
-      const newUser = createExtendedUser(authData.user, {
+      const profileData: Profile = {
         id: authData.user.id,
         name: userData.name,
         email: userData.email,
         role: userData.role,
         department: userData.department,
         profileImage: userData.profileImage
-      });
+      };
+
+      const newUser = createExtendedUser(authData.user, profileData);
 
       setUsers(prevUsers => [...prevUsers, newUser]);
 
@@ -238,7 +259,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .single();
 
         if (profileData) {
-          const updatedUser = createExtendedUser(refreshedUser, profileData);
+          const profile: Profile = {
+            id: profileData.id,
+            name: profileData.name,
+            email: profileData.email,
+            role: profileData.role as 'admin' | 'user',
+            department: profileData.department,
+            profileImage: profileData.profile_image
+          };
+          const updatedUser = createExtendedUser(refreshedUser, profile);
           setUser(updatedUser);
         }
       }
