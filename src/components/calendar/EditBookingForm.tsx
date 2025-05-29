@@ -105,9 +105,16 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
 
   // Auto-calculate duration when sample data changes
   useEffect(() => {
+    console.log("Duration calculation triggered:", { 
+      sampleNumber: formData.sampleNumber, 
+      sampleRunTime: formData.sampleRunTime 
+    });
+    
     if (formData.sampleNumber && formData.sampleRunTime) {
       const totalSamples = parseInt(formData.sampleNumber);
       const runTimePerSample = parseFloat(formData.sampleRunTime);
+      
+      console.log("Parsed values:", { totalSamples, runTimePerSample });
       
       if (totalSamples > 0 && runTimePerSample > 0) {
         // Calculate total runtime + 15 minutes setup time
@@ -115,12 +122,14 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
         const totalHours = totalMinutes / 60;
         const roundedHours = Math.ceil(totalHours * 2) / 2; // Round to nearest 0.5 hours
         
+        console.log("Calculated duration:", { totalMinutes, totalHours, roundedHours });
+        
         setFormData(prev => ({ ...prev, duration: roundedHours.toString() }));
       }
     }
   }, [formData.sampleNumber, formData.sampleRunTime]);
 
-  // Calculate end date/time
+  // Calculate end date/time - Fixed to handle durations longer than 24 hours
   const calculateEndDateTime = () => {
     const [hours, minutes] = formData.selectedTime.split(':').map(Number);
     const startDate = new Date(formData.selectedDate);
@@ -128,11 +137,34 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
     
     const endDate = new Date(startDate);
     const durationHours = parseFloat(formData.duration);
-    endDate.setHours(startDate.getHours() + Math.floor(durationHours));
-    endDate.setMinutes(startDate.getMinutes() + ((durationHours % 1) * 60));
+    
+    // Handle durations longer than 24 hours by adding days
+    const totalMinutes = durationHours * 60;
+    endDate.setTime(startDate.getTime() + totalMinutes * 60 * 1000);
     
     return endDate;
   };
+
+  // Handle sample number change
+  const handleSampleNumberChange = (value: string) => {
+    console.log("Sample number changed:", value);
+    setFormData(prev => ({ ...prev, sampleNumber: value }));
+  };
+
+  // Handle sample run time change
+  const handleSampleRunTimeChange = (value: string) => {
+    console.log("Sample run time changed:", value);
+    setFormData(prev => ({ ...prev, sampleRunTime: value }));
+  };
+
+  // Handle duration change (both from select and direct input)
+  const handleDurationChange = (value: string) => {
+    setFormData(prev => ({ ...prev, duration: value }));
+  };
+
+  // Check if duration is a predefined option
+  const predefinedDurations = ["0.5", "1", "1.5", "2", "3", "4", "6", "8"];
+  const isCustomDuration = !predefinedDurations.includes(formData.duration);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,6 +174,8 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
       toast.error("Missing required information");
       return;
     }
+
+    console.log("Starting booking update process...");
 
     try {
       const [hours, minutes] = formData.selectedTime.split(':').map(Number);
@@ -157,6 +191,8 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
         detailsText += `\n- Total Samples: ${formData.sampleNumber}`;
         detailsText += `\n- Run Time per Sample: ${formData.sampleRunTime} minutes`;
         detailsText += `\n- Calculated Duration: ${formData.duration} hours`;
+      } else if (formData.sampleNumber) {
+        detailsText += `\n\nSample Number: ${formData.sampleNumber}`;
       }
 
       const updatedBooking: Booking = {
@@ -174,16 +210,20 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
       console.log("Updating booking with data:", updatedBooking);
       
       if (onSubmit) {
+        console.log("Using custom onSubmit handler");
         await onSubmit(updatedBooking);
       } else {
+        console.log("Using default updateBooking method");
         await updateBooking(updatedBooking);
         toast.success("Booking updated successfully");
       }
       
+      console.log("Booking update completed successfully");
       onOpenChange(false);
     } catch (error) {
       console.error("Error saving booking:", error);
-      toast.error("Failed to save changes");
+      const errorMessage = error instanceof Error ? error.message : "Failed to save changes";
+      toast.error(errorMessage);
     }
   };
 
@@ -287,7 +327,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
                 id="sampleNumber"
                 type="number"
                 value={formData.sampleNumber}
-                onChange={(e) => setFormData(prev => ({ ...prev, sampleNumber: e.target.value }))}
+                onChange={(e) => handleSampleNumberChange(e.target.value)}
                 placeholder="Number of samples"
                 min="1"
               />
@@ -299,7 +339,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
                 type="number"
                 step="0.1"
                 value={formData.sampleRunTime}
-                onChange={(e) => setFormData(prev => ({ ...prev, sampleRunTime: e.target.value }))}
+                onChange={(e) => handleSampleRunTimeChange(e.target.value)}
                 placeholder="Minutes per sample"
                 min="0.1"
               />
@@ -316,24 +356,55 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
 
           <div>
             <Label htmlFor="duration">Duration (hours)</Label>
-            <Select
-              value={formData.duration}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, duration: value }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select duration" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0.5">30 minutes</SelectItem>
-                <SelectItem value="1">1 hour</SelectItem>
-                <SelectItem value="1.5">1.5 hours</SelectItem>
-                <SelectItem value="2">2 hours</SelectItem>
-                <SelectItem value="3">3 hours</SelectItem>
-                <SelectItem value="4">4 hours</SelectItem>
-                <SelectItem value="6">6 hours</SelectItem>
-                <SelectItem value="8">8 hours</SelectItem>
-              </SelectContent>
-            </Select>
+            {isCustomDuration ? (
+              <div className="space-y-2">
+                <Input
+                  type="number"
+                  step="0.5"
+                  min="0.5"
+                  value={formData.duration}
+                  onChange={(e) => handleDurationChange(e.target.value)}
+                  placeholder="Enter duration in hours"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData(prev => ({ ...prev, duration: "1" }))}
+                >
+                  Use predefined durations
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Select
+                  value={formData.duration}
+                  onValueChange={handleDurationChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select duration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.5">30 minutes</SelectItem>
+                    <SelectItem value="1">1 hour</SelectItem>
+                    <SelectItem value="1.5">1.5 hours</SelectItem>
+                    <SelectItem value="2">2 hours</SelectItem>
+                    <SelectItem value="3">3 hours</SelectItem>
+                    <SelectItem value="4">4 hours</SelectItem>
+                    <SelectItem value="6">6 hours</SelectItem>
+                    <SelectItem value="8">8 hours</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFormData(prev => ({ ...prev, duration: "12" }))}
+                >
+                  Enter custom duration
+                </Button>
+              </div>
+            )}
             <p className="text-xs text-muted-foreground mt-1">
               Duration is auto-calculated when both sample fields are filled
             </p>
