@@ -69,12 +69,12 @@ const ProfilePage: React.FC = () => {
             throw uploadError;
           }
 
-          // Get public URL
+          // Get public URL with timestamp to prevent caching
           const { data: urlData } = supabase.storage
             .from('profile-images')
             .getPublicUrl(fileName);
 
-          profileImageUrl = urlData.publicUrl;
+          profileImageUrl = `${urlData.publicUrl}?t=${Date.now()}`;
         } catch (uploadError) {
           console.error("Upload error:", uploadError);
           toast.error("Failed to upload profile image. Saving other changes.");
@@ -83,6 +83,24 @@ const ProfilePage: React.FC = () => {
         }
       }
 
+      // Update profile in database with correct field name
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          name,
+          email,
+          department: department || null,
+          profile_image: profileImageUrl
+        })
+        .eq('id', user.id);
+
+      if (updateError) {
+        console.error('Error updating profile in database:', updateError);
+        toast.error("Failed to update profile in database.");
+        return;
+      }
+
+      // Update user profile in context
       await updateUserProfile({
         ...user,
         name,
@@ -93,6 +111,7 @@ const ProfilePage: React.FC = () => {
       
       setIsEditing(false);
       setSelectedFile(null);
+      setImagePreview(profileImageUrl);
       toast.success("Your profile information has been updated successfully.");
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -214,7 +233,11 @@ const ProfilePage: React.FC = () => {
               <Label>Profile Image</Label>
               <div className="flex items-center space-x-4">
                 <Avatar className="w-20 h-20">
-                  <AvatarImage src={imagePreview || undefined} alt={name} />
+                  <AvatarImage 
+                    src={imagePreview || undefined} 
+                    alt={name}
+                    key={imagePreview} // Force re-render when image changes
+                  />
                   <AvatarFallback>{name.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
                 {isEditing && (

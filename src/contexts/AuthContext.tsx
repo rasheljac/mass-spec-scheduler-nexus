@@ -85,6 +85,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Function to refresh current user data
+  const refreshCurrentUser = async (userId: string) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error('Error refreshing current user:', error);
+        return;
+      }
+      
+      if (profile) {
+        const userData: User = {
+          id: profile.id,
+          name: profile.name,
+          email: profile.email,
+          role: profile.role as 'admin' | 'user',
+          department: profile.department || '',
+          profileImage: profile.profile_image || '',
+          password: ''
+        };
+        
+        setUser(userData);
+        console.log("User refreshed with new profile image:", userData.profileImage);
+      }
+    } catch (e) {
+      console.error('Error refreshing current user:', e);
+    }
+  };
+
   // Initialize by loading data from Supabase on initialization
   useEffect(() => {
     console.log("AuthProvider initializing...");
@@ -472,14 +505,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   
   const updateUserProfile = async (userData: User): Promise<void> => {
     try {
-      // Update the profile in Supabase
+      // Update the profile in Supabase using the correct field name
       const { error } = await supabase
         .from('profiles')
         .update({
           name: userData.name,
           email: userData.email,
           department: userData.department || null,
-          profileImage: userData.profileImage || null
+          profile_image: userData.profileImage || null
         })
         .eq('id', userData.id);
       
@@ -499,7 +532,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Update the current user if it's the same user
       if (user && user.id === userData.id) {
         setUser(userData);
+        console.log("Current user updated with new profile image:", userData.profileImage);
       }
+      
+      // Refresh current user data to ensure consistency
+      await refreshCurrentUser(userData.id);
       
       toast({
         title: "Profile Updated",
@@ -660,7 +697,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           email: userData.email,
           department: userData.department || null,
           role: userData.role,
-          profileImage: userData.profileImage || null
+          profile_image: userData.profileImage || null
         })
         .eq('id', userData.id);
       

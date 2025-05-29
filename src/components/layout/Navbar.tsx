@@ -47,6 +47,11 @@ const Navbar: React.FC = () => {
     return null;
   }
 
+  // Create a unique URL for the avatar image to prevent caching issues
+  const avatarImageUrl = user.profileImage 
+    ? `${user.profileImage}${user.profileImage.includes('?') ? '&' : '?'}t=${Date.now()}`
+    : undefined;
+
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -107,7 +112,11 @@ const Navbar: React.FC = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.profileImage || undefined} alt={user.name} />
+                    <AvatarImage 
+                      src={avatarImageUrl} 
+                      alt={user.name}
+                      key={user.profileImage} // Force re-render when image changes
+                    />
                     <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
                 </Button>
