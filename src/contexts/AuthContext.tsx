@@ -18,6 +18,7 @@ interface AuthContextType {
   createUser: (userData: CreateUserData) => Promise<void>;
   deleteUser: (userId: string) => void;
   refreshCurrentUser: () => Promise<void>;
+  signup: (email: string, password: string, name: string, role?: 'admin' | 'user') => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -154,6 +155,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) throw error;
   };
 
+  const signup = async (email: string, password: string, name: string, role: 'admin' | 'user' = 'user') => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name: name,
+          role: role
+        }
+      }
+    });
+    
+    if (error) throw error;
+    
+    // The profile will be created automatically by the trigger
+    return data;
+  };
+
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -165,31 +184,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateUserPassword = async (userId: string, newPassword: string) => {
-    try {
-      const { error } = await supabase.auth.admin.updateUserById(userId, {
-        password: newPassword
-      });
-      
-      if (error) throw error;
-    } catch (error) {
-      console.error('Error updating password:', error);
-      throw error;
-    }
+    // This requires admin privileges, so we'll show an error for now
+    throw new Error('Password updates require admin privileges. Please use the Supabase dashboard.');
   };
 
   const createUser = async (userData: CreateUserData) => {
     try {
+      console.log('Creating user with data:', userData);
+      
       // Generate a password if not provided
       const password = userData.password || Math.random().toString(36).slice(-8) + 'A1!';
       
-      // Create user in Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      // Use signup instead of admin.createUser
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: password,
-        email_confirm: true,
-        user_metadata: {
-          name: userData.name,
-          department: userData.department
+        options: {
+          data: {
+            name: userData.name,
+            role: userData.role,
+            department: userData.department
+          }
         }
       });
 
@@ -202,39 +217,96 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('No user data returned from auth creation');
       }
 
-      // Update the profile in the profiles table
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({
-          name: userData.name,
-          email: userData.email,
-          department: userData.department || null,
-          role: userData.role,
-          profile_image: userData.profileImage || null
-        })
-        .eq('id', authData.user.id);
+      console.log('User created successfully:', authData.user.id);
 
-      if (profileError) {
-        console.error('Profile update error:', profileError);
-      }
+      // The profile should be created by the trigger, but let's ensure it exists
+      // Wait a moment for the trigger to execute
+      setTimeout(async () => {
+        try {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', authData.user!.id)
+            .single();
 
-      // Create extended user for local state
-      const profileData: Profile = {
-        id: authData.user.id,
-        name: userData.name,
-        email: userData.email,
-        role: userData.role,
-        department: userData.department,
-        profileImage: userData.profileImage
-      };
+          if (profileError || !profileData) {
+            // If profile doesn't exist, create it manually
+            const { error: insertError } = await supabase
+              .from('profiles')
+              .insert({
+                id: authData.user!.id,
+                name: userData.name,
+                email: userData.email,
+                role: userData.role,
+                department: userData.department || null,
+                profile_image: userData.profileImage || null
+              });
 
-      const newUser = createExtendedUser(authData.user, profileData);
+            if (insertError) {
+              console.error('Error creating profile:', insertError);
+            }
+          } else {
+            // Update existing profile with complete data
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update({
+                name: userData.name,
+                email: userData.email,
+                role: userData.role,
+                department: userData.department || null,
+                profile_image: userData.profileImage || null
+              })
+              .eq('id', authData.user!.id);
 
-      setUsers(prevUsers => [...prevUsers, newUser]);
+            if (updateError) {
+              console.error('Error updating profile:', updateError);
+            }
+          }
+
+          // Refresh users list
+          const { data: allProfiles } = await supabase
+            .from('profiles')
+            .select('*');
+          
+          if (allProfiles) {
+            const extendedUsers = allProfiles.map(profile => ({
+              id: profile.id,
+              email: profile.email,
+              name: profile.name,
+              role: profile.role as 'admin' | 'user',
+              department: profile.department,
+              profileImage: profile.profile_image,
+              app_metadata: {},
+              user_metadata: {},
+              aud: 'authenticated',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              email_confirmed_at: new Date().toISOString(),
+              phone_confirmed_at: null,
+              confirmation_sent_at: null,
+              recovery_sent_at: null,
+              email_change_sent_at: null,
+              new_email: null,
+              invited_at: null,
+              action_link: null,
+              phone: null,
+              new_phone: null,
+              last_sign_in_at: null,
+              is_anonymous: false
+            })) as User[];
+            
+            setUsers(extendedUsers);
+          }
+        } catch (error) {
+          console.error('Error handling post-creation profile setup:', error);
+        }
+      }, 1000);
 
       // Show password to admin if it was auto-generated
       if (!userData.password) {
         toast.success(`User created successfully. Temporary password: ${password}`);
+      } else {
+        toast.success('User created successfully!');
       }
 
     } catch (error) {
@@ -289,6 +361,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     createUser,
     deleteUser,
     refreshCurrentUser,
+    signup,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

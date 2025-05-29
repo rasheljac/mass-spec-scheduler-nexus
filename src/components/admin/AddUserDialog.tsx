@@ -42,6 +42,8 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({
     setIsSubmitting(true);
     
     try {
+      console.log('AddUserDialog: Submitting user creation request');
+      
       const userData: CreateUserData = {
         name: name.trim(),
         email: email.trim(),
@@ -51,7 +53,11 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({
         profileImage: ""
       };
       
+      console.log('AddUserDialog: User data prepared:', userData);
+      
       await onSave(userData);
+      
+      console.log('AddUserDialog: User creation successful');
       
       // Reset form
       setName("");
@@ -61,9 +67,28 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({
       setRole("user");
       
       onClose();
+      
+      toast.success("User created successfully!");
+      
     } catch (error) {
-      console.error("Error adding user:", error);
-      toast.error("Failed to create user. Please check the console for details.");
+      console.error("AddUserDialog: Error creating user:", error);
+      
+      let errorMessage = "Failed to create user. ";
+      if (error instanceof Error) {
+        if (error.message.includes('User already registered')) {
+          errorMessage += "A user with this email already exists.";
+        } else if (error.message.includes('Invalid email')) {
+          errorMessage += "Please provide a valid email address.";
+        } else if (error.message.includes('Password should be at least 6 characters')) {
+          errorMessage += "Password must be at least 6 characters long.";
+        } else {
+          errorMessage += error.message;
+        }
+      } else {
+        errorMessage += "Please check the console for details.";
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -94,6 +119,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({
               onChange={(e) => setName(e.target.value)}
               required
               placeholder="Enter full name"
+              disabled={isSubmitting}
             />
           </div>
           <div className="space-y-2">
@@ -105,6 +131,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="Enter email address"
+              disabled={isSubmitting}
             />
           </div>
           <div className="space-y-2">
@@ -115,6 +142,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Leave blank for auto-generated password"
+              disabled={isSubmitting}
             />
             <p className="text-sm text-gray-500">
               {password ? "Password must be at least 6 characters long" : "Auto-generated password will be displayed after creation"}
@@ -127,6 +155,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
               placeholder="Enter department (optional)"
+              disabled={isSubmitting}
             />
           </div>
           <div className="space-y-2">
@@ -134,6 +163,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({
             <Select 
               value={role} 
               onValueChange={(value: "admin" | "user") => setRole(value)}
+              disabled={isSubmitting}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select role" />
