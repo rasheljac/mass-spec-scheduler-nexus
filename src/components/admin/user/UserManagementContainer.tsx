@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { Card } from "../../ui/card";
 import { Button } from "../../ui/button";
 import { useAuth } from "../../../contexts/AuthContext";
-import { User } from "../../../types";
+import { User, CreateUserData } from "../../../types";
 import { useToast } from "../../../hooks/use-toast";
 import UserTable from "../UserTable";
 import EditUserDialog from "../EditUserDialog";
@@ -162,7 +162,7 @@ const UserManagementContainer: React.FC = () => {
     }
   };
 
-  const handleAddUser = async (userData: Omit<User, "id">) => {
+  const handleAddUser = async (userData: CreateUserData) => {
     try {
       await createUser(userData);
       setIsAddUserDialogOpen(false);

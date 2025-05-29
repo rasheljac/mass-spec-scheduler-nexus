@@ -5,13 +5,13 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { User } from "../../types";
+import { CreateUserData } from "../../types";
 import { toast } from "sonner";
 
 interface AddUserDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (userData: Omit<User, "id">) => Promise<void>;
+  onSave: (userData: CreateUserData) => Promise<void>;
 }
 
 const AddUserDialog: React.FC<AddUserDialogProps> = ({ 
@@ -42,7 +42,7 @@ const AddUserDialog: React.FC<AddUserDialogProps> = ({
     setIsSubmitting(true);
     
     try {
-      const userData: Omit<User, "id"> = {
+      const userData: CreateUserData = {
         name: name.trim(),
         email: email.trim(),
         password: password.trim() || undefined,

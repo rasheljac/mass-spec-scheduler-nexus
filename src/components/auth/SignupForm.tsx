@@ -7,7 +7,7 @@ import { useToast } from "../../hooks/use-toast";
 import { Button } from "../ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { Input } from "../ui/input";
-import { useAuth } from "../../contexts/AuthContext";
+import { supabase } from "../../integrations/supabase/client";
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters" }),
@@ -22,7 +22,6 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const SignupForm: React.FC = () => {
-  const { signup } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -39,7 +38,19 @@ const SignupForm: React.FC = () => {
   const onSubmit = async (values: FormValues) => {
     try {
       setIsLoading(true);
-      await signup(values.name, values.email, values.password);
+      
+      const { error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: {
+            name: values.name,
+          }
+        }
+      });
+      
+      if (error) throw error;
+      
       toast({
         title: "Account created!",
         description: "Welcome to the Mass Spec Lab",
@@ -102,7 +113,7 @@ const SignupForm: React.FC = () => {
           name="confirmPassword"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Confirm Password</FormLabel>
+              <FormLabel>Confirm Password</Label>
               <FormControl>
                 <Input type="password" placeholder="••••••••" {...field} />
               </FormControl>

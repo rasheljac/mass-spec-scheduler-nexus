@@ -1,7 +1,9 @@
+
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { User, Session } from "@supabase/supabase-js";
+import { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { supabase } from "../integrations/supabase/client";
 import { toast } from "sonner";
+import { User, Profile, CreateUserData } from "../types";
 
 interface AuthContextType {
   user: User | null;
@@ -13,7 +15,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateUserProfile: (updatedUser: User) => void;
   updateUserPassword: (userId: string, newPassword: string) => Promise<void>;
-  createUser: (userData: Omit<User, "id">) => Promise<void>;
+  createUser: (userData: CreateUserData) => Promise<void>;
   deleteUser: (userId: string) => void;
   refreshCurrentUser: () => Promise<void>;
 }
@@ -26,11 +28,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
 
+  const createExtendedUser = (supabaseUser: SupabaseUser, profileData?: Profile): User => {
+    return {
+      ...supabaseUser,
+      name: profileData?.name || supabaseUser.email?.split('@')[0] || '',
+      role: (profileData?.role as 'admin' | 'user') || 'user',
+      department: profileData?.department,
+      profileImage: profileData?.profileImage
+    };
+  };
+
   useEffect(() => {
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
-      setUser(session?.user || null);
+      
+      if (session?.user) {
+        // Fetch profile data for the user
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        const extendedUser = createExtendedUser(session.user, profileData);
+        setUser(extendedUser);
+      }
       setIsLoading(false);
     };
 
@@ -38,7 +61,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
-      setUser(session?.user || null);
+      
+      if (session?.user) {
+        // Fetch profile data for the user
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        const extendedUser = createExtendedUser(session.user, profileData);
+        setUser(extendedUser);
+      } else {
+        setUser(null);
+      }
       setIsLoading(false);
     });
   }, []);
@@ -50,7 +86,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from('profiles')
           .select('*');
         if (error) throw error;
-        setUsers(data as User[]);
+        
+        // Convert profiles to extended users
+        const extendedUsers = data.map(profile => ({
+          id: profile.id,
+          email: profile.email,
+          name: profile.name,
+          role: profile.role,
+          department: profile.department,
+          profileImage: profile.profile_image,
+          // Add required Supabase User properties with defaults
+          app_metadata: {},
+          user_metadata: {},
+          aud: 'authenticated',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          email_confirmed_at: new Date().toISOString(),
+          phone_confirmed_at: null,
+          confirmation_sent_at: null,
+          recovery_sent_at: null,
+          email_change_sent_at: null,
+          new_email: null,
+          invited_at: null,
+          action_link: null,
+          phone: null,
+          new_phone: null,
+          last_sign_in_at: null,
+          role: profile.role,
+          is_anonymous: false
+        })) as User[];
+        
+        setUsers(extendedUsers);
       } catch (error) {
         console.error("Error fetching users:", error);
       }
@@ -92,7 +158,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const createUser = async (userData: Omit<User, "id">) => {
+  const createUser = async (userData: CreateUserData) => {
     try {
       // Generate a password if not provided
       const password = userData.password || Math.random().toString(36).slice(-8) + 'A1!';
@@ -131,17 +197,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (profileError) {
         console.error('Profile update error:', profileError);
-        // Don't throw here as the user was created successfully in auth
       }
 
-      // Add to local users list
-      const newUser = {
-        ...authData.user,
+      // Create extended user for local state
+      const newUser = createExtendedUser(authData.user, {
+        id: authData.user.id,
         name: userData.name,
-        department: userData.department,
+        email: userData.email,
         role: userData.role,
+        department: userData.department,
         profileImage: userData.profileImage
-      } as User;
+      });
 
       setUsers(prevUsers => [...prevUsers, newUser]);
 
@@ -172,13 +238,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .single();
 
         if (profileData) {
-          const updatedUser = {
-            ...refreshedUser,
-            name: profileData.name,
-            department: profileData.department,
-            role: profileData.role,
-            profileImage: profileData.profile_image
-          } as User;
+          const updatedUser = createExtendedUser(refreshedUser, profileData);
           setUser(updatedUser);
         }
       }

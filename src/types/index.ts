@@ -1,6 +1,24 @@
 
-export interface User {
+import { User as SupabaseUser } from "@supabase/supabase-js";
+
+export interface Profile {
   id: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'user';
+  department?: string;
+  profileImage?: string | null;
+}
+
+// Extended user type that combines Supabase User with Profile data
+export interface User extends SupabaseUser {
+  name: string;
+  role: 'admin' | 'user';
+  department?: string;
+  profileImage?: string | null;
+}
+
+export interface CreateUserData {
   name: string;
   email: string;
   password?: string;

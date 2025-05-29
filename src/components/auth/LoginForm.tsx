@@ -44,20 +44,15 @@ const LoginForm: React.FC = () => {
     try {
       setIsLoading(true);
       console.log("Attempting login with:", values.email);
-      const success = await login(values.email, values.password);
-      console.log("Login result:", success);
+      await login(values.email, values.password);
+      console.log("Login successful");
       
-      if (success) {
-        toast.success("Login successful! Welcome back to the Mass Spec Lab");
-        
-        // Navigate after a short delay to ensure auth state is properly updated
-        setTimeout(() => {
-          navigate("/dashboard", { replace: true });
-        }, 500);
-      } else {
-        // Login failure is handled in the AuthContext
-        console.log("Login failed in form component");
-      }
+      toast.success("Login successful! Welcome back to the Mass Spec Lab");
+      
+      // Navigate after a short delay to ensure auth state is properly updated
+      setTimeout(() => {
+        navigate("/dashboard", { replace: true });
+      }, 500);
     } catch (error) {
       console.error("Login error:", error);
       toast.error(error instanceof Error ? error.message : "Please check your credentials");
