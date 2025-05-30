@@ -18,6 +18,7 @@ interface AuthContextType {
   createUser: (userData: CreateUserData) => Promise<void>;
   deleteUser: (userId: string) => void;
   refreshCurrentUser: () => Promise<void>;
+  refreshUsers: () => Promise<void>;
   signup: (email: string, password: string, name: string, role?: 'admin' | 'user') => Promise<void>;
 }
 
@@ -37,6 +38,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       department: profileData?.department,
       profileImage: profileData?.profileImage
     };
+  };
+
+  const fetchUsers = async () => {
+    try {
+      console.log('Fetching users from database...');
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('name');
+        
+      if (error) throw error;
+      
+      // Convert profiles to extended users
+      const extendedUsers = data.map(profile => ({
+        id: profile.id,
+        email: profile.email,
+        name: profile.name,
+        role: profile.role as 'admin' | 'user',
+        department: profile.department,
+        profileImage: profile.profile_image,
+        // Add required Supabase User properties with defaults
+        app_metadata: {},
+        user_metadata: {},
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        email_confirmed_at: new Date().toISOString(),
+        phone_confirmed_at: null,
+        confirmation_sent_at: null,
+        recovery_sent_at: null,
+        email_change_sent_at: null,
+        new_email: null,
+        invited_at: null,
+        action_link: null,
+        phone: null,
+        new_phone: null,
+        last_sign_in_at: null,
+        is_anonymous: false
+      })) as User[];
+      
+      console.log(`Fetched ${extendedUsers.length} users`);
+      setUsers(extendedUsers);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+    }
+  };
+
+  const refreshUsers = async () => {
+    await fetchUsers();
   };
 
   useEffect(() => {
@@ -101,47 +151,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*');
-        if (error) throw error;
-        
-        // Convert profiles to extended users
-        const extendedUsers = data.map(profile => ({
-          id: profile.id,
-          email: profile.email,
-          name: profile.name,
-          role: profile.role as 'admin' | 'user',
-          department: profile.department,
-          profileImage: profile.profile_image,
-          // Add required Supabase User properties with defaults
-          app_metadata: {},
-          user_metadata: {},
-          aud: 'authenticated',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          email_confirmed_at: new Date().toISOString(),
-          phone_confirmed_at: null,
-          confirmation_sent_at: null,
-          recovery_sent_at: null,
-          email_change_sent_at: null,
-          new_email: null,
-          invited_at: null,
-          action_link: null,
-          phone: null,
-          new_phone: null,
-          last_sign_in_at: null,
-          is_anonymous: false
-        })) as User[];
-        
-        setUsers(extendedUsers);
-      } catch (error) {
-        console.error("Error fetching users:", error);
-      }
-    };
-
     if (user?.role === 'admin') {
       fetchUsers();
     }
@@ -300,39 +309,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
 
           // Refresh users list
-          const { data: allProfiles } = await supabase
-            .from('profiles')
-            .select('*');
-          
-          if (allProfiles) {
-            const extendedUsers = allProfiles.map(profile => ({
-              id: profile.id,
-              email: profile.email,
-              name: profile.name,
-              role: profile.role as 'admin' | 'user',
-              department: profile.department,
-              profileImage: profile.profile_image,
-              app_metadata: {},
-              user_metadata: {},
-              aud: 'authenticated',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-              email_confirmed_at: new Date().toISOString(),
-              phone_confirmed_at: null,
-              confirmation_sent_at: null,
-              recovery_sent_at: null,
-              email_change_sent_at: null,
-              new_email: null,
-              invited_at: null,
-              action_link: null,
-              phone: null,
-              new_phone: null,
-              last_sign_in_at: null,
-              is_anonymous: false
-            })) as User[];
-            
-            setUsers(extendedUsers);
-          }
+          await refreshUsers();
         } catch (error) {
           console.error('Error handling post-creation profile setup:', error);
         }
@@ -352,7 +329,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteUser = (userId: string) => {
-    setUsers(users.filter(u => u.id !== userId));
+    console.log('Removing user from local state:', userId);
+    setUsers(prevUsers => prevUsers.filter(u => u.id !== userId));
   };
 
   const refreshCurrentUser = async () => {
@@ -397,6 +375,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     createUser,
     deleteUser,
     refreshCurrentUser,
+    refreshUsers,
     signup,
   };
 
