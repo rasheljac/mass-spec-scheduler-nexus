@@ -42,7 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUsers = async () => {
     try {
-      console.log('AuthContext: Fetching users from database...');
+      console.log('AuthContext: Fetching fresh users from database...');
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
@@ -81,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         is_anonymous: false
       })) as User[];
       
-      console.log(`AuthContext: Successfully fetched ${extendedUsers.length} users`);
+      console.log(`AuthContext: Successfully fetched ${extendedUsers.length} users from database`);
       setUsers(extendedUsers);
       return extendedUsers;
     } catch (error) {
@@ -92,9 +92,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const refreshUsers = async () => {
     try {
-      console.log('AuthContext: Refreshing users list...');
-      await fetchUsers();
-      console.log('AuthContext: Users list refreshed successfully');
+      console.log('AuthContext: Force refreshing users list from database...');
+      const freshUsers = await fetchUsers();
+      console.log(`AuthContext: Users list refreshed successfully - ${freshUsers.length} users loaded`);
     } catch (error) {
       console.error('AuthContext: Error refreshing users:', error);
     }
@@ -339,11 +339,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteUser = (userId: string) => {
-    console.log('AuthContext: Removing user from local state:', userId);
+    console.log('AuthContext: Immediately removing user from local state:', userId);
     setUsers(prevUsers => {
-      const newUsers = prevUsers.filter(u => u.id !== userId);
-      console.log(`AuthContext: Users count updated: ${prevUsers.length} -> ${newUsers.length}`);
-      return newUsers;
+      const filteredUsers = prevUsers.filter(u => u.id !== userId);
+      console.log(`AuthContext: Users count updated: ${prevUsers.length} -> ${filteredUsers.length}`);
+      return filteredUsers;
     });
   };
 

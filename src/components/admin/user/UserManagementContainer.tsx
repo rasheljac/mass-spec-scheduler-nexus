@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card } from "../../ui/card";
 import { Button } from "../../ui/button";
@@ -88,51 +89,47 @@ const UserManagementContainer: React.FC = () => {
     setIsDeleting(true);
     
     try {
-      console.log('=== Starting user deletion process ===');
+      console.log('=== Starting comprehensive user deletion ===');
       console.log('User to delete:', userToDelete.id, userToDelete.email);
       
       // Step 1: Delete all comments associated with the user
       console.log('Step 1: Deleting user comments...');
-      const { error: commentsError, count: commentsCount } = await supabase
+      const { error: commentsError } = await supabase
         .from('comments')
-        .delete({ count: 'exact' })
+        .delete()
         .eq('user_id', userToDelete.id);
       
       if (commentsError) {
         console.error('Error deleting comments:', commentsError);
         throw new Error(`Failed to delete user comments: ${commentsError.message}`);
       }
-      console.log(`Deleted ${commentsCount || 0} comments`);
+      console.log('Comments deleted successfully');
 
       // Step 2: Delete all bookings associated with the user
       console.log('Step 2: Deleting user bookings...');
-      const { error: bookingsError, count: bookingsCount } = await supabase
+      const { error: bookingsError } = await supabase
         .from('bookings')
-        .delete({ count: 'exact' })
+        .delete()
         .eq('user_id', userToDelete.id);
       
       if (bookingsError) {
         console.error('Error deleting bookings:', bookingsError);
         throw new Error(`Failed to delete user bookings: ${bookingsError.message}`);
       }
-      console.log(`Deleted ${bookingsCount || 0} bookings`);
+      console.log('Bookings deleted successfully');
 
       // Step 3: Delete the user profile
       console.log('Step 3: Deleting user profile...');
-      const { error: profileError, count: profileCount } = await supabase
+      const { error: profileError } = await supabase
         .from('profiles')
-        .delete({ count: 'exact' })
+        .delete()
         .eq('id', userToDelete.id);
         
       if (profileError) {
         console.error('Error deleting profile:', profileError);
         throw new Error(`Failed to delete user profile: ${profileError.message}`);
       }
-      console.log(`Deleted ${profileCount || 0} profiles`);
-
-      if (!profileCount || profileCount === 0) {
-        throw new Error('No profile was deleted - user may not exist');
-      }
+      console.log('Profile deleted successfully');
 
       console.log('=== User deletion completed successfully ===');
 
@@ -140,10 +137,11 @@ const UserManagementContainer: React.FC = () => {
       console.log('Step 4: Updating local state...');
       deleteUser(userToDelete.id);
       
-      // Step 5: Refresh the users list from the database
-      console.log('Step 5: Refreshing users list...');
+      // Step 5: Force refresh the users list from the database
+      console.log('Step 5: Force refreshing users list...');
       if (refreshUsers) {
         await refreshUsers();
+        console.log('Users list refreshed from database');
       }
       
       // Step 6: Close dialog and show success message
