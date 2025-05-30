@@ -42,13 +42,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUsers = async () => {
     try {
-      console.log('Fetching users from database...');
+      console.log('AuthContext: Fetching users from database...');
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .order('name');
         
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching users:', error);
+        throw error;
+      }
       
       // Convert profiles to extended users
       const extendedUsers = data.map(profile => ({
@@ -78,15 +81,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         is_anonymous: false
       })) as User[];
       
-      console.log(`Fetched ${extendedUsers.length} users`);
+      console.log(`AuthContext: Successfully fetched ${extendedUsers.length} users`);
       setUsers(extendedUsers);
+      return extendedUsers;
     } catch (error) {
-      console.error("Error fetching users:", error);
+      console.error("AuthContext: Error fetching users:", error);
+      throw error;
     }
   };
 
   const refreshUsers = async () => {
-    await fetchUsers();
+    try {
+      console.log('AuthContext: Refreshing users list...');
+      await fetchUsers();
+      console.log('AuthContext: Users list refreshed successfully');
+    } catch (error) {
+      console.error('AuthContext: Error refreshing users:', error);
+    }
   };
 
   useEffect(() => {
@@ -328,10 +339,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const deleteUser = (userId: string) => {
-    console.log('Removing user from local state:', userId);
+    console.log('AuthContext: Removing user from local state:', userId);
     setUsers(prevUsers => {
       const newUsers = prevUsers.filter(u => u.id !== userId);
-      console.log(`Users updated: ${prevUsers.length} -> ${newUsers.length}`);
+      console.log(`AuthContext: Users count updated: ${prevUsers.length} -> ${newUsers.length}`);
       return newUsers;
     });
   };
