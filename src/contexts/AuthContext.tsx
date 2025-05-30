@@ -4,6 +4,7 @@ import { supabase } from "../integrations/supabase/client";
 import { toast } from "sonner";
 import { User, Profile, CreateUserData } from "../types";
 import { sendEmail } from "../utils/emailNotifications";
+import { UserDeletionService } from "../components/admin/user/UserDeletionService";
 
 interface AuthContextType {
   user: User | null;
@@ -42,48 +43,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const fetchUsers = async () => {
     try {
-      console.log('AuthContext: Fetching fresh users from database...');
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('name');
-        
-      if (error) {
-        console.error('Error fetching users:', error);
-        throw error;
-      }
-      
-      // Convert profiles to extended users
-      const extendedUsers = data.map(profile => ({
-        id: profile.id,
-        email: profile.email,
-        name: profile.name,
-        role: profile.role as 'admin' | 'user',
-        department: profile.department,
-        profileImage: profile.profile_image,
-        // Add required Supabase User properties with defaults
-        app_metadata: {},
-        user_metadata: {},
-        aud: 'authenticated',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        email_confirmed_at: new Date().toISOString(),
-        phone_confirmed_at: null,
-        confirmation_sent_at: null,
-        recovery_sent_at: null,
-        email_change_sent_at: null,
-        new_email: null,
-        invited_at: null,
-        action_link: null,
-        phone: null,
-        new_phone: null,
-        last_sign_in_at: null,
-        is_anonymous: false
-      })) as User[];
-      
-      console.log(`AuthContext: Successfully fetched ${extendedUsers.length} users from database`);
-      setUsers(extendedUsers);
-      return extendedUsers;
+      const freshUsers = await UserDeletionService.fetchAllUsers();
+      setUsers(freshUsers);
+      return freshUsers;
     } catch (error) {
       console.error("AuthContext: Error fetching users:", error);
       throw error;

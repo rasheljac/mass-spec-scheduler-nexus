@@ -9,17 +9,9 @@ import UserTable from "../UserTable";
 import EditUserDialog from "../EditUserDialog";
 import PasswordDialog from "../PasswordDialog";
 import AddUserDialog from "../AddUserDialog";
+import UserDeletionDialog from "./UserDeletionDialog";
+import { UserDeletionService } from "./UserDeletionService";
 import { supabase } from "../../../integrations/supabase/client";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../../ui/alert-dialog";
 
 const UserManagementContainer: React.FC = () => {
   const { user: currentUser, updateUserProfile, updateUserPassword, users, createUser, deleteUser, refreshUsers } = useAuth();
@@ -89,62 +81,18 @@ const UserManagementContainer: React.FC = () => {
     setIsDeleting(true);
     
     try {
-      console.log('=== Starting comprehensive user deletion ===');
-      console.log('User to delete:', userToDelete.id, userToDelete.email);
+      // Use the new deletion service
+      await UserDeletionService.deleteUserCompletely(userToDelete);
       
-      // Step 1: Delete all comments associated with the user
-      console.log('Step 1: Deleting user comments...');
-      const { error: commentsError } = await supabase
-        .from('comments')
-        .delete()
-        .eq('user_id', userToDelete.id);
-      
-      if (commentsError) {
-        console.error('Error deleting comments:', commentsError);
-        throw new Error(`Failed to delete user comments: ${commentsError.message}`);
-      }
-      console.log('Comments deleted successfully');
-
-      // Step 2: Delete all bookings associated with the user
-      console.log('Step 2: Deleting user bookings...');
-      const { error: bookingsError } = await supabase
-        .from('bookings')
-        .delete()
-        .eq('user_id', userToDelete.id);
-      
-      if (bookingsError) {
-        console.error('Error deleting bookings:', bookingsError);
-        throw new Error(`Failed to delete user bookings: ${bookingsError.message}`);
-      }
-      console.log('Bookings deleted successfully');
-
-      // Step 3: Delete the user profile
-      console.log('Step 3: Deleting user profile...');
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userToDelete.id);
-        
-      if (profileError) {
-        console.error('Error deleting profile:', profileError);
-        throw new Error(`Failed to delete user profile: ${profileError.message}`);
-      }
-      console.log('Profile deleted successfully');
-
-      console.log('=== User deletion completed successfully ===');
-
-      // Step 4: Update local state immediately
-      console.log('Step 4: Updating local state...');
+      // Update local state immediately
       deleteUser(userToDelete.id);
       
-      // Step 5: Force refresh the users list from the database
-      console.log('Step 5: Force refreshing users list...');
+      // Force refresh the users list from the database
       if (refreshUsers) {
         await refreshUsers();
-        console.log('Users list refreshed from database');
       }
       
-      // Step 6: Close dialog and show success message
+      // Close dialog and show success message
       setIsDeleteDialogOpen(false);
       setUserToDelete(null);
       
@@ -153,11 +101,8 @@ const UserManagementContainer: React.FC = () => {
         description: `User ${userToDelete.name} and all associated data have been permanently deleted.`
       });
       
-      console.log('=== User deletion process completed ===');
-      
     } catch (error) {
-      console.error('=== User deletion failed ===');
-      console.error('Error details:', error);
+      console.error('User deletion failed:', error);
       
       toast({
         title: "Delete failed",
@@ -301,33 +246,13 @@ const UserManagementContainer: React.FC = () => {
         onSave={handleAddUser}
       />
 
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete User Permanently</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to permanently delete user "{userToDelete?.name}" ({userToDelete?.email})? 
-              <br /><br />
-              <strong>This action cannot be undone and will permanently delete:</strong>
-              <ul className="list-disc list-inside mt-2 space-y-1">
-                <li>User profile and account data</li>
-                <li>All bookings created by this user</li>
-                <li>All comments made by this user</li>
-              </ul>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteConfirm}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? "Deleting..." : "Delete Permanently"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <UserDeletionDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        onConfirm={handleDeleteConfirm}
+        user={userToDelete}
+        isDeleting={isDeleting}
+      />
     </Card>
   );
 };
