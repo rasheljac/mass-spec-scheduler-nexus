@@ -211,7 +211,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     // The profile will be created automatically by the trigger
-    // No need to return the data since the interface expects void
   };
 
   const logout = async () => {
@@ -330,7 +329,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const deleteUser = (userId: string) => {
     console.log('Removing user from local state:', userId);
-    setUsers(prevUsers => prevUsers.filter(u => u.id !== userId));
+    setUsers(prevUsers => {
+      const newUsers = prevUsers.filter(u => u.id !== userId);
+      console.log(`Users updated: ${prevUsers.length} -> ${newUsers.length}`);
+      return newUsers;
+    });
   };
 
   const refreshCurrentUser = async () => {

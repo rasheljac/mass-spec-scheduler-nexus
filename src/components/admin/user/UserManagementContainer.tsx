@@ -91,28 +91,31 @@ const UserManagementContainer: React.FC = () => {
     try {
       console.log('Starting user deletion process for:', userToDelete.id);
       
-      // First, delete related data (comments, bookings, etc.)
+      // Delete related data first (comments, bookings, etc.)
+      console.log('Deleting user comments...');
       const { error: commentsError } = await supabase
         .from('comments')
         .delete()
         .eq('user_id', userToDelete.id);
       
       if (commentsError) {
-        console.error('Error deleting user comments:', commentsError);
+        console.warn('Error deleting user comments:', commentsError);
         // Continue anyway, this might not be critical
       }
 
+      console.log('Deleting user bookings...');
       const { error: bookingsError } = await supabase
         .from('bookings')
         .delete()
         .eq('user_id', userToDelete.id);
       
       if (bookingsError) {
-        console.error('Error deleting user bookings:', bookingsError);
+        console.warn('Error deleting user bookings:', bookingsError);
         // Continue anyway, this might not be critical
       }
 
-      // Delete the profile
+      // Delete the profile (this is the most important part)
+      console.log('Deleting user profile...');
       const { error: profileError } = await supabase
         .from('profiles')
         .delete()
@@ -125,23 +128,12 @@ const UserManagementContainer: React.FC = () => {
 
       console.log('Profile deleted successfully');
 
-      // Try to delete the auth user (this might fail due to permissions, but profile deletion is what matters most)
-      try {
-        const { error: authError } = await supabase.auth.admin.deleteUser(userToDelete.id);
-        if (authError) {
-          console.warn('Could not delete auth user (this is expected in client-side code):', authError.message);
-          // This is expected to fail from client-side, but the profile deletion is what matters
-        }
-      } catch (authDeleteError) {
-        console.warn('Auth user deletion failed (expected):', authDeleteError);
-        // This is expected from client-side
-      }
-
-      // Update local state
+      // Update local state immediately
       deleteUser(userToDelete.id);
       
       // Refresh users list to ensure consistency
       if (refreshUsers) {
+        console.log('Refreshing users list...');
         await refreshUsers();
       }
       
@@ -150,7 +142,7 @@ const UserManagementContainer: React.FC = () => {
       
       toast({
         title: "User deleted",
-        description: "User has been deleted successfully"
+        description: "User profile and associated data have been deleted successfully"
       });
       
     } catch (error) {
@@ -303,7 +295,7 @@ const UserManagementContainer: React.FC = () => {
             <AlertDialogTitle>Delete User</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete user "{userToDelete?.name}" ({userToDelete?.email})? 
-              This action cannot be undone and will delete all associated data including bookings and comments.
+              This action cannot be undone and will delete the user profile and all associated data including bookings and comments.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
