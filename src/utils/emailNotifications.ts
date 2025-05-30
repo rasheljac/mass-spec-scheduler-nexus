@@ -1,4 +1,3 @@
-
 import { supabase } from "../integrations/supabase/client";
 import { shouldSendEmail } from "./emailPreferences";
 
@@ -67,6 +66,38 @@ export const sendEmail = async (notification: EmailNotification & { emailType?: 
     console.error("Failed to send email - full error:", error);
     return false;
   }
+};
+
+export const createWelcomeNotification = (
+  userEmail: string, 
+  userName: string
+): EmailNotification => {
+  return {
+    to: userEmail,
+    subject: `Welcome to Lab Management System, ${userName}!`,
+    body: `
+Dear ${userName},
+
+Welcome to our lab management platform! We're excited to have you join our community.
+
+Your account has been successfully created and you're ready to start managing your laboratory instruments and bookings.
+
+What you can do now:
+- Book instruments and manage your reservations
+- Browse available laboratory instruments
+- Track your usage and booking history
+- Collaborate with team members through comments
+
+Thank you for joining the Lab Management System.
+
+Best regards,
+Lab Management Team
+    `,
+    templateType: "welcome",
+    variables: {
+      userName: userName || ""
+    }
+  };
 };
 
 export const createBookingNotification = (

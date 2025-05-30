@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Card } from "../ui/card";
 import { Button } from "../ui/button";
@@ -39,7 +38,76 @@ const EmailTemplatesManagement: React.FC = () => {
       setHasChanges(false);
     } else {
       // Set default HTML templates if none exist
-      if (activeTemplate === "booking_confirmation") {
+      if (activeTemplate === "welcome") {
+        setFormData({
+          subject: "Welcome to Lab Management System, {{userName}}!",
+          htmlContent: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Welcome</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 0 auto; background-color: white; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 20px; text-align: center; }
+    .header h1 { margin: 0; font-size: 28px; font-weight: 300; }
+    .content { padding: 40px 30px; }
+    .welcome-box { background-color: #f8fafc; padding: 25px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #667eea; }
+    .feature-list { background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0; }
+    .feature-item { display: flex; align-items: center; margin: 10px 0; }
+    .feature-icon { color: #667eea; margin-right: 10px; font-weight: bold; }
+    .cta-button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; margin: 20px 0; font-weight: bold; }
+    .footer { background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔬 Welcome to Lab Management</h1>
+    </div>
+    <div class="content">
+      <div class="welcome-box">
+        <h2 style="margin-top: 0; color: #333;">Hello {{userName}}!</h2>
+        <p>We're excited to have you join our lab management community. Your account has been successfully created and you're ready to start managing your laboratory instruments and bookings.</p>
+      </div>
+      
+      <h3 style="color: #333;">What you can do now:</h3>
+      <div class="feature-list">
+        <div class="feature-item">
+          <span class="feature-icon">📅</span>
+          <span>Book instruments and manage your reservations</span>
+        </div>
+        <div class="feature-item">
+          <span class="feature-icon">🔍</span>
+          <span>Browse available laboratory instruments</span>
+        </div>
+        <div class="feature-item">
+          <span class="feature-icon">📊</span>
+          <span>Track your usage and booking history</span>
+        </div>
+        <div class="feature-item">
+          <span class="feature-icon">💬</span>
+          <span>Collaborate with team members through comments</span>
+        </div>
+      </div>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="#" class="cta-button">Start Exploring →</a>
+      </div>
+      
+      <p style="color: #666; font-size: 14px;">
+        <strong>Need help?</strong> Our support team is here to assist you. Feel free to reach out if you have any questions about using the platform.
+      </p>
+    </div>
+    <div class="footer">
+      <p><strong>Lab Management System</strong></p>
+      <p>Your trusted partner in laboratory efficiency</p>
+    </div>
+  </div>
+</body>
+</html>`
+        });
+      } else if (activeTemplate === "booking_confirmation") {
         setFormData({
           subject: "Booking Confirmation: {{instrumentName}}",
           htmlContent: `<!DOCTYPE html>
@@ -268,6 +336,7 @@ const EmailTemplatesManagement: React.FC = () => {
   };
 
   const availableVariables = {
+    welcome: ["{{userName}}"],
     booking_confirmation: ["{{userName}}", "{{instrumentName}}", "{{startDate}}", "{{endDate}}", "{{status}}"],
     booking_update: ["{{userName}}", "{{instrumentName}}", "{{startDate}}", "{{endDate}}", "{{status}}"],
     comment_added: ["{{userName}}", "{{instrumentName}}", "{{startDate}}", "{{endDate}}", "{{commentAuthor}}", "{{commentContent}}", "{{commentTime}}"]
@@ -285,6 +354,7 @@ const EmailTemplatesManagement: React.FC = () => {
 
         <Tabs value={activeTemplate} onValueChange={setActiveTemplate}>
           <TabsList>
+            <TabsTrigger value="welcome">Welcome Email</TabsTrigger>
             <TabsTrigger value="booking_confirmation">Booking Confirmation</TabsTrigger>
             <TabsTrigger value="booking_update">Booking Update</TabsTrigger>
             <TabsTrigger value="comment_added">Comment Added</TabsTrigger>

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card } from "../../ui/card";
 import { Button } from "../../ui/button";
@@ -64,23 +63,33 @@ const UserManagementContainer: React.FC = () => {
 
   const handleDelete = async (userId: string) => {
     try {
-      const { error } = await supabase
+      console.log('Attempting to delete user:', userId);
+      
+      // First delete the profile
+      const { error: profileError } = await supabase
         .from('profiles')
         .delete()
         .eq('id', userId);
         
-      if (error) throw error;
+      if (profileError) {
+        console.error('Error deleting profile:', profileError);
+        throw profileError;
+      }
+
+      // Then delete the auth user (this requires service role key)
+      // Since we can't delete auth users from client, we'll just remove from local state
+      // The auth user deletion should be handled by cascade delete or manually by admin
       
       deleteUser(userId);
       toast({
         title: "User deleted",
-        description: "User has been deleted successfully"
+        description: "User profile has been deleted successfully"
       });
     } catch (error) {
       console.error('Error deleting user:', error);
       toast({
         title: "Delete failed",
-        description: "Failed to delete user",
+        description: "Failed to delete user: " + (error as Error).message,
         variant: "destructive"
       });
     }

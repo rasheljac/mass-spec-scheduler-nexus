@@ -42,14 +42,14 @@ const AdminPage: React.FC = () => {
       )}
       
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid grid-cols-7 w-[800px]">
-          <TabsTrigger value="pending-bookings">Pending Bookings</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="instruments">Instruments</TabsTrigger>
-          <TabsTrigger value="delays">Schedule Delays</TabsTrigger>
-          <TabsTrigger value="status-colors">Status Colors</TabsTrigger>
-          <TabsTrigger value="smtp">SMTP Settings</TabsTrigger>
-          <TabsTrigger value="email-templates">Email Templates</TabsTrigger>
+        <TabsList className="grid grid-cols-7 w-full max-w-4xl">
+          <TabsTrigger value="pending-bookings" className="px-2 py-2 text-sm">Pending Bookings</TabsTrigger>
+          <TabsTrigger value="users" className="px-2 py-2 text-sm">Users</TabsTrigger>
+          <TabsTrigger value="instruments" className="px-2 py-2 text-sm">Instruments</TabsTrigger>
+          <TabsTrigger value="delays" className="px-2 py-2 text-sm">Schedule Delays</TabsTrigger>
+          <TabsTrigger value="status-colors" className="px-2 py-2 text-sm">Status Colors</TabsTrigger>
+          <TabsTrigger value="smtp" className="px-2 py-2 text-sm">SMTP Settings</TabsTrigger>
+          <TabsTrigger value="email-templates" className="px-2 py-2 text-sm">Email Templates</TabsTrigger>
         </TabsList>
         
         <TabsContent value="pending-bookings" className="mt-6">

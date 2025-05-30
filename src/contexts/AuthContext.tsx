@@ -3,6 +3,7 @@ import { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { supabase } from "../integrations/supabase/client";
 import { toast } from "sonner";
 import { User, Profile, CreateUserData } from "../types";
+import { sendEmail } from "../utils/emailNotifications";
 
 interface AuthContextType {
   user: User | null;
@@ -146,6 +147,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [user]);
 
+  const sendWelcomeEmail = async (email: string, name: string) => {
+    try {
+      console.log('Sending welcome email to:', email);
+      
+      const welcomeEmail = {
+        to: email,
+        subject: `Welcome to Lab Management System, ${name}!`,
+        body: `Welcome to our lab management platform!`,
+        templateType: "welcome",
+        variables: {
+          userName: name
+        }
+      };
+      
+      const emailSent = await sendEmail(welcomeEmail);
+      if (emailSent) {
+        console.log('Welcome email sent successfully');
+      } else {
+        console.log('Welcome email sending failed');
+      }
+    } catch (error) {
+      console.error('Error sending welcome email:', error);
+    }
+  };
+
   const login = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -167,6 +193,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     
     if (error) throw error;
+    
+    // Send welcome email after successful signup
+    if (data.user) {
+      setTimeout(() => {
+        sendWelcomeEmail(email, name);
+      }, 2000); // Wait 2 seconds for the profile to be created
+    }
     
     // The profile will be created automatically by the trigger
     // No need to return the data since the interface expects void
@@ -194,7 +227,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Generate a password if not provided
       const password = userData.password || Math.random().toString(36).slice(-8) + 'A1!';
       
-      // Use signup instead of admin.createUser
+      // Use signup method to create user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: password,
@@ -218,8 +251,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('User created successfully:', authData.user.id);
 
-      // The profile should be created by the trigger, but let's ensure it exists
-      // Wait a moment for the trigger to execute
+      // Send welcome email
+      setTimeout(() => {
+        sendWelcomeEmail(userData.email, userData.name);
+      }, 2000);
+
+      // Handle profile creation and update users list
       setTimeout(async () => {
         try {
           const { data: profileData, error: profileError } = await supabase
