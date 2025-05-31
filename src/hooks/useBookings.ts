@@ -1,4 +1,3 @@
-
 import { useState, useCallback } from "react";
 import { Booking, Comment, User } from "../types";
 import { supabase } from "../integrations/supabase/client";
@@ -7,6 +6,7 @@ import { createDelayNotification, sendEmail } from "../utils/emailNotifications"
 
 export const useBookings = (users: User[]) => {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [emailsSent, setEmailsSent] = useState<Set<string>>(new Set()); // Track sent emails to prevent duplicates
 
   // Helper function to find user email by userId
   const getUserEmailById = (userId: string): string => {
@@ -18,6 +18,34 @@ export const useBookings = (users: User[]) => {
   const getUserNameById = (userId: string): string => {
     const user = users.find(u => u.id === userId);
     return user?.name || "Unknown User";
+  };
+
+  // Helper function to create a unique email key to prevent duplicates
+  const createEmailKey = (type: string, bookingId: string, timestamp: number): string => {
+    return `${type}-${bookingId}-${Math.floor(timestamp / 10000)}`; // Group by 10 second windows
+  };
+
+  // Helper function to send email with deduplication
+  const sendEmailSafely = async (emailKey: string, emailFunction: () => Promise<void>) => {
+    if (emailsSent.has(emailKey)) {
+      console.log("Email already sent, skipping:", emailKey);
+      return;
+    }
+
+    try {
+      await emailFunction();
+      setEmailsSent(prev => new Set(prev).add(emailKey));
+      // Clean up old email keys after 5 minutes to prevent memory buildup
+      setTimeout(() => {
+        setEmailsSent(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(emailKey);
+          return newSet;
+        });
+      }, 300000);
+    } catch (error) {
+      console.error("Failed to send email:", error);
+    }
   };
 
   // Load bookings from Supabase
@@ -147,8 +175,9 @@ export const useBookings = (users: User[]) => {
         // Reload bookings to get the updated list
         await loadBookings();
         
-        // Send email notification for new booking
-        try {
+        // Send email notification for new booking with deduplication
+        const emailKey = createEmailKey("booking_created", data[0].id, Date.now());
+        await sendEmailSafely(emailKey, async () => {
           const userEmail = getUserEmailById(bookingData.userId);
           if (userEmail) {
             console.log("Sending booking confirmation email to:", userEmail);
@@ -193,10 +222,7 @@ export const useBookings = (users: User[]) => {
             console.warn("No email found for user:", bookingData.userId);
             toast.success("Booking created (no email configured)");
           }
-        } catch (emailError) {
-          console.error("Failed to send booking confirmation email:", emailError);
-          toast.success("Booking created but email notification failed");
-        }
+        });
         
         return data[0];
       } else {
@@ -252,9 +278,10 @@ export const useBookings = (users: User[]) => {
       // Reload bookings to get the updated list
       await loadBookings();
       
-      // Send status update notification only if booking fields have changed (not comments)
+      // Send status update notification only if booking fields have changed (not comments) with deduplication
       if (bookingFieldsChanged) {
-        try {
+        const emailKey = createEmailKey("booking_updated", bookingData.id, Date.now());
+        await sendEmailSafely(emailKey, async () => {
           const userEmail = getUserEmailById(bookingData.userId);
           if (userEmail) {
             console.log("Sending booking update email to:", userEmail);
@@ -293,9 +320,7 @@ export const useBookings = (users: User[]) => {
               console.log("Booking update email sent successfully:", emailData);
             }
           }
-        } catch (emailError) {
-          console.error("Failed to send booking update email:", emailError);
-        }
+        });
       }
       
       toast.success("Booking updated successfully");
@@ -366,9 +391,10 @@ export const useBookings = (users: User[]) => {
         // Reload bookings to update comments
         await loadBookings();
         
-        // Send email notification for new comment if commenter is not the booking owner
+        // Send email notification for new comment if commenter is not the booking owner with deduplication
         if (comment.userId !== booking.userId) {
-          try {
+          const emailKey = createEmailKey("comment_added", bookingId, Date.now());
+          await sendEmailSafely(emailKey, async () => {
             const userEmail = getUserEmailById(booking.userId);
             const commentAuthor = comment.userName || getUserNameById(comment.userId);
             
@@ -419,10 +445,7 @@ export const useBookings = (users: User[]) => {
             } else {
               toast.success("Comment added successfully");
             }
-          } catch (emailError) {
-            console.error("Failed to send comment notification email:", emailError);
-            toast.success("Comment added (email notification failed)");
-          }
+          });
         } else {
           toast.success("Comment added successfully");
         }
@@ -461,7 +484,6 @@ export const useBookings = (users: User[]) => {
     } catch (error) {
       console.error("Error deleting comment:", error);
       toast.error("Failed to delete comment");
-      throw error;
     }
   };
 
