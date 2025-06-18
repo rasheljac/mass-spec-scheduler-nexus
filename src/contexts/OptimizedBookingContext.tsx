@@ -87,32 +87,19 @@ export const OptimizedBookingProvider = ({ children }: { children: React.ReactNo
     } catch (error) {
       console.error("OptimizedBookingContext: Error refreshing data:", error);
     }
-  }, [isAuthenticated, instrumentsHook.loadInstruments, bookingsHook.loadBookings, loadStatusColors]);
+  }, [isAuthenticated, instrumentsHook, bookingsHook, loadStatusColors]);
 
-  // Initialize data only once when authenticated
+  // Initialize data when authenticated and not already initialized
   useEffect(() => {
-    const initializeData = async () => {
-      if (!isAuthenticated || authLoading || isInitialized) {
-        return;
-      }
-      
-      console.log("OptimizedBookingContext: Initializing data");
-      await refreshData();
+    if (isAuthenticated && !authLoading && !isInitialized) {
+      console.log("OptimizedBookingContext: Initializing data for authenticated user");
       setIsInitialized(true);
-    };
-
-    initializeData();
-  }, [isAuthenticated, authLoading, isInitialized, refreshData]);
-
-  // Reset initialization state when auth changes
-  useEffect(() => {
-    if (authLoading) {
+      refreshData();
+    } else if (!isAuthenticated && !authLoading) {
+      console.log("OptimizedBookingContext: User not authenticated, resetting initialization");
       setIsInitialized(false);
-    } else if (!isAuthenticated) {
-      console.log("OptimizedBookingContext: Not authenticated");
-      setIsInitialized(true);
     }
-  }, [authLoading, isAuthenticated]);
+  }, [isAuthenticated, authLoading, isInitialized, refreshData]);
 
   // Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
@@ -133,19 +120,9 @@ export const OptimizedBookingProvider = ({ children }: { children: React.ReactNo
     isLoading,
     refreshData
   }), [
-    bookingsHook.bookings,
-    bookingsHook.setBookings,
-    instrumentsHook.instruments,
-    instrumentsHook.addInstrument,
-    instrumentsHook.updateInstrument,
-    instrumentsHook.deleteInstrument,
-    bookingsHook.deleteBooking,
-    bookingsHook.createBooking,
-    bookingsHook.updateBooking,
-    bookingsHook.applyDelay,
+    bookingsHook,
+    instrumentsHook,
     statistics,
-    bookingsHook.addCommentToBooking,
-    bookingsHook.deleteCommentFromBooking,
     getStatusColor,
     isLoading,
     refreshData
