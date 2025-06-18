@@ -1,9 +1,9 @@
 
 import React, { useEffect, useState } from "react";
 import { Routes, Route } from "react-router-dom";
-import { BookingProvider } from "./contexts/BookingContext";
+import { OptimizedBookingProvider } from "./contexts/OptimizedBookingContext";
 import { AuthProvider } from "./contexts/AuthContext";
-import AppLayout from "./components/layout/AppLayout";
+import OptimizedAppLayout from "./components/layout/OptimizedAppLayout";
 import Dashboard from "./pages/Dashboard";
 import CalendarPage from "./pages/CalendarPage";
 import InstrumentsPage from "./pages/InstrumentsPage";
@@ -27,15 +27,16 @@ function App() {
   const [supabaseError, setSupabaseError] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   
-  // Function to check Supabase connection
+  // Optimized Supabase connection check
   const checkSupabase = async () => {
     try {
       setIsRetrying(true);
       console.log("Checking Supabase connection");
-      // Just check if Supabase is accessible
+      
+      // Simple, fast connection check
       const { error } = await supabase.from('profiles').select('count').limit(1);
       
-      if (error && error.code !== 'PGRST116') {  // PGRST116 is 'JWT role claim invalid' which is normal when not logged in
+      if (error && error.code !== 'PGRST116') {
         console.error('Supabase connection error:', error);
         toast.error('Failed to connect to database');
         setSupabaseError(true);
@@ -45,7 +46,6 @@ function App() {
         setSupabaseReady(true);
         setSupabaseError(false);
         
-        // If we were previously in error state, show success message
         if (supabaseError) {
           toast.success('Connection restored successfully');
         }
@@ -64,7 +64,7 @@ function App() {
   useEffect(() => {
     checkSupabase();
     
-    // Listen for auth state changes
+    // Optimized auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("Auth state changed:", event, session?.user?.email);
     });
@@ -116,10 +116,10 @@ function App() {
 
   return (
     <AuthProvider>
-      <BookingProvider>
+      <OptimizedBookingProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<AppLayout />}>
+          <Route path="/" element={<OptimizedAppLayout />}>
             <Route index element={<Index />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/calendar" element={<CalendarPage />} />
@@ -133,7 +133,7 @@ function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
         <Toaster richColors />
-      </BookingProvider>
+      </OptimizedBookingProvider>
     </AuthProvider>
   );
 }
