@@ -1,14 +1,15 @@
 
 import React from "react";
-import { useBooking } from "../contexts/BookingContext";
+import { useOptimizedBooking } from "../contexts/OptimizedBookingContext";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 
 const InstrumentsPage: React.FC = () => {
-  const { instruments } = useBooking();
+  const { instruments, isLoading } = useOptimizedBooking();
   const { isAuthenticated } = useAuth();
 
   // Helper to determine the status color
@@ -33,13 +34,22 @@ const InstrumentsPage: React.FC = () => {
     );
   }
 
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-6 max-w-7xl flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
+        <span className="ml-2 text-lg text-mslab-400">Loading instruments...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="container py-6 space-y-6">
       <h1 className="text-3xl font-bold tracking-tight">Instruments</h1>
       
       {instruments.length === 0 ? (
         <div className="text-center py-10">
-          <p className="text-muted-foreground">Loading instruments...</p>
+          <p className="text-muted-foreground">No instruments available. Contact your administrator to add instruments.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

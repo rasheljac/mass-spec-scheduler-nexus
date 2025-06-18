@@ -6,6 +6,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useOptimizedBooking } from "../../contexts/OptimizedBookingContext";
 import Footer from "./Footer";
 import { Loader2 } from "lucide-react";
+import ErrorBoundary from "../ErrorBoundary";
 
 const OptimizedAppLayout: React.FC = () => {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
@@ -102,22 +103,26 @@ const OptimizedAppLayout: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar />
-      <main className="flex-1">
-        {showDashboardLoading ? (
-          <div className="flex items-center justify-center h-full min-h-[60vh]">
-            <div className="flex flex-col items-center space-y-4">
-              <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
-              <span className="text-lg text-mslab-400">Loading data...</span>
+    <ErrorBoundary>
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <main className="flex-1">
+          {showDashboardLoading ? (
+            <div className="flex items-center justify-center h-full min-h-[60vh]">
+              <div className="flex flex-col items-center space-y-4">
+                <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
+                <span className="text-lg text-mslab-400">Loading data...</span>
+              </div>
             </div>
-          </div>
-        ) : (
-          <Outlet />
-        )}
-      </main>
-      <Footer />
-    </div>
+          ) : (
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
+          )}
+        </main>
+        <Footer />
+      </div>
+    </ErrorBoundary>
   );
 };
 

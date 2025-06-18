@@ -21,6 +21,7 @@ import { supabase } from "./integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "./components/ui/button";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 function App() {
   const [supabaseReady, setSupabaseReady] = useState(false);
@@ -115,26 +116,28 @@ function App() {
   }
 
   return (
-    <AuthProvider>
-      <OptimizedBookingProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<OptimizedAppLayout />}>
-            <Route index element={<Index />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/calendar" element={<CalendarPage />} />
-            <Route path="/instruments" element={<InstrumentsPage />} />
-            <Route path="/my-bookings" element={<MyBookingsPage />} />
-            <Route path="/analytics" element={<AnalyticsPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        <Toaster richColors />
-      </OptimizedBookingProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <OptimizedBookingProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/" element={<OptimizedAppLayout />}>
+              <Route index element={<Index />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/calendar" element={<CalendarPage />} />
+              <Route path="/instruments" element={<InstrumentsPage />} />
+              <Route path="/my-bookings" element={<MyBookingsPage />} />
+              <Route path="/analytics" element={<AnalyticsPage />} />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          <Toaster richColors />
+        </OptimizedBookingProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

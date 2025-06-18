@@ -1,7 +1,7 @@
 
 import React from "react";
 import { Badge } from "../ui/badge";
-import { useBooking } from "../../contexts/BookingContext";
+import { useOptimizedBooking } from "../../contexts/OptimizedBookingContext";
 
 interface StatusBadgeProps {
   status: string;
@@ -9,7 +9,7 @@ interface StatusBadgeProps {
 }
 
 const StatusBadge: React.FC<StatusBadgeProps> = ({ status, className = "" }) => {
-  const { getStatusColor } = useBooking();
+  const { getStatusColor } = useOptimizedBooking();
   
   const formatStatusName = (status: string) => {
     return status.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
