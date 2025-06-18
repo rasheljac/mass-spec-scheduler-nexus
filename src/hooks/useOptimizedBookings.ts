@@ -34,36 +34,37 @@ export const useOptimizedBookings = (users: User[]) => {
     try {
       console.log("Loading bookings with optimized queries");
       
-      // Single query with joins for better performance
-      const { data: bookingsData, error } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          instruments!inner(name),
-          profiles!inner(name)
-        `);
+      // Fetch bookings, instruments, and profiles separately
+      const [bookingsResult, instrumentsResult, profilesResult] = await Promise.all([
+        supabase.from('bookings').select('*'),
+        supabase.from('instruments').select('id, name'),
+        supabase.from('profiles').select('id, name')
+      ]);
 
-      if (error) throw error;
+      if (bookingsResult.error) throw bookingsResult.error;
+      if (instrumentsResult.error) throw instrumentsResult.error;
+      if (profilesResult.error) throw profilesResult.error;
 
-      if (bookingsData) {
+      if (bookingsResult.data) {
+        // Create lookup maps for better performance
+        const instrumentsMap = new Map(instrumentsResult.data?.map(i => [i.id, i.name]) || []);
+        const profilesMap = new Map(profilesResult.data?.map(p => [p.id, p.name]) || []);
+
         // Get all comments in a single query
-        const bookingIds = bookingsData.map(b => b.id);
+        const bookingIds = bookingsResult.data.map(b => b.id);
         const { data: commentsData } = await supabase
           .from('comments')
-          .select(`
-            *,
-            profiles!inner(name)
-          `)
+          .select('*')
           .in('booking_id', bookingIds);
 
-        // Group comments by booking ID
+        // Group comments by booking ID and get user names
         const commentsByBooking = new Map<string, Comment[]>();
         commentsData?.forEach(comment => {
           const bookingComments = commentsByBooking.get(comment.booking_id) || [];
           bookingComments.push({
             id: comment.id,
             userId: comment.user_id,
-            userName: comment.profiles.name,
+            userName: profilesMap.get(comment.user_id) || "Unknown User",
             content: comment.content,
             createdAt: new Date(comment.created_at).toISOString()
           });
@@ -71,12 +72,12 @@ export const useOptimizedBookings = (users: User[]) => {
         });
 
         // Transform data efficiently
-        const formattedBookings: Booking[] = bookingsData.map(booking => ({
+        const formattedBookings: Booking[] = bookingsResult.data.map(booking => ({
           id: booking.id,
           userId: booking.user_id,
-          userName: booking.profiles.name,
+          userName: profilesMap.get(booking.user_id) || "Unknown User",
           instrumentId: booking.instrument_id,
-          instrumentName: booking.instruments.name,
+          instrumentName: instrumentsMap.get(booking.instrument_id) || "Unknown Instrument",
           start: new Date(booking.start_time).toISOString(),
           end: new Date(booking.end_time).toISOString(),
           purpose: booking.purpose,
