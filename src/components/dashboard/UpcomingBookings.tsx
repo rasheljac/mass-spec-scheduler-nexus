@@ -2,12 +2,12 @@
 import React, { useEffect } from "react";
 import { format, isToday, isTomorrow, startOfDay } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { useOptimizedBooking } from "../../contexts/OptimizedBookingContext";
+import { useBooking } from "../../contexts/BookingContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
 const UpcomingBookings: React.FC = () => {
-  const { bookings, isLoading, refreshData } = useOptimizedBooking();
+  const { bookings, isLoading, refreshData } = useBooking();
   const { user } = useAuth();
 
   // Refresh data when component mounts if no bookings are loaded

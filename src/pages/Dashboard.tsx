@@ -7,29 +7,26 @@ import UsageStatistics from "../components/dashboard/UsageStatistics";
 import { supabase } from "../integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
-import { useOptimizedBooking } from "../contexts/OptimizedBookingContext";
+import { useBooking } from "../contexts/BookingContext";
 import { Loader2 } from "lucide-react";
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { isLoading } = useOptimizedBooking();
+  const { isLoading } = useBooking();
   
   useEffect(() => {
-    // Lightweight connection check (only once per session)
+    // Check Supabase connection when dashboard loads
     const checkConnection = async () => {
-      if (!sessionStorage.getItem('connection_checked')) {
-        try {
-          const { error } = await supabase.from('instruments').select('count').limit(1);
-          if (error && error.code !== 'PGRST116') {
-            console.error('Error connecting to Supabase:', error);
-            toast.error('Error connecting to database');
-          } else {
-            console.log('Successfully connected to Supabase');
-            sessionStorage.setItem('connection_checked', 'true');
-          }
-        } catch (err) {
-          console.error('Unexpected error:', err);
+      try {
+        const { data, error } = await supabase.from('instruments').select('count');
+        if (error) {
+          console.error('Error connecting to Supabase:', error);
+          toast.error('Error connecting to database');
+        } else {
+          console.log('Successfully connected to Supabase');
         }
+      } catch (err) {
+        console.error('Unexpected error:', err);
       }
     };
     

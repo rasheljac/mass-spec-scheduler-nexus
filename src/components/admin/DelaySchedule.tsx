@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
@@ -10,7 +11,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Textarea } from "../ui/textarea";
-import { useOptimizedBooking } from "../../contexts/OptimizedBookingContext";
+import { useBooking } from "../../contexts/BookingContext";
 import { useToast } from "../../hooks/use-toast";
 import {
   Form,
@@ -43,7 +44,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const DelaySchedule: React.FC = () => {
-  const { applyDelay } = useOptimizedBooking();
+  const { applyDelay } = useBooking();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   

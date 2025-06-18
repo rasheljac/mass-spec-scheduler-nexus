@@ -6,7 +6,7 @@ import { Card } from "../ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
 import { cn } from "@/lib/utils";
-import { useOptimizedBooking } from "../../contexts/OptimizedBookingContext";
+import { useBooking } from "../../contexts/BookingContext";
 import { Booking } from "../../types";
 import BookingForm from "./BookingForm";
 import EditBookingForm from "./EditBookingForm";
@@ -20,40 +20,45 @@ import { supabase } from "../../integrations/supabase/client";
 type ViewMode = "day" | "week" | "month";
 
 const CalendarView: React.FC = () => {
-  const { bookings, instruments, updateBooking } = useOptimizedBooking();
+  const { bookings, instruments, updateBooking } = useBooking();
   const { user } = useAuth();
   const { statusColors, loadStatusColors, getStatusColor } = useStatusColors();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>("month");
+  const [viewMode, setViewMode] = useState<ViewMode>("month"); // Default to month view
   const [selectedInstrument, setSelectedInstrument] = useState<string>("all");
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
+  // Load status colors when component mounts
   useEffect(() => {
     loadStatusColors();
   }, [loadStatusColors]);
 
+  // Helper to get the week range displayed
   const weekRange = {
     start: startOfWeek(selectedDate, { weekStartsOn: 0 }),
     end: endOfWeek(selectedDate, { weekStartsOn: 0 })
   };
 
+  // Helper to get the month range displayed
   const monthRange = {
     start: startOfMonth(selectedDate),
     end: endOfMonth(selectedDate)
   };
 
+  // Helper function to safely parse ISO date strings
   const safeParseISO = (dateStr: string | Date): Date => {
     if (dateStr instanceof Date) return dateStr;
     try {
       return parseISO(dateStr);
     } catch (error) {
       console.error("Error parsing date:", error);
-      return new Date(dateStr);
+      return new Date(dateStr); // Fallback
     }
   };
 
+  // Get bookings for the current view (day, week, or month)
   const getVisibleBookings = (): Booking[] => {
     let filteredBookings = bookings;
 
@@ -90,6 +95,7 @@ const CalendarView: React.FC = () => {
 
   const visibleBookings = getVisibleBookings();
 
+  // Navigation functions
   const moveToday = () => setSelectedDate(new Date());
   const moveNext = () => {
     if (viewMode === "day") {
@@ -106,15 +112,17 @@ const CalendarView: React.FC = () => {
     } else if (viewMode === "week") {
       setSelectedDate(subWeeks(selectedDate, 1));
     } else if (viewMode === "month") {
-      setSelectedDate(subMonths(selectedDate, -1));
+      setSelectedDate(subMonths(selectedDate, 1));
     }
   };
 
+  // Format time for display
   const formatTime = (dateStr: string | Date) => {
     const date = typeof dateStr === 'string' ? safeParseISO(dateStr) : dateStr;
     return format(date, "h:mm a");
   };
 
+  // Format date range for display
   const formatDateRange = (start: string | Date, end: string | Date) => {
     const startDate = safeParseISO(start);
     const endDate = safeParseISO(end);
@@ -132,6 +140,7 @@ const CalendarView: React.FC = () => {
     setIsEditModalOpen(true);
   };
 
+  // Check if user can edit a booking
   const canEditBooking = (booking: Booking) => {
     if (!user) return false;
     return user.role === "admin" || booking.userId === user.id;
@@ -148,6 +157,7 @@ const CalendarView: React.FC = () => {
         setIsEditModalOpen(false);
         setSelectedBooking(null);
         
+        // Send email notification for booking update
         await sendEmailNotification(
           selectedBooking.userId,
           selectedBooking.userName,
@@ -176,6 +186,7 @@ const CalendarView: React.FC = () => {
     variables: Record<string, string>
   ) => {
     try {
+      // Get user email from profiles
       const { data: profileData } = await supabase
         .from('profiles')
         .select('email')
@@ -196,6 +207,7 @@ const CalendarView: React.FC = () => {
     }
   };
 
+  // Generate time slots for day view (9am to 5pm)
   const renderDayView = () => {
     const dayBookings = visibleBookings.sort((a, b) => 
       safeParseISO(a.start).getTime() - safeParseISO(b.start).getTime()
@@ -241,7 +253,9 @@ const CalendarView: React.FC = () => {
     );
   };
 
+  // Generate week view
   const renderWeekView = () => {
+    // Create an array of days for the current week
     const days = [];
     const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
     
@@ -331,12 +345,15 @@ const CalendarView: React.FC = () => {
     );
   };
 
+  // Generate month view
   const renderMonthView = () => {
+    // Get all days in the current month
     const days = eachDayOfInterval({
       start: monthRange.start,
       end: monthRange.end
     });
 
+    // Create calendar grid (6 weeks x 7 days)
     const startOfView = startOfWeek(monthRange.start, { weekStartsOn: 0 });
     const endOfView = endOfWeek(monthRange.end, { weekStartsOn: 0 });
     
@@ -345,6 +362,7 @@ const CalendarView: React.FC = () => {
       end: endOfView
     });
 
+    // Group by weeks
     const weeks: Date[][] = [];
     let currentWeek: Date[] = [];
     
@@ -367,6 +385,7 @@ const CalendarView: React.FC = () => {
         </h2>
         
         <div className="border rounded-md overflow-hidden">
+          {/* Week day headers */}
           <div className="grid grid-cols-7 bg-accent/50">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
               <div key={day} className="p-2 text-center font-medium">
@@ -375,6 +394,7 @@ const CalendarView: React.FC = () => {
             ))}
           </div>
 
+          {/* Calendar grid */}
           <div className="divide-y">
             {weeks.map((week, weekIndex) => (
               <div key={weekIndex} className="grid grid-cols-7 divide-x">

@@ -2,13 +2,13 @@
 import React, { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
-import { useOptimizedBooking } from "../../contexts/OptimizedBookingContext";
+import { useBooking } from "../../contexts/BookingContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { Loader2, Clock } from "lucide-react";
 import { format, isToday } from "date-fns";
 
 const CurrentBookings: React.FC = () => {
-  const { bookings, isLoading, refreshData } = useOptimizedBooking();
+  const { bookings, isLoading, refreshData } = useBooking();
   const { user } = useAuth();
 
   // Refresh data when component mounts if no bookings are loaded

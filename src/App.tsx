@@ -1,9 +1,9 @@
 
 import React, { useEffect, useState } from "react";
 import { Routes, Route } from "react-router-dom";
-import { OptimizedBookingProvider } from "./contexts/OptimizedBookingContext";
+import { BookingProvider } from "./contexts/BookingContext";
 import { AuthProvider } from "./contexts/AuthContext";
-import OptimizedAppLayout from "./components/layout/OptimizedAppLayout";
+import AppLayout from "./components/layout/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import CalendarPage from "./pages/CalendarPage";
 import InstrumentsPage from "./pages/InstrumentsPage";
@@ -21,23 +21,21 @@ import { supabase } from "./integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "./components/ui/button";
-import ErrorBoundary from "./components/ErrorBoundary";
 
 function App() {
   const [supabaseReady, setSupabaseReady] = useState(false);
   const [supabaseError, setSupabaseError] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   
-  // Optimized Supabase connection check
+  // Function to check Supabase connection
   const checkSupabase = async () => {
     try {
       setIsRetrying(true);
       console.log("Checking Supabase connection");
-      
-      // Simple, fast connection check
+      // Just check if Supabase is accessible
       const { error } = await supabase.from('profiles').select('count').limit(1);
       
-      if (error && error.code !== 'PGRST116') {
+      if (error && error.code !== 'PGRST116') {  // PGRST116 is 'JWT role claim invalid' which is normal when not logged in
         console.error('Supabase connection error:', error);
         toast.error('Failed to connect to database');
         setSupabaseError(true);
@@ -47,6 +45,7 @@ function App() {
         setSupabaseReady(true);
         setSupabaseError(false);
         
+        // If we were previously in error state, show success message
         if (supabaseError) {
           toast.success('Connection restored successfully');
         }
@@ -65,7 +64,7 @@ function App() {
   useEffect(() => {
     checkSupabase();
     
-    // Optimized auth state listener
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("Auth state changed:", event, session?.user?.email);
     });
@@ -116,28 +115,26 @@ function App() {
   }
 
   return (
-    <ErrorBoundary>
-      <AuthProvider>
-        <OptimizedBookingProvider>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/" element={<OptimizedAppLayout />}>
-              <Route index element={<Index />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/instruments" element={<InstrumentsPage />} />
-              <Route path="/my-bookings" element={<MyBookingsPage />} />
-              <Route path="/analytics" element={<AnalyticsPage />} />
-              <Route path="/admin" element={<AdminPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-            </Route>
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <Toaster richColors />
-        </OptimizedBookingProvider>
-      </AuthProvider>
-    </ErrorBoundary>
+    <AuthProvider>
+      <BookingProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<AppLayout />}>
+            <Route index element={<Index />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/instruments" element={<InstrumentsPage />} />
+            <Route path="/my-bookings" element={<MyBookingsPage />} />
+            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Route>
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+        <Toaster richColors />
+      </BookingProvider>
+    </AuthProvider>
   );
 }
 

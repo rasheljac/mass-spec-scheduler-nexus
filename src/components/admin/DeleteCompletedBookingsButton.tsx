@@ -13,13 +13,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
-import { useOptimizedBooking } from "../../contexts/OptimizedBookingContext";
+import { useBooking } from "../../contexts/BookingContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../integrations/supabase/client";
 import { toast } from "sonner";
 
 const DeleteCompletedBookingsButton: React.FC = () => {
-  const { bookings, refreshData } = useOptimizedBooking();
+  const { bookings, refreshData } = useBooking();
   const { user } = useAuth();
   const [isDeleting, setIsDeleting] = useState(false);
 

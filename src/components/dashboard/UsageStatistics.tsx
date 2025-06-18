@@ -2,10 +2,10 @@
 import React from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { useOptimizedBooking } from "../../contexts/OptimizedBookingContext";
+import { useBooking } from "../../contexts/BookingContext";
 
 const UsageStatistics: React.FC = () => {
-  const { statistics } = useOptimizedBooking();
+  const { statistics } = useBooking();
 
   // Format instrument usage for the chart
   const chartData = statistics.instrumentUsage.map(item => ({
