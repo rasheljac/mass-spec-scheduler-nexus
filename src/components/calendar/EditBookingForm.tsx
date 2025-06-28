@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from "react";
-import { useBooking } from "../../contexts/BookingContext";
+import { useOptimizedBooking } from "../../contexts/OptimizedBookingContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -34,7 +33,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   onCancel,
   isSubmitting = false,
 }) => {
-  const { instruments, updateBooking } = useBooking();
+  const { instruments, updateBooking } = useOptimizedBooking();
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [formData, setFormData] = useState({

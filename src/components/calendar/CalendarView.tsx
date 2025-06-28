@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { format, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay, parseISO, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval } from "date-fns";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Pencil } from "lucide-react";
 import { Button } from "../ui/button";
@@ -6,61 +6,30 @@ import { Card } from "../ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Calendar } from "../ui/calendar";
 import { cn } from "@/lib/utils";
-import { useBooking } from "../../contexts/BookingContext";
+import { useOptimizedBooking } from "../../contexts/OptimizedBookingContext";
 import { Booking } from "../../types";
 import BookingForm from "./BookingForm";
 import EditBookingForm from "./EditBookingForm";
 import StatusBadge from "./StatusBadge";
 import InstrumentFilter from "./InstrumentFilter";
 import { useAuth } from "../../contexts/AuthContext";
-import { toast } from "../ui/sonner";
-import { useStatusColors } from "../../hooks/useStatusColors";
-import { supabase } from "../../integrations/supabase/client";
+import { toast } from "sonner";
 
 type ViewMode = "day" | "week" | "month";
 
 const CalendarView: React.FC = () => {
-  const { bookings, instruments, updateBooking } = useBooking();
+  const { bookings, instruments, updateBooking, getStatusColor } = useOptimizedBooking();
   const { user } = useAuth();
-  const { statusColors, loadStatusColors, getStatusColor } = useStatusColors();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>("month"); // Default to month view
+  const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [selectedInstrument, setSelectedInstrument] = useState<string>("all");
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
-  // Load status colors when component mounts
-  useEffect(() => {
-    loadStatusColors();
-  }, [loadStatusColors]);
-
-  // Helper to get the week range displayed
-  const weekRange = {
-    start: startOfWeek(selectedDate, { weekStartsOn: 0 }),
-    end: endOfWeek(selectedDate, { weekStartsOn: 0 })
-  };
-
-  // Helper to get the month range displayed
-  const monthRange = {
-    start: startOfMonth(selectedDate),
-    end: endOfMonth(selectedDate)
-  };
-
-  // Helper function to safely parse ISO date strings
-  const safeParseISO = (dateStr: string | Date): Date => {
-    if (dateStr instanceof Date) return dateStr;
-    try {
-      return parseISO(dateStr);
-    } catch (error) {
-      console.error("Error parsing date:", error);
-      return new Date(dateStr); // Fallback
-    }
-  };
-
-  // Get bookings for the current view (day, week, or month)
-  const getVisibleBookings = (): Booking[] => {
-    let filteredBookings = bookings;
+  // Memoized filtered bookings
+  const visibleBookings = useMemo(() => {
+    let filteredBookings = bookings.filter(b => b.status !== "cancelled");
 
     if (selectedInstrument !== "all") {
       filteredBookings = filteredBookings.filter(booking => 
@@ -70,34 +39,43 @@ const CalendarView: React.FC = () => {
 
     if (viewMode === "day") {
       return filteredBookings.filter(booking => {
-        const bookingDate = safeParseISO(booking.start);
-        return isSameDay(bookingDate, selectedDate) && booking.status !== "cancelled";
+        const bookingDate = parseISO(booking.start);
+        return isSameDay(bookingDate, selectedDate);
       });
     } else if (viewMode === "week") {
       const weekStart = startOfWeek(selectedDate, { weekStartsOn: 0 });
       const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 0 });
       
       return filteredBookings.filter(booking => {
-        const bookingDate = safeParseISO(booking.start);
-        return bookingDate >= weekStart && bookingDate <= weekEnd && booking.status !== "cancelled";
+        const bookingDate = parseISO(booking.start);
+        return bookingDate >= weekStart && bookingDate <= weekEnd;
       });
     } else if (viewMode === "month") {
       const monthStart = startOfMonth(selectedDate);
       const monthEnd = endOfMonth(selectedDate);
       
       return filteredBookings.filter(booking => {
-        const bookingDate = safeParseISO(booking.start);
-        return bookingDate >= monthStart && bookingDate <= monthEnd && booking.status !== "cancelled";
+        const bookingDate = parseISO(booking.start);
+        return bookingDate >= monthStart && bookingDate <= monthEnd;
       });
     }
-    return filteredBookings.filter(b => b.status !== "cancelled");
-  };
+    return filteredBookings;
+  }, [bookings, selectedInstrument, viewMode, selectedDate]);
 
-  const visibleBookings = getVisibleBookings();
+  // Memoized range calculations
+  const weekRange = useMemo(() => ({
+    start: startOfWeek(selectedDate, { weekStartsOn: 0 }),
+    end: endOfWeek(selectedDate, { weekStartsOn: 0 })
+  }), [selectedDate]);
+
+  const monthRange = useMemo(() => ({
+    start: startOfMonth(selectedDate),
+    end: endOfMonth(selectedDate)
+  }), [selectedDate]);
 
   // Navigation functions
-  const moveToday = () => setSelectedDate(new Date());
-  const moveNext = () => {
+  const moveToday = useCallback(() => setSelectedDate(new Date()), []);
+  const moveNext = useCallback(() => {
     if (viewMode === "day") {
       setSelectedDate(addDays(selectedDate, 1));
     } else if (viewMode === "week") {
@@ -105,8 +83,9 @@ const CalendarView: React.FC = () => {
     } else if (viewMode === "month") {
       setSelectedDate(addMonths(selectedDate, 1));
     }
-  };
-  const movePrevious = () => {
+  }, [viewMode, selectedDate]);
+  
+  const movePrevious = useCallback(() => {
     if (viewMode === "day") {
       setSelectedDate(addDays(selectedDate, -1));
     } else if (viewMode === "week") {
@@ -114,39 +93,38 @@ const CalendarView: React.FC = () => {
     } else if (viewMode === "month") {
       setSelectedDate(subMonths(selectedDate, 1));
     }
-  };
+  }, [viewMode, selectedDate]);
 
   // Format time for display
-  const formatTime = (dateStr: string | Date) => {
-    const date = typeof dateStr === 'string' ? safeParseISO(dateStr) : dateStr;
+  const formatTime = useCallback((dateStr: string | Date) => {
+    const date = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr;
     return format(date, "h:mm a");
-  };
+  }, []);
 
   // Format date range for display
-  const formatDateRange = (start: string | Date, end: string | Date) => {
-    const startDate = safeParseISO(start);
-    const endDate = safeParseISO(end);
+  const formatDateRange = useCallback((start: string | Date, end: string | Date) => {
+    const startDate = parseISO(start);
+    const endDate = parseISO(end);
     
     if (isSameDay(startDate, endDate)) {
       return `${formatTime(start)} - ${formatTime(end)}`;
     } else {
       return `${format(startDate, "MMM d")} ${formatTime(startDate)} - ${format(endDate, "MMM d")} ${formatTime(end)}`;
     }
-  };
+  }, [formatTime]);
 
-  const handleEditBooking = (booking: Booking) => {
-    console.log("Opening edit modal for booking:", booking);
+  const handleEditBooking = useCallback((booking: Booking) => {
     setSelectedBooking(booking);
     setIsEditModalOpen(true);
-  };
+  }, []);
 
   // Check if user can edit a booking
-  const canEditBooking = (booking: Booking) => {
+  const canEditBooking = useCallback((booking: Booking) => {
     if (!user) return false;
     return user.role === "admin" || booking.userId === user.id;
-  };
+  }, [user]);
 
-  const handleUpdateBooking = async (bookingData: Partial<Booking>) => {
+  const handleUpdateBooking = useCallback(async (bookingData: Partial<Booking>) => {
     if (selectedBooking && bookingData) {
       try {
         await updateBooking({
@@ -156,61 +134,17 @@ const CalendarView: React.FC = () => {
         toast.success("Booking updated successfully");
         setIsEditModalOpen(false);
         setSelectedBooking(null);
-        
-        // Send email notification for booking update
-        await sendEmailNotification(
-          selectedBooking.userId,
-          selectedBooking.userName,
-          selectedBooking.instrumentName,
-          'booking_update',
-          {
-            userName: selectedBooking.userName,
-            instrumentName: selectedBooking.instrumentName,
-            startDate: new Date(selectedBooking.start).toLocaleString(),
-            endDate: new Date(selectedBooking.end).toLocaleString(),
-            status: bookingData.status || selectedBooking.status
-          }
-        );
       } catch (error) {
         console.error("Error updating booking:", error);
         toast.error("Failed to update booking");
       }
     }
-  };
-
-  const sendEmailNotification = async (
-    userId: string,
-    userName: string,
-    instrumentName: string,
-    templateType: string,
-    variables: Record<string, string>
-  ) => {
-    try {
-      // Get user email from profiles
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('email')
-        .eq('id', userId)
-        .single();
-
-      if (profileData?.email) {
-        await supabase.functions.invoke('send-email', {
-          body: {
-            to: profileData.email,
-            templateType,
-            variables
-          }
-        });
-      }
-    } catch (error) {
-      console.error("Error sending email notification:", error);
-    }
-  };
+  }, [selectedBooking, updateBooking]);
 
   // Generate time slots for day view (9am to 5pm)
   const renderDayView = () => {
     const dayBookings = visibleBookings.sort((a, b) => 
-      safeParseISO(a.start).getTime() - safeParseISO(b.start).getTime()
+      parseISO(a.start).getTime() - parseISO(b.start).getTime()
     );
 
     return (
@@ -292,8 +226,8 @@ const CalendarView: React.FC = () => {
         <div className="space-y-2">
           {days.map((day) => {
             const dayBookings = visibleBookings.filter(booking => {
-              const bookingDate = safeParseISO(booking.start);
-              return isSameDay(bookingDate, day) && booking.status !== "cancelled";
+              const bookingDate = parseISO(booking.start);
+              return isSameDay(bookingDate, day);
             });
             
             return (
@@ -401,8 +335,8 @@ const CalendarView: React.FC = () => {
                 {week.map((day) => {
                   const isCurrentMonth = day.getMonth() === selectedDate.getMonth();
                   const dayBookings = visibleBookings.filter(booking => {
-                    const bookingDate = safeParseISO(booking.start);
-                    return isSameDay(bookingDate, day) && booking.status !== "cancelled";
+                    const bookingDate = parseISO(booking.start);
+                    return isSameDay(bookingDate, day);
                   });
 
                   return (
@@ -458,7 +392,7 @@ const CalendarView: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
         <div className="flex items-center space-x-2">
           <Button
-            variant="outline"
+            variant="outline"  
             size="sm"
             onClick={movePrevious}
           >
