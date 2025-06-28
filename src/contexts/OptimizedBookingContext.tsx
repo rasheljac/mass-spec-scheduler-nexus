@@ -58,7 +58,7 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
     }
   }, []);
 
-  // Load instruments with caching
+  // Load instruments with caching and proper typing
   const loadInstruments = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -67,7 +67,24 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
         .order('name');
       
       if (error) throw error;
-      setInstruments(data || []);
+      
+      // Transform database data to match Instrument interface
+      const transformedInstruments: Instrument[] = (data || []).map(item => ({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        location: item.location,
+        specifications: item.specifications,
+        image: item.image,
+        type: item.type,
+        model: item.model,
+        calibrationDue: item.calibration_due,
+        createdAt: item.created_at,
+        // Ensure status matches the expected type
+        status: (item.status as "available" | "in_use" | "maintenance" | "offline") || "available"
+      }));
+      
+      setInstruments(transformedInstruments);
     } catch (error) {
       console.error('Error loading instruments:', error);
       toast.error('Failed to load instruments');
@@ -242,13 +259,37 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
     try {
       const { data, error } = await supabase
         .from('instruments')
-        .insert(instrumentData)
+        .insert({
+          name: instrumentData.name,
+          description: instrumentData.description,
+          location: instrumentData.location,
+          specifications: instrumentData.specifications,
+          image: instrumentData.image,
+          type: instrumentData.type,
+          model: instrumentData.model,
+          calibration_due: instrumentData.calibrationDue,
+          status: instrumentData.status
+        })
         .select()
         .single();
 
       if (error) throw error;
 
-      setInstruments(prev => [...prev, data]);
+      const newInstrument: Instrument = {
+        id: data.id,
+        name: data.name,
+        description: data.description,
+        location: data.location,
+        specifications: data.specifications,
+        image: data.image,
+        type: data.type,
+        model: data.model,
+        calibrationDue: data.calibration_due,
+        createdAt: data.created_at,
+        status: data.status as "available" | "in_use" | "maintenance" | "offline"
+      };
+
+      setInstruments(prev => [...prev, newInstrument]);
     } catch (error) {
       console.error('Error adding instrument:', error);
       throw error;
@@ -259,7 +300,17 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
     try {
       const { error } = await supabase
         .from('instruments')
-        .update(instrumentData)
+        .update({
+          name: instrumentData.name,
+          description: instrumentData.description,
+          location: instrumentData.location,
+          specifications: instrumentData.specifications,
+          image: instrumentData.image,
+          type: instrumentData.type,
+          model: instrumentData.model,
+          calibration_due: instrumentData.calibrationDue,
+          status: instrumentData.status
+        })
         .eq('id', instrumentData.id);
 
       if (error) throw error;
@@ -391,31 +442,52 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
     }
   }, [bookings]);
 
-  // Memoized statistics calculation
+  // Memoized statistics calculation with proper typing
   const statistics = useMemo((): BookingStatistics => {
     const totalBookings = bookings.length;
     
-    const instrumentUsage = instruments.map(instrument => ({
-      name: instrument.name,
-      count: bookings.filter(b => b.instrumentId === instrument.id).length
-    }));
+    const instrumentUsage = instruments.map(instrument => {
+      const instrumentBookings = bookings.filter(b => b.instrumentId === instrument.id);
+      const totalHours = instrumentBookings.reduce((sum, booking) => {
+        const start = new Date(booking.start);
+        const end = new Date(booking.end);
+        return sum + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      }, 0);
+      
+      return {
+        instrumentId: instrument.id,
+        instrumentName: instrument.name,
+        bookingCount: instrumentBookings.length,
+        totalHours: Math.round(totalHours * 100) / 100
+      };
+    });
 
-    const userBookings = users.map(user => ({
-      name: user.name,
-      count: bookings.filter(b => b.userId === user.id).length
-    }));
+    const userBookings = users.map(user => {
+      const userBookingList = bookings.filter(b => b.userId === user.id);
+      const totalHours = userBookingList.reduce((sum, booking) => {
+        const start = new Date(booking.start);
+        const end = new Date(booking.end);
+        return sum + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+      }, 0);
+
+      return {
+        userId: user.id,
+        userName: user.name,
+        bookingCount: userBookingList.length,
+        totalHours: Math.round(totalHours * 100) / 100
+      };
+    });
 
     const weeklyUsage = Array.from({ length: 7 }, (_, i) => {
       const date = new Date();
       date.setDate(date.getDate() - i);
-      const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
       const dayBookings = bookings.filter(booking => {
         const bookingDate = new Date(booking.start);
         return bookingDate.toDateString() === date.toDateString();
       });
       return {
-        day: dayName,
-        count: dayBookings.length
+        week: date.toLocaleDateString('en-US', { weekday: 'short' }),
+        bookingCount: dayBookings.length
       };
     }).reverse();
 

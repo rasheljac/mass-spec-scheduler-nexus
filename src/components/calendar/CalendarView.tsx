@@ -39,7 +39,7 @@ const CalendarView: React.FC = () => {
 
     if (viewMode === "day") {
       return filteredBookings.filter(booking => {
-        const bookingDate = parseISO(booking.start);
+        const bookingDate = parseISO(typeof booking.start === 'string' ? booking.start : booking.start.toISOString());
         return isSameDay(bookingDate, selectedDate);
       });
     } else if (viewMode === "week") {
@@ -47,7 +47,7 @@ const CalendarView: React.FC = () => {
       const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 0 });
       
       return filteredBookings.filter(booking => {
-        const bookingDate = parseISO(booking.start);
+        const bookingDate = parseISO(typeof booking.start === 'string' ? booking.start : booking.start.toISOString());
         return bookingDate >= weekStart && bookingDate <= weekEnd;
       });
     } else if (viewMode === "month") {
@@ -55,45 +55,12 @@ const CalendarView: React.FC = () => {
       const monthEnd = endOfMonth(selectedDate);
       
       return filteredBookings.filter(booking => {
-        const bookingDate = parseISO(booking.start);
+        const bookingDate = parseISO(typeof booking.start === 'string' ? booking.start : booking.start.toISOString());
         return bookingDate >= monthStart && bookingDate <= monthEnd;
       });
     }
     return filteredBookings;
   }, [bookings, selectedInstrument, viewMode, selectedDate]);
-
-  // Memoized range calculations
-  const weekRange = useMemo(() => ({
-    start: startOfWeek(selectedDate, { weekStartsOn: 0 }),
-    end: endOfWeek(selectedDate, { weekStartsOn: 0 })
-  }), [selectedDate]);
-
-  const monthRange = useMemo(() => ({
-    start: startOfMonth(selectedDate),
-    end: endOfMonth(selectedDate)
-  }), [selectedDate]);
-
-  // Navigation functions
-  const moveToday = useCallback(() => setSelectedDate(new Date()), []);
-  const moveNext = useCallback(() => {
-    if (viewMode === "day") {
-      setSelectedDate(addDays(selectedDate, 1));
-    } else if (viewMode === "week") {
-      setSelectedDate(addWeeks(selectedDate, 1));
-    } else if (viewMode === "month") {
-      setSelectedDate(addMonths(selectedDate, 1));
-    }
-  }, [viewMode, selectedDate]);
-  
-  const movePrevious = useCallback(() => {
-    if (viewMode === "day") {
-      setSelectedDate(addDays(selectedDate, -1));
-    } else if (viewMode === "week") {
-      setSelectedDate(subWeeks(selectedDate, 1));
-    } else if (viewMode === "month") {
-      setSelectedDate(subMonths(selectedDate, 1));
-    }
-  }, [viewMode, selectedDate]);
 
   // Format time for display
   const formatTime = useCallback((dateStr: string | Date) => {
@@ -103,8 +70,8 @@ const CalendarView: React.FC = () => {
 
   // Format date range for display
   const formatDateRange = useCallback((start: string | Date, end: string | Date) => {
-    const startDate = parseISO(start);
-    const endDate = parseISO(end);
+    const startDate = typeof start === 'string' ? parseISO(start) : start;
+    const endDate = typeof end === 'string' ? parseISO(end) : end;
     
     if (isSameDay(startDate, endDate)) {
       return `${formatTime(start)} - ${formatTime(end)}`;
@@ -141,10 +108,44 @@ const CalendarView: React.FC = () => {
     }
   }, [selectedBooking, updateBooking]);
 
+  // Memoized range calculations
+  const weekRange = useMemo(() => ({
+    start: startOfWeek(selectedDate, { weekStartsOn: 0 }),
+    end: endOfWeek(selectedDate, { weekStartsOn: 0 })
+  }), [selectedDate]);
+
+  const monthRange = useMemo(() => ({
+    start: startOfMonth(selectedDate),
+    end: endOfMonth(selectedDate)
+  }), [selectedDate]);
+
+  // Navigation functions
+  const moveToday = useCallback(() => setSelectedDate(new Date()), []);
+  const moveNext = useCallback(() => {
+    if (viewMode === "day") {
+      setSelectedDate(addDays(selectedDate, 1));
+    } else if (viewMode === "week") {
+      setSelectedDate(addWeeks(selectedDate, 1));
+    } else if (viewMode === "month") {
+      setSelectedDate(addMonths(selectedDate, 1));
+    }
+  }, [viewMode, selectedDate]);
+  
+  const movePrevious = useCallback(() => {
+    if (viewMode === "day") {
+      setSelectedDate(addDays(selectedDate, -1));
+    } else if (viewMode === "week") {
+      setSelectedDate(subWeeks(selectedDate, 1));
+    } else if (viewMode === "month") {
+      setSelectedDate(subMonths(selectedDate, 1));
+    }
+  }, [viewMode, selectedDate]);
+
   // Generate time slots for day view (9am to 5pm)
   const renderDayView = () => {
     const dayBookings = visibleBookings.sort((a, b) => 
-      parseISO(a.start).getTime() - parseISO(b.start).getTime()
+      parseISO(typeof a.start === 'string' ? a.start : a.start.toISOString()).getTime() - 
+      parseISO(typeof b.start === 'string' ? b.start : b.start.toISOString()).getTime()
     );
 
     return (
@@ -226,7 +227,7 @@ const CalendarView: React.FC = () => {
         <div className="space-y-2">
           {days.map((day) => {
             const dayBookings = visibleBookings.filter(booking => {
-              const bookingDate = parseISO(booking.start);
+              const bookingDate = parseISO(typeof booking.start === 'string' ? booking.start : booking.start.toISOString());
               return isSameDay(bookingDate, day);
             });
             
@@ -335,7 +336,7 @@ const CalendarView: React.FC = () => {
                 {week.map((day) => {
                   const isCurrentMonth = day.getMonth() === selectedDate.getMonth();
                   const dayBookings = visibleBookings.filter(booking => {
-                    const bookingDate = parseISO(booking.start);
+                    const bookingDate = parseISO(typeof booking.start === 'string' ? booking.start : booking.start.toISOString());
                     return isSameDay(bookingDate, day);
                   });
 
