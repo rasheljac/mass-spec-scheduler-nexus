@@ -47,12 +47,16 @@ const MyBookingsPage: React.FC = () => {
     const current = userBookings.filter(booking => {
       const startTime = new Date(booking.start);
       const endTime = new Date(booking.end);
-      return startTime <= now && endTime >= now && booking.status === "In-Progress";
+      // Include bookings that are currently running OR have "Delayed" status
+      return (startTime <= now && endTime >= now && booking.status === "In-Progress") || 
+             booking.status === "Delayed";
     });
 
     const past = userBookings.filter(booking => {
       const endTime = new Date(booking.end);
-      return endTime < now || booking.status === "Completed" || booking.status === "cancelled";
+      // Exclude "Delayed" status from past bookings
+      return (endTime < now || booking.status === "Completed" || booking.status === "cancelled") && 
+             booking.status !== "Delayed";
     });
 
     return { upcoming, current, past };
