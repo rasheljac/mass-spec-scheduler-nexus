@@ -10,6 +10,7 @@ import StatusColorManagement from "../components/admin/StatusColorManagement";
 import SmtpSettings from "../components/admin/SmtpSettings";
 import EmailTemplatesManagement from "../components/admin/EmailTemplatesManagement";
 import PendingBookingsManagement from "../components/admin/PendingBookingsManagement";
+import BookingHistoryManagement from "../components/admin/BookingHistoryManagement";
 import { Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
@@ -42,18 +43,23 @@ const AdminPage: React.FC = () => {
       )}
       
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid grid-cols-7 w-full max-w-4xl">
-          <TabsTrigger value="pending-bookings" className="px-2 py-2 text-sm">Pending Bookings</TabsTrigger>
+        <TabsList className="grid grid-cols-8 w-full max-w-5xl">
+          <TabsTrigger value="pending-bookings" className="px-2 py-2 text-sm">Pending</TabsTrigger>
+          <TabsTrigger value="booking-history" className="px-2 py-2 text-sm">History</TabsTrigger>
           <TabsTrigger value="users" className="px-2 py-2 text-sm">Users</TabsTrigger>
           <TabsTrigger value="instruments" className="px-2 py-2 text-sm">Instruments</TabsTrigger>
-          <TabsTrigger value="delays" className="px-2 py-2 text-sm">Schedule Delays</TabsTrigger>
-          <TabsTrigger value="status-colors" className="px-2 py-2 text-sm">Status Colors</TabsTrigger>
-          <TabsTrigger value="smtp" className="px-2 py-2 text-sm">SMTP Settings</TabsTrigger>
-          <TabsTrigger value="email-templates" className="px-2 py-2 text-sm">Email Templates</TabsTrigger>
+          <TabsTrigger value="delays" className="px-2 py-2 text-sm">Delays</TabsTrigger>
+          <TabsTrigger value="status-colors" className="px-2 py-2 text-sm">Colors</TabsTrigger>
+          <TabsTrigger value="smtp" className="px-2 py-2 text-sm">SMTP</TabsTrigger>
+          <TabsTrigger value="email-templates" className="px-2 py-2 text-sm">Templates</TabsTrigger>
         </TabsList>
         
         <TabsContent value="pending-bookings" className="mt-6">
           {activeTab === "pending-bookings" && <PendingBookingsManagement />}
+        </TabsContent>
+        
+        <TabsContent value="booking-history" className="mt-6">
+          {activeTab === "booking-history" && <BookingHistoryManagement />}
         </TabsContent>
         
         <TabsContent value="users" className="mt-6">
