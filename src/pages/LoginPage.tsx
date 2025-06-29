@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import LoginForm from "../components/auth/LoginForm";
@@ -12,7 +12,7 @@ const LoginPage: React.FC = () => {
   const { isLoading, isAuthenticated } = useAuth();
   const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
 
-  console.log("LoginPage: Render with auth loading:", isLoading, "authenticated:", isAuthenticated);
+  console.log("LoginPage: Render - loading:", isLoading, "authenticated:", isAuthenticated);
 
   // Show loading while checking authentication
   if (isLoading) {

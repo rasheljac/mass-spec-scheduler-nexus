@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { supabase } from "../integrations/supabase/client";
@@ -30,7 +31,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
-  const [initialized, setInitialized] = useState(false);
 
   const createExtendedUser = (supabaseUser: SupabaseUser, profileData?: Profile): User => {
     return {
@@ -63,80 +63,85 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Initialize authentication
+  // Simplified initialization
   useEffect(() => {
     let mounted = true;
 
     const initializeAuth = async () => {
       try {
-        console.log('AuthContext: Initializing authentication...');
+        console.log('AuthContext: Starting initialization...');
         
         // Get initial session
-        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        const { data: { session: initialSession }, error: sessionError } = await supabase.auth.getSession();
         
-        if (error) {
-          console.error('AuthContext: Error getting initial session:', error);
+        if (sessionError) {
+          console.error('AuthContext: Session error:', sessionError);
+          if (mounted) {
+            setIsLoading(false);
+          }
+          return;
         }
 
         if (mounted) {
+          console.log('AuthContext: Initial session:', initialSession?.user?.email || 'none');
           setSession(initialSession);
           
           if (initialSession?.user) {
-            console.log('AuthContext: Found existing session for user:', initialSession.user.email);
-            
-            // Fetch profile data
-            const { data: profileData } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', initialSession.user.id)
-              .single();
-            
-            if (profileData) {
-              const profile: Profile = {
+            try {
+              // Fetch profile data
+              const { data: profileData } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', initialSession.user.id)
+                .single();
+              
+              const profile: Profile | undefined = profileData ? {
                 id: profileData.id,
                 name: profileData.name,
                 email: profileData.email,
                 role: profileData.role as 'admin' | 'user',
                 department: profileData.department,
                 profileImage: profileData.profile_image
-              };
+              } : undefined;
+              
               const extendedUser = createExtendedUser(initialSession.user, profile);
               setUser(extendedUser);
-              console.log('AuthContext: User profile loaded:', extendedUser.email);
-            } else {
-              console.log('AuthContext: No profile found for user');
+              console.log('AuthContext: User set:', extendedUser.email);
+            } catch (profileError) {
+              console.error('AuthContext: Profile fetch error:', profileError);
+              // Still create user without profile data
               const extendedUser = createExtendedUser(initialSession.user);
               setUser(extendedUser);
             }
           } else {
-            console.log('AuthContext: No existing session found');
             setUser(null);
           }
           
-          setInitialized(true);
+          // Always set loading to false after processing initial session
           setIsLoading(false);
-          console.log('AuthContext: Authentication initialization complete');
+          console.log('AuthContext: Initialization complete');
         }
       } catch (error) {
-        console.error('AuthContext: Error during initialization:', error);
+        console.error('AuthContext: Initialization error:', error);
         if (mounted) {
           setIsLoading(false);
-          setInitialized(true);
         }
       }
     };
 
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('AuthContext: Auth state changed:', event, session?.user?.email);
+      console.log('AuthContext: Auth state change:', event, session?.user?.email || 'none');
       
       if (!mounted) return;
 
       setSession(session);
       
       if (session?.user) {
-        // Defer profile fetching to avoid blocking the auth state change
+        // Use setTimeout to avoid blocking the auth state change
         setTimeout(async () => {
+          if (!mounted) return;
+          
           try {
             const { data: profileData } = await supabase
               .from('profiles')
@@ -144,40 +149,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .eq('id', session.user.id)
               .single();
             
-            if (profileData && mounted) {
-              const profile: Profile = {
-                id: profileData.id,
-                name: profileData.name,
-                email: profileData.email,
-                role: profileData.role as 'admin' | 'user',
-                department: profileData.department,
-                profileImage: profileData.profile_image
-              };
-              const extendedUser = createExtendedUser(session.user, profile);
-              setUser(extendedUser);
-            } else if (mounted) {
-              const extendedUser = createExtendedUser(session.user);
-              setUser(extendedUser);
-            }
+            const profile: Profile | undefined = profileData ? {
+              id: profileData.id,
+              name: profileData.name,
+              email: profileData.email,
+              role: profileData.role as 'admin' | 'user',
+              department: profileData.department,
+              profileImage: profileData.profile_image
+            } : undefined;
+            
+            const extendedUser = createExtendedUser(session.user, profile);
+            setUser(extendedUser);
           } catch (error) {
             console.error('AuthContext: Error fetching profile in auth state change:', error);
-            if (mounted) {
-              const extendedUser = createExtendedUser(session.user);
-              setUser(extendedUser);
-            }
+            const extendedUser = createExtendedUser(session.user);
+            setUser(extendedUser);
           }
-        }, 0);
+        }, 100);
       } else {
         setUser(null);
       }
-      
-      if (!initialized) {
-        setInitialized(true);
-        setIsLoading(false);
-      }
     });
 
-    // Initialize auth
+    // Start initialization
     initializeAuth();
 
     return () => {
@@ -188,10 +182,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Fetch users when user becomes admin
   useEffect(() => {
-    if (user?.role === 'admin' && initialized) {
+    if (user?.role === 'admin' && !isLoading) {
       fetchUsers();
     }
-  }, [user?.role, initialized]);
+  }, [user?.role, isLoading]);
 
   const sendWelcomeEmail = async (email: string, name: string) => {
     try {

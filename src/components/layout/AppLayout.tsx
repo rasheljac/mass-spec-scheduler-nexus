@@ -14,6 +14,8 @@ const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const [lastActivity, setLastActivity] = useState<number>(Date.now());
   
+  console.log("AppLayout: Auth loading:", authLoading, "Authenticated:", isAuthenticated, "Path:", location.pathname);
+  
   // Update last activity on user interactions
   useEffect(() => {
     const events = ['mousedown', 'keydown', 'touchstart', 'scroll'];
@@ -86,8 +88,10 @@ const AppLayout: React.FC = () => {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  // Show data loading state only for dashboard and only if not initialized
+  // Show data loading state for dashboard only when not yet initialized
   const showDataLoading = location.pathname === "/dashboard" && bookingLoading && !isInitialized;
+
+  console.log("AppLayout - Rendering main layout");
 
   return (
     <div className="flex flex-col min-h-screen">
