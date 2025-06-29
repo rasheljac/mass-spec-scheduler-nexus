@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from "react";
 import { Instrument, Booking, BookingStatistics, Comment } from "../types";
 import { useAuth } from "./AuthContext";
@@ -471,6 +472,8 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
 
   const addCommentToBooking = useCallback(async (bookingId: string, comment: Omit<Comment, "id">) => {
     try {
+      console.log("Adding comment to booking:", bookingId, "Comment:", comment);
+      
       const { data, error } = await supabase
         .from('comments')
         .insert({
@@ -501,34 +504,51 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
       try {
         const booking = bookings.find(b => b.id === bookingId);
         if (booking) {
-          const userEmail = await getUserEmailById(booking.userId);
-          if (userEmail && booking.userId !== comment.userId) { // Don't notify the commenter
-            console.log("Sending comment email to:", userEmail);
+          console.log("Found booking for comment notification:", booking);
+          
+          // Only send notification if the commenter is not the booking owner
+          if (booking.userId !== comment.userId) {
+            const userEmail = await getUserEmailById(booking.userId);
+            console.log("Booking owner email:", userEmail);
             
-            // Fix parameter order: userEmail, userName, instrumentName, commentBy, commentContent, bookingDate
-            const notification = createCommentNotification(
-              userEmail,
-              booking.userName,
-              booking.instrumentName,
-              comment.userName,
-              comment.content,
-              new Date(booking.start).toLocaleString()
-            );
-            
-            // Add emailType parameter for proper email preference checking
-            const emailSent = await sendEmail({ ...notification, emailType: 'notification' });
-            
-            if (emailSent) {
-              console.log("Comment email notification sent successfully");
+            if (userEmail) {
+              console.log("Sending comment notification email to booking owner:", userEmail);
+              
+              const notification = createCommentNotification(
+                userEmail,
+                booking.userName,
+                booking.instrumentName,
+                comment.userName,
+                comment.content,
+                new Date(booking.start).toLocaleString()
+              );
+              
+              console.log("Comment notification payload:", notification);
+              
+              const emailSent = await sendEmail({ ...notification, emailType: 'notification' });
+              
+              if (emailSent) {
+                console.log("Comment email notification sent successfully");
+                toast.success("Comment added and notification sent");
+              } else {
+                console.error("Failed to send comment email notification");
+                toast.success("Comment added (email notification failed)");
+              }
             } else {
-              console.error("Failed to send comment email");
+              console.warn("No email found for booking owner:", booking.userId);
+              toast.success("Comment added");
             }
           } else {
-            console.log("Skipping comment email - same user or no email found");
+            console.log("Not sending notification - commenter is the booking owner");
+            toast.success("Comment added");
           }
+        } else {
+          console.error("Booking not found for comment notification:", bookingId);
+          toast.success("Comment added");
         }
       } catch (emailError) {
-        console.error("Failed to send comment email:", emailError);
+        console.error("Failed to send comment email notification:", emailError);
+        toast.success("Comment added (email notification failed)");
       }
 
       return data.id;

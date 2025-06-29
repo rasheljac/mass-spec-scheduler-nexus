@@ -1,4 +1,3 @@
-
 import { supabase } from "../integrations/supabase/client";
 import { shouldSendEmail } from "./emailPreferences";
 
@@ -202,14 +201,24 @@ export const createCommentNotification = (
   commentContent: string,
   bookingDate: string
 ): EmailNotification => {
+  console.log("Creating comment notification with params:", {
+    userEmail,
+    userName,
+    instrumentName,
+    commentBy,
+    commentContent,
+    bookingDate
+  });
+
   const htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
       <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
         <h2 style="color: #333; margin-bottom: 20px; border-bottom: 2px solid #007bff; padding-bottom: 10px;">New Comment on Your Booking</h2>
         
         <div style="margin-bottom: 20px;">
+          <p style="margin: 5px 0;"><strong>Dear ${userName},</strong></p>
           <p style="margin: 5px 0;"><strong>Instrument:</strong> ${instrumentName}</p>
-          <p style="margin: 5px 0;"><strong>Date:</strong> ${bookingDate}</p>
+          <p style="margin: 5px 0;"><strong>Booking Date:</strong> ${bookingDate}</p>
           <p style="margin: 5px 0;"><strong>Comment by:</strong> ${commentBy}</p>
         </div>
         
@@ -225,7 +234,7 @@ export const createCommentNotification = (
     </div>
   `;
 
-  return {
+  const notification = {
     to: userEmail,
     subject: `New Comment on Your Booking: ${instrumentName}`,
     body: `
@@ -252,4 +261,7 @@ Lab Management Team
       bookingDate: bookingDate || ""
     }
   };
+
+  console.log("Created comment notification:", notification);
+  return notification;
 };
