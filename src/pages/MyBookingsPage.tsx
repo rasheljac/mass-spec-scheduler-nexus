@@ -2,26 +2,12 @@
 import React, { useMemo, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useOptimizedBooking } from "../contexts/OptimizedBookingContext";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Badge } from "../components/ui/badge";
-import { Calendar, Clock, FileText, MessageCircle, Loader2, Trash2, X } from "lucide-react";
-import { format } from "date-fns";
-import { Button } from "../components/ui/button";
+import { Calendar, Clock, FileText, Loader2 } from "lucide-react";
 import { useState } from "react";
-import { Textarea } from "../components/ui/textarea";
 import { toast } from "sonner";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "../components/ui/alert-dialog";
+import { BookingCard } from "../components/bookings/BookingCard";
 
 const MyBookingsPage: React.FC = () => {
   const { user } = useAuth();
@@ -49,14 +35,12 @@ const MyBookingsPage: React.FC = () => {
     const current = userBookings.filter(booking => {
       const startTime = new Date(booking.start);
       const endTime = new Date(booking.end);
-      // Include bookings that are currently running OR have "Delayed" status
       return (startTime <= now && endTime >= now && booking.status === "In-Progress") || 
              booking.status === "Delayed";
     });
 
     const past = userBookings.filter(booking => {
       const endTime = new Date(booking.end);
-      // Exclude "Delayed" status from past bookings
       return (endTime < now || booking.status === "Completed" || booking.status === "cancelled") && 
              booking.status !== "Delayed";
     });
@@ -68,7 +52,7 @@ const MyBookingsPage: React.FC = () => {
     setCommentContent(prev => ({ ...prev, [bookingId]: value }));
   }, []);
 
-  const handleAddComment = async (bookingId: string) => {
+  const handleAddComment = useCallback(async (bookingId: string) => {
     const content = commentContent[bookingId]?.trim();
     if (!content || !user) return;
 
@@ -90,9 +74,9 @@ const MyBookingsPage: React.FC = () => {
     } finally {
       setAddingComment(prev => ({ ...prev, [bookingId]: false }));
     }
-  };
+  }, [commentContent, user, addCommentToBooking]);
 
-  const handleDeleteComment = async (bookingId: string, commentId: string) => {
+  const handleDeleteComment = useCallback(async (bookingId: string, commentId: string) => {
     setDeletingComment(prev => ({ ...prev, [commentId]: true }));
     
     try {
@@ -104,9 +88,9 @@ const MyBookingsPage: React.FC = () => {
     } finally {
       setDeletingComment(prev => ({ ...prev, [commentId]: false }));
     }
-  };
+  }, [deleteCommentFromBooking]);
 
-  const handleDeleteBooking = async (bookingId: string) => {
+  const handleDeleteBooking = useCallback(async (bookingId: string) => {
     setDeletingBooking(prev => ({ ...prev, [bookingId]: true }));
     
     try {
@@ -118,189 +102,7 @@ const MyBookingsPage: React.FC = () => {
     } finally {
       setDeletingBooking(prev => ({ ...prev, [bookingId]: false }));
     }
-  };
-
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case "confirmed":
-        return "default";
-      case "pending":
-        return "secondary";
-      case "In-Progress":
-        return "secondary";
-      case "Completed":
-        return "outline";
-      case "cancelled":
-        return "destructive";
-      case "Delayed":
-        return "secondary";
-      default:
-        return "outline";
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "Pending Approval";
-      default:
-        return status;
-    }
-  };
-
-  const BookingCard = ({ booking }: { booking: any }) => (
-    <Card className="mb-4">
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg">{booking.instrumentName}</CardTitle>
-            <CardDescription className="flex items-center gap-2 mt-1">
-              <Calendar className="h-4 w-4" />
-              {format(new Date(booking.start), "PPP")}
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={getStatusVariant(booking.status)}>
-              {getStatusText(booking.status)}
-            </Badge>
-            {user?.role === "admin" && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                    disabled={deletingBooking[booking.id]}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Delete Booking</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Are you sure you want to delete this booking for {booking.instrumentName}? 
-                      This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={deletingBooking[booking.id]}>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => handleDeleteBooking(booking.id)}
-                      disabled={deletingBooking[booking.id]}
-                      className="bg-red-600 hover:bg-red-700"
-                    >
-                      {deletingBooking[booking.id] ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Deleting...
-                        </>
-                      ) : (
-                        "Delete Booking"
-                      )}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Clock className="h-4 w-4" />
-          {format(new Date(booking.start), "p")} - {format(new Date(booking.end), "p")}
-        </div>
-        
-        {booking.purpose && (
-          <div className="flex items-start gap-2 text-sm">
-            <FileText className="h-4 w-4 mt-0.5" />
-            <span><strong>Purpose:</strong> {booking.purpose}</span>
-          </div>
-        )}
-        
-        {booking.details && (
-          <div className="text-sm">
-            <strong>Details:</strong> {booking.details}
-          </div>
-        )}
-
-        {booking.status === "pending" && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-            <p className="text-sm text-yellow-800">
-              <strong>Pending Approval:</strong> This booking is waiting for administrator approval.
-            </p>
-          </div>
-        )}
-
-        {/* Comments section */}
-        {booking.comments && booking.comments.length > 0 && (
-          <div className="border-t pt-3">
-            <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
-              <MessageCircle className="h-4 w-4" />
-              Comments ({booking.comments.length})
-            </h4>
-            <div className="space-y-2">
-              {booking.comments.map((comment: any) => (
-                <div key={comment.id} className="bg-muted p-2 rounded text-sm">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="font-medium">{comment.userName}</div>
-                      <div className="text-muted-foreground">{comment.content}</div>
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {format(new Date(comment.createdAt), "PPp")}
-                      </div>
-                    </div>
-                    {comment.userId === user?.id && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 ml-2"
-                        onClick={() => handleDeleteComment(booking.id, comment.id)}
-                        disabled={deletingComment[comment.id]}
-                      >
-                        {deletingComment[comment.id] ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <X className="h-3 w-3" />
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Add comment section - now available for all bookings */}
-        <div className="border-t pt-3">
-          <div className="space-y-2">
-            <Textarea
-              placeholder="Add a comment..."
-              value={commentContent[booking.id] || ""}
-              onChange={(e) => handleCommentContentChange(booking.id, e.target.value)}
-              className="min-h-[60px]"
-            />
-            <Button
-              size="sm"
-              onClick={() => handleAddComment(booking.id)}
-              disabled={!commentContent[booking.id]?.trim() || addingComment[booking.id]}
-            >
-              {addingComment[booking.id] ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                "Add Comment"
-              )}
-            </Button>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  }, [deleteBooking]);
 
   if (!user) {
     return (
@@ -354,7 +156,19 @@ const MyBookingsPage: React.FC = () => {
             </Card>
           ) : (
             categorizedBookings.upcoming.map(booking => (
-              <BookingCard key={booking.id} booking={booking} />
+              <BookingCard
+                key={booking.id}
+                booking={booking}
+                user={user}
+                commentContent={commentContent[booking.id] || ""}
+                addingComment={addingComment[booking.id] || false}
+                deletingBooking={deletingBooking[booking.id] || false}
+                deletingComment={deletingComment}
+                onCommentContentChange={(value) => handleCommentContentChange(booking.id, value)}
+                onAddComment={() => handleAddComment(booking.id)}
+                onDeleteComment={(commentId) => handleDeleteComment(booking.id, commentId)}
+                onDeleteBooking={() => handleDeleteBooking(booking.id)}
+              />
             ))
           )}
         </TabsContent>
@@ -372,7 +186,19 @@ const MyBookingsPage: React.FC = () => {
             </Card>
           ) : (
             categorizedBookings.current.map(booking => (
-              <BookingCard key={booking.id} booking={booking} />
+              <BookingCard
+                key={booking.id}
+                booking={booking}
+                user={user}
+                commentContent={commentContent[booking.id] || ""}
+                addingComment={addingComment[booking.id] || false}
+                deletingBooking={deletingBooking[booking.id] || false}
+                deletingComment={deletingComment}
+                onCommentContentChange={(value) => handleCommentContentChange(booking.id, value)}
+                onAddComment={() => handleAddComment(booking.id)}
+                onDeleteComment={(commentId) => handleDeleteComment(booking.id, commentId)}
+                onDeleteBooking={() => handleDeleteBooking(booking.id)}
+              />
             ))
           )}
         </TabsContent>
@@ -390,7 +216,19 @@ const MyBookingsPage: React.FC = () => {
             </Card>
           ) : (
             categorizedBookings.past.map(booking => (
-              <BookingCard key={booking.id} booking={booking} />
+              <BookingCard
+                key={booking.id}
+                booking={booking}
+                user={user}
+                commentContent={commentContent[booking.id] || ""}
+                addingComment={addingComment[booking.id] || false}
+                deletingBooking={deletingBooking[booking.id] || false}
+                deletingComment={deletingComment}
+                onCommentContentChange={(value) => handleCommentContentChange(booking.id, value)}
+                onAddComment={() => handleAddComment(booking.id)}
+                onDeleteComment={(commentId) => handleDeleteComment(booking.id, commentId)}
+                onDeleteBooking={() => handleDeleteBooking(booking.id)}
+              />
             ))
           )}
         </TabsContent>
