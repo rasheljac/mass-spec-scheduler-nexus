@@ -1,14 +1,14 @@
 
 import React, { useState } from "react";
 import { Card } from "../../ui/card";
-import { useBooking } from "../../../contexts/BookingContext";
+import { useOptimizedBooking } from "../../../contexts/OptimizedBookingContext";
 import { Instrument } from "../../../types";
 import { toast } from "sonner";
 import InstrumentTable from "./InstrumentTable";
 import InstrumentDialogs from "./InstrumentDialogs";
 
 const InstrumentManagementContainer: React.FC = () => {
-  const { instruments, addInstrument, updateInstrument, deleteInstrument } = useBooking();
+  const { instruments, addInstrument, updateInstrument, deleteInstrument } = useOptimizedBooking();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedInstrument, setSelectedInstrument] = useState<Instrument | null>(null);
@@ -27,7 +27,6 @@ const InstrumentManagementContainer: React.FC = () => {
         specifications: "",
         image: "",
         calibrationDue: data.calibrationDue ? data.calibrationDue.toISOString().split('T')[0] : undefined,
-        maintenanceHistory: []
       });
       
       setIsAddDialogOpen(false);

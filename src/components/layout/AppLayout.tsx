@@ -9,7 +9,7 @@ import { Loader2 } from "lucide-react";
 
 const AppLayout: React.FC = () => {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
-  const { isLoading: bookingLoading } = useOptimizedBooking();
+  const { isLoading: bookingLoading, isInitialized } = useOptimizedBooking();
   const location = useLocation();
   const navigate = useNavigate();
   const [lastActivity, setLastActivity] = useState<number>(Date.now());
@@ -89,16 +89,18 @@ const AppLayout: React.FC = () => {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
+  // Show data loading state only for dashboard and only if not initialized
+  const showDataLoading = location.pathname === "/dashboard" && bookingLoading && !isInitialized;
+
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
       <main className="flex-1">
-        {/* Only show global loading for the main data, not for every page */}
-        {bookingLoading && location.pathname === "/dashboard" ? (
+        {showDataLoading ? (
           <div className="flex items-center justify-center h-full min-h-[60vh]">
             <div className="flex flex-col items-center space-y-4">
               <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />
-              <span className="text-lg text-mslab-400">Loading data...</span>
+              <span className="text-lg text-mslab-400">Loading dashboard data...</span>
             </div>
           </div>
         ) : (

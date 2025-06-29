@@ -1,6 +1,6 @@
 
 import React from "react";
-import { useBooking } from "../contexts/BookingContext";
+import { useOptimizedBooking } from "../contexts/OptimizedBookingContext";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
@@ -8,7 +8,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 const InstrumentsPage: React.FC = () => {
-  const { instruments } = useBooking();
+  const { instruments } = useOptimizedBooking();
   const { isAuthenticated } = useAuth();
 
   // Helper to determine the status color

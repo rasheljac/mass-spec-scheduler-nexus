@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from "react";
 import { Instrument, Booking, BookingStatistics, Comment } from "../types";
 import { useAuth } from "./AuthContext";
@@ -10,6 +9,7 @@ interface OptimizedBookingContextType {
   instruments: Instrument[];
   statistics: BookingStatistics;
   isLoading: boolean;
+  isInitialized: boolean;
   createBooking: (bookingData: Omit<Booking, "id" | "createdAt">) => Promise<any>;
   updateBooking: (bookingData: Booking) => Promise<void>;
   deleteBooking: (bookingId: string) => Promise<void>;
@@ -30,7 +30,8 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [statusColors, setStatusColors] = useState<Record<string, string>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [lastFetch, setLastFetch] = useState<number>(0);
 
   // Memoized status color function
@@ -84,14 +85,16 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
       }));
       
       setInstruments(transformedInstruments);
+      return transformedInstruments;
     } catch (error) {
       console.error('Error loading instruments:', error);
       toast.error('Failed to load instruments');
+      return [];
     }
   }, []);
 
   // Load bookings with optimized query
-  const loadBookings = useCallback(async () => {
+  const loadBookings = useCallback(async (instrumentsData?: Instrument[]) => {
     try {
       const { data: bookingsData, error } = await supabase
         .from('bookings')
@@ -108,12 +111,13 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
 
       if (error) throw error;
 
+      const currentInstruments = instrumentsData || instruments;
       const transformedBookings: Booking[] = (bookingsData || []).map(booking => ({
         id: booking.id,
         userId: booking.user_id,
         userName: users.find(u => u.id === booking.user_id)?.name || 'Unknown User',
         instrumentId: booking.instrument_id,
-        instrumentName: instruments.find(i => i.id === booking.instrument_id)?.name || 'Unknown Instrument',
+        instrumentName: currentInstruments.find(i => i.id === booking.instrument_id)?.name || 'Unknown Instrument',
         start: booking.start_time,
         end: booking.end_time,
         purpose: booking.purpose,
@@ -130,11 +134,41 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
       }));
 
       setBookings(transformedBookings);
+      return transformedBookings;
     } catch (error) {
       console.error('Error loading bookings:', error);
       toast.error('Failed to load bookings');
+      return [];
     }
   }, [users, instruments]);
+
+  // Optimized initial data load
+  const initializeData = useCallback(async () => {
+    if (!isAuthenticated || isInitialized) return;
+    
+    setIsLoading(true);
+    try {
+      console.log('Initializing OptimizedBookingContext data...');
+      
+      // Load instruments first, then use them for bookings
+      const [instrumentsData] = await Promise.all([
+        loadInstruments(),
+        loadStatusColors()
+      ]);
+      
+      // Load bookings with instrument data
+      await loadBookings(instrumentsData);
+      
+      setIsInitialized(true);
+      setLastFetch(Date.now());
+      console.log('OptimizedBookingContext initialization complete');
+    } catch (error) {
+      console.error('Error initializing data:', error);
+      toast.error('Failed to initialize application data');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, isInitialized, loadInstruments, loadBookings, loadStatusColors]);
 
   // Optimized refresh function with throttling
   const refreshData = useCallback(async () => {
@@ -147,11 +181,12 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
     
     setIsLoading(true);
     try {
+      console.log('Refreshing OptimizedBookingContext data...');
+      const instrumentsData = await loadInstruments();
       await Promise.all([
-        loadInstruments(),
+        loadBookings(instrumentsData),
         loadStatusColors()
       ]);
-      await loadBookings(); // Load bookings after instruments to get names
       setLastFetch(now);
     } catch (error) {
       console.error('Error refreshing data:', error);
@@ -161,12 +196,24 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
     }
   }, [isAuthenticated, loadInstruments, loadBookings, loadStatusColors, lastFetch]);
 
-  // Initialize data
+  // Initialize data when authenticated
   useEffect(() => {
-    if (isAuthenticated && instruments.length === 0) {
-      refreshData();
+    if (isAuthenticated && !isInitialized) {
+      initializeData();
     }
-  }, [isAuthenticated, refreshData, instruments.length]);
+  }, [isAuthenticated, isInitialized, initializeData]);
+
+  // Reset state when user logs out
+  useEffect(() => {
+    if (!isAuthenticated && isInitialized) {
+      console.log('User logged out, resetting OptimizedBookingContext state');
+      setBookings([]);
+      setInstruments([]);
+      setStatusColors({});
+      setIsInitialized(false);
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, isInitialized]);
 
   // Optimized CRUD operations
   const createBooking = useCallback(async (bookingData: Omit<Booking, "id" | "createdAt">) => {
@@ -502,6 +549,7 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
     instruments,
     statistics,
     isLoading,
+    isInitialized,
     createBooking,
     updateBooking,
     deleteBooking,
@@ -518,6 +566,7 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
     instruments,
     statistics,
     isLoading,
+    isInitialized,
     createBooking,
     updateBooking,
     deleteBooking,
