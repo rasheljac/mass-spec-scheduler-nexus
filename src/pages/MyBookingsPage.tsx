@@ -4,7 +4,7 @@ import { useOptimizedBooking } from "../contexts/OptimizedBookingContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Badge } from "../components/ui/badge";
-import { Calendar, Clock, FileText, MessageCircle, Loader2, Trash2 } from "lucide-react";
+import { Calendar, Clock, FileText, MessageCircle, Loader2, Trash2, X } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "../components/ui/button";
 import { useState } from "react";
@@ -24,10 +24,11 @@ import {
 
 const MyBookingsPage: React.FC = () => {
   const { user } = useAuth();
-  const { bookings, isLoading, addCommentToBooking, deleteBooking } = useOptimizedBooking();
+  const { bookings, isLoading, addCommentToBooking, deleteBooking, deleteCommentFromBooking } = useOptimizedBooking();
   const [commentContent, setCommentContent] = useState<{ [key: string]: string }>({});
   const [addingComment, setAddingComment] = useState<{ [key: string]: boolean }>({});
   const [deletingBooking, setDeletingBooking] = useState<{ [key: string]: boolean }>({});
+  const [deletingComment, setDeletingComment] = useState<{ [key: string]: boolean }>({});
 
   // Filter bookings for the current user
   const userBookings = useMemo(() => {
@@ -82,6 +83,19 @@ const MyBookingsPage: React.FC = () => {
       toast.error("Failed to add comment");
     } finally {
       setAddingComment(prev => ({ ...prev, [bookingId]: false }));
+    }
+  };
+
+  const handleDeleteComment = async (bookingId: string, commentId: string) => {
+    setDeletingComment(prev => ({ ...prev, [commentId]: true }));
+    
+    try {
+      await deleteCommentFromBooking(bookingId, commentId);
+      toast.success("Comment deleted successfully");
+    } catch (error) {
+      toast.error("Failed to delete comment");
+    } finally {
+      setDeletingComment(prev => ({ ...prev, [commentId]: false }));
     }
   };
 
@@ -221,10 +235,29 @@ const MyBookingsPage: React.FC = () => {
             <div className="space-y-2">
               {booking.comments.map((comment: any) => (
                 <div key={comment.id} className="bg-muted p-2 rounded text-sm">
-                  <div className="font-medium">{comment.userName}</div>
-                  <div className="text-muted-foreground">{comment.content}</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {format(new Date(comment.createdAt), "PPp")}
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="font-medium">{comment.userName}</div>
+                      <div className="text-muted-foreground">{comment.content}</div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {format(new Date(comment.createdAt), "PPp")}
+                      </div>
+                    </div>
+                    {comment.userId === user?.id && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50 ml-2"
+                        onClick={() => handleDeleteComment(booking.id, comment.id)}
+                        disabled={deletingComment[comment.id]}
+                      >
+                        {deletingComment[comment.id] ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <X className="h-3 w-3" />
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
