@@ -13,7 +13,6 @@ const AppLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [lastActivity, setLastActivity] = useState<number>(Date.now());
-  const [initialCheckDone, setInitialCheckDone] = useState(false);
   
   // Update last activity on user interactions
   useEffect(() => {
@@ -56,23 +55,21 @@ const AppLayout: React.FC = () => {
     }
   }, [isAuthenticated, user, lastActivity, navigate]);
   
-  // Handle authentication status and redirection
+  // Handle authentication redirect
   useEffect(() => {
-    console.log("AppLayout - Auth status:", isAuthenticated, "Auth loading:", authLoading);
-    
-    if (!authLoading && !initialCheckDone) {
-      console.log("AppLayout - Setting initial check as complete");
-      setInitialCheckDone(true);
+    if (!authLoading) {
+      console.log("AppLayout - Auth loading complete, authenticated:", isAuthenticated);
       
       if (location.pathname === "/" && isAuthenticated) {
         console.log("AppLayout - Redirecting authenticated user from root to dashboard");
         navigate("/dashboard", { replace: true });
       }
     }
-  }, [isAuthenticated, location.pathname, navigate, authLoading, initialCheckDone]);
+  }, [isAuthenticated, location.pathname, navigate, authLoading]);
   
-  // Show loading state if auth is still loading
-  if (authLoading || !initialCheckDone) {
+  // Show loading state while auth is loading
+  if (authLoading) {
+    console.log("AppLayout - Showing auth loading state");
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center space-y-4">

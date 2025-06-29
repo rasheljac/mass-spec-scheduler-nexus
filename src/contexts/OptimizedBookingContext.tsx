@@ -26,7 +26,7 @@ interface OptimizedBookingContextType {
 const OptimizedBookingContext = createContext<OptimizedBookingContextType | undefined>(undefined);
 
 export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user, users, isAuthenticated } = useAuth();
+  const { user, users, isAuthenticated, isLoading: authLoading } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [statusColors, setStatusColors] = useState<Record<string, string>>({});
@@ -144,12 +144,15 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
 
   // Optimized initial data load
   const initializeData = useCallback(async () => {
-    if (!isAuthenticated || isInitialized) return;
+    if (!isAuthenticated || authLoading || isInitialized) {
+      console.log('OptimizedBookingContext: Skipping initialization', { isAuthenticated, authLoading, isInitialized });
+      return;
+    }
     
+    console.log('OptimizedBookingContext: Starting initialization...');
     setIsLoading(true);
+    
     try {
-      console.log('Initializing OptimizedBookingContext data...');
-      
       // Load instruments first, then use them for bookings
       const [instrumentsData] = await Promise.all([
         loadInstruments(),
@@ -161,14 +164,14 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
       
       setIsInitialized(true);
       setLastFetch(Date.now());
-      console.log('OptimizedBookingContext initialization complete');
+      console.log('OptimizedBookingContext: Initialization complete');
     } catch (error) {
-      console.error('Error initializing data:', error);
+      console.error('OptimizedBookingContext: Error during initialization:', error);
       toast.error('Failed to initialize application data');
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, isInitialized, loadInstruments, loadBookings, loadStatusColors]);
+  }, [isAuthenticated, authLoading, isInitialized, loadInstruments, loadBookings, loadStatusColors]);
 
   // Optimized refresh function with throttling
   const refreshData = useCallback(async () => {
@@ -177,11 +180,11 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
       return;
     }
     
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || authLoading) return;
     
     setIsLoading(true);
     try {
-      console.log('Refreshing OptimizedBookingContext data...');
+      console.log('OptimizedBookingContext: Refreshing data...');
       const instrumentsData = await loadInstruments();
       await Promise.all([
         loadBookings(instrumentsData),
@@ -189,31 +192,32 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
       ]);
       setLastFetch(now);
     } catch (error) {
-      console.error('Error refreshing data:', error);
+      console.error('OptimizedBookingContext: Error refreshing data:', error);
       toast.error('Failed to refresh data');
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, loadInstruments, loadBookings, loadStatusColors, lastFetch]);
+  }, [isAuthenticated, authLoading, loadInstruments, loadBookings, loadStatusColors, lastFetch]);
 
-  // Initialize data when authenticated
+  // Initialize data when authenticated and auth is ready
   useEffect(() => {
-    if (isAuthenticated && !isInitialized) {
+    if (isAuthenticated && !authLoading && !isInitialized) {
+      console.log('OptimizedBookingContext: Auth ready, initializing data...');
       initializeData();
     }
-  }, [isAuthenticated, isInitialized, initializeData]);
+  }, [isAuthenticated, authLoading, isInitialized, initializeData]);
 
   // Reset state when user logs out
   useEffect(() => {
-    if (!isAuthenticated && isInitialized) {
-      console.log('User logged out, resetting OptimizedBookingContext state');
+    if (!isAuthenticated && !authLoading && isInitialized) {
+      console.log('OptimizedBookingContext: User logged out, resetting state');
       setBookings([]);
       setInstruments([]);
       setStatusColors({});
       setIsInitialized(false);
       setIsLoading(false);
     }
-  }, [isAuthenticated, isInitialized]);
+  }, [isAuthenticated, authLoading, isInitialized]);
 
   // Optimized CRUD operations
   const createBooking = useCallback(async (bookingData: Omit<Booking, "id" | "createdAt">) => {
@@ -234,7 +238,6 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
 
       if (error) throw error;
 
-      // Optimistically update local state
       const newBooking: Booking = {
         id: data.id,
         userId: bookingData.userId,
@@ -274,7 +277,6 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
 
       if (error) throw error;
 
-      // Optimistically update local state
       setBookings(prev => prev.map(booking => 
         booking.id === bookingData.id ? bookingData : booking
       ));
@@ -293,7 +295,6 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
 
       if (error) throw error;
 
-      // Optimistically update local state
       setBookings(prev => prev.filter(booking => booking.id !== bookingId));
     } catch (error) {
       console.error('Error deleting booking:', error);
@@ -399,7 +400,6 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
 
       if (error) throw error;
 
-      // Update local state
       const newComment: Comment = {
         id: data.id,
         content: comment.content,
@@ -430,7 +430,6 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
 
       if (error) throw error;
 
-      // Update local state
       setBookings(prev => prev.map(booking => 
         booking.id === bookingId 
           ? { ...booking, comments: booking.comments?.filter(c => c.id !== commentId) || [] }
@@ -465,7 +464,6 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
 
       await Promise.all(updatePromises);
       
-      // Update local state
       setBookings(prev => prev.map(booking => {
         const bookingStart = new Date(booking.start);
         if (bookingStart >= startDateTime) {

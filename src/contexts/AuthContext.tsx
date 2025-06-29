@@ -30,6 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
+  const [initialized, setInitialized] = useState(false);
 
   const createExtendedUser = (supabaseUser: SupabaseUser, profileData?: Profile): User => {
     return {
@@ -62,72 +63,135 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Initialize authentication
   useEffect(() => {
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      
-      if (session?.user) {
-        // Fetch profile data for the user
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
+    let mounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        console.log('AuthContext: Initializing authentication...');
         
-        if (profileData) {
-          const profile: Profile = {
-            id: profileData.id,
-            name: profileData.name,
-            email: profileData.email,
-            role: profileData.role as 'admin' | 'user',
-            department: profileData.department,
-            profileImage: profileData.profile_image
-          };
-          const extendedUser = createExtendedUser(session.user, profile);
-          setUser(extendedUser);
+        // Get initial session
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('AuthContext: Error getting initial session:', error);
+        }
+
+        if (mounted) {
+          setSession(initialSession);
+          
+          if (initialSession?.user) {
+            console.log('AuthContext: Found existing session for user:', initialSession.user.email);
+            
+            // Fetch profile data
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', initialSession.user.id)
+              .single();
+            
+            if (profileData) {
+              const profile: Profile = {
+                id: profileData.id,
+                name: profileData.name,
+                email: profileData.email,
+                role: profileData.role as 'admin' | 'user',
+                department: profileData.department,
+                profileImage: profileData.profile_image
+              };
+              const extendedUser = createExtendedUser(initialSession.user, profile);
+              setUser(extendedUser);
+              console.log('AuthContext: User profile loaded:', extendedUser.email);
+            } else {
+              console.log('AuthContext: No profile found for user');
+              const extendedUser = createExtendedUser(initialSession.user);
+              setUser(extendedUser);
+            }
+          } else {
+            console.log('AuthContext: No existing session found');
+            setUser(null);
+          }
+          
+          setInitialized(true);
+          setIsLoading(false);
+          console.log('AuthContext: Authentication initialization complete');
+        }
+      } catch (error) {
+        console.error('AuthContext: Error during initialization:', error);
+        if (mounted) {
+          setIsLoading(false);
+          setInitialized(true);
         }
       }
-      setIsLoading(false);
     };
 
-    getSession();
+    // Set up auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('AuthContext: Auth state changed:', event, session?.user?.email);
+      
+      if (!mounted) return;
 
-    supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       
       if (session?.user) {
-        // Fetch profile data for the user
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (profileData) {
-          const profile: Profile = {
-            id: profileData.id,
-            name: profileData.name,
-            email: profileData.email,
-            role: profileData.role as 'admin' | 'user',
-            department: profileData.department,
-            profileImage: profileData.profile_image
-          };
-          const extendedUser = createExtendedUser(session.user, profile);
-          setUser(extendedUser);
-        }
+        // Defer profile fetching to avoid blocking the auth state change
+        setTimeout(async () => {
+          try {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (profileData && mounted) {
+              const profile: Profile = {
+                id: profileData.id,
+                name: profileData.name,
+                email: profileData.email,
+                role: profileData.role as 'admin' | 'user',
+                department: profileData.department,
+                profileImage: profileData.profile_image
+              };
+              const extendedUser = createExtendedUser(session.user, profile);
+              setUser(extendedUser);
+            } else if (mounted) {
+              const extendedUser = createExtendedUser(session.user);
+              setUser(extendedUser);
+            }
+          } catch (error) {
+            console.error('AuthContext: Error fetching profile in auth state change:', error);
+            if (mounted) {
+              const extendedUser = createExtendedUser(session.user);
+              setUser(extendedUser);
+            }
+          }
+        }, 0);
       } else {
         setUser(null);
       }
-      setIsLoading(false);
+      
+      if (!initialized) {
+        setInitialized(true);
+        setIsLoading(false);
+      }
     });
+
+    // Initialize auth
+    initializeAuth();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
+  // Fetch users when user becomes admin
   useEffect(() => {
-    if (user?.role === 'admin') {
+    if (user?.role === 'admin' && initialized) {
       fetchUsers();
     }
-  }, [user]);
+  }, [user?.role, initialized]);
 
   const sendWelcomeEmail = async (email: string, name: string) => {
     try {
@@ -176,14 +240,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     if (error) throw error;
     
-    // Send welcome email after successful signup
     if (data.user) {
       setTimeout(() => {
         sendWelcomeEmail(email, name);
-      }, 2000); // Wait 2 seconds for the profile to be created
+      }, 2000);
     }
-    
-    // The profile will be created automatically by the trigger
   };
 
   const logout = async () => {
@@ -197,7 +258,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateUserPassword = async (userId: string, newPassword: string) => {
-    // This requires admin privileges, so we'll show an error for now
     throw new Error('Password updates require admin privileges. Please use the Supabase dashboard.');
   };
 
@@ -205,10 +265,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Creating user with data:', userData);
       
-      // Generate a password if not provided
       const password = userData.password || Math.random().toString(36).slice(-8) + 'A1!';
       
-      // Use signup method to create user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userData.email,
         password: password,
@@ -232,12 +290,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('User created successfully:', authData.user.id);
 
-      // Send welcome email
       setTimeout(() => {
         sendWelcomeEmail(userData.email, userData.name);
       }, 2000);
 
-      // Handle profile creation and update users list
       setTimeout(async () => {
         try {
           const { data: profileData, error: profileError } = await supabase
@@ -247,7 +303,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .single();
 
           if (profileError || !profileData) {
-            // If profile doesn't exist, create it manually
             const { error: insertError } = await supabase
               .from('profiles')
               .insert({
@@ -263,7 +318,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               console.error('Error creating profile:', insertError);
             }
           } else {
-            // Update existing profile with complete data
             const { error: updateError } = await supabase
               .from('profiles')
               .update({
@@ -280,14 +334,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
 
-          // Refresh users list
           await refreshUsers();
         } catch (error) {
           console.error('Error handling post-creation profile setup:', error);
         }
       }, 1000);
 
-      // Show password to admin if it was auto-generated
       if (!userData.password) {
         toast.success(`User created successfully. Temporary password: ${password}`);
       } else {
@@ -313,7 +365,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { data: { user: refreshedUser } } = await supabase.auth.getUser();
       if (refreshedUser) {
-        // Fetch updated profile data
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')

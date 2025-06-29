@@ -9,27 +9,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { Loader2 } from "lucide-react";
 
 const LoginPage: React.FC = () => {
-  const { user, isLoading, isAuthenticated } = useAuth();
-  const [redirectAttempted, setRedirectAttempted] = useState(false);
+  const { isLoading, isAuthenticated } = useAuth();
   const [isPasswordResetOpen, setIsPasswordResetOpen] = useState(false);
 
-  console.log("Login page render - Auth loading state:", isLoading, "isAuthenticated:", isAuthenticated, "redirectAttempted:", redirectAttempted);
-
-  useEffect(() => {
-    if (!isLoading && isAuthenticated && !redirectAttempted) {
-      console.log("User is already authenticated on initial render, redirecting to:", "/");
-      setRedirectAttempted(true);
-    }
-  }, [isLoading, isAuthenticated, redirectAttempted]);
-
-  useEffect(() => {
-    if (!isLoading) {
-      console.log("Auth loading complete on login page, authenticated:", isAuthenticated);
-    }
-  }, [isLoading, isAuthenticated]);
+  console.log("LoginPage: Render with auth loading:", isLoading, "authenticated:", isAuthenticated);
 
   // Show loading while checking authentication
   if (isLoading) {
+    console.log("LoginPage: Showing loading state");
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
@@ -41,10 +28,12 @@ const LoginPage: React.FC = () => {
   }
 
   // Redirect if authenticated
-  if (isAuthenticated && !isLoading) {
-    console.log("User is authenticated, redirecting to:", "/");
-    return <Navigate to="/" replace />;
+  if (isAuthenticated) {
+    console.log("LoginPage: User authenticated, redirecting to dashboard");
+    return <Navigate to="/dashboard" replace />;
   }
+
+  console.log("LoginPage: Showing login form");
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
