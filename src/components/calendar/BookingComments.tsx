@@ -9,9 +9,8 @@ import { Trash2, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { Comment } from "../../types";
 import { useAuth } from "../../contexts/AuthContext";
-import { useBooking } from "../../contexts/BookingContext";
+import { useOptimizedBooking } from "../../contexts/OptimizedBookingContext";
 import { toast } from "sonner";
-import { createCommentNotification, sendEmail } from "../../utils/emailNotifications";
 
 interface BookingCommentsProps {
   bookingId: string;
@@ -24,8 +23,8 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
   comments,
   onCommentsChange
 }) => {
-  const { user, users } = useAuth();
-  const { addCommentToBooking, deleteCommentFromBooking, bookings } = useBooking();
+  const { user } = useAuth();
+  const { addCommentToBooking, deleteCommentFromBooking, bookings } = useOptimizedBooking();
   const [newComment, setNewComment] = useState("");
   const [isAddingComment, setIsAddingComment] = useState(false);
   const [deletingComments, setDeletingComments] = useState<Set<string>>(new Set());
@@ -60,59 +59,7 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
         onCommentsChange([...comments, newCommentObj]);
         setNewComment("");
         console.log("Comment added successfully with ID:", commentId);
-
-        // Send email notification to booking owner
-        const booking = bookings.find(b => b.id === bookingId);
-        if (booking && booking.userId !== user.id) {
-          try {
-            console.log("Sending comment notification email for booking:", booking.id);
-            
-            // Find the booking owner's email from the users array
-            const bookingOwner = users.find(u => u.id === booking.userId);
-            if (bookingOwner?.email) {
-              console.log("Sending comment notification to:", bookingOwner.email);
-              
-              // Create the notification using the centralized function
-              const emailNotification = createCommentNotification(
-                bookingOwner.email,
-                bookingOwner.name || 'User',
-                booking.instrumentName,
-                user.name,
-                commentContent,
-                format(new Date(booking.start), "PPP 'at' p")
-              );
-              
-              console.log("Email notification object created:", {
-                to: emailNotification.to,
-                subject: emailNotification.subject,
-                hasVariables: !!emailNotification.variables,
-                variableCount: Object.keys(emailNotification.variables || {}).length
-              });
-              
-              const emailSent = await sendEmail({
-                ...emailNotification,
-                emailType: 'notification'
-              });
-              
-              if (emailSent) {
-                console.log("Comment notification email sent successfully");
-                toast.success("Comment added and notification sent");
-              } else {
-                console.error("Comment notification email failed to send");
-                toast.success("Comment added but notification failed to send");
-              }
-            } else {
-              console.log("No email found for booking owner:", booking.userId);
-              toast.success("Comment added successfully");
-            }
-          } catch (emailError) {
-            console.error("Failed to send comment notification email:", emailError);
-            toast.success("Comment added but notification failed to send");
-          }
-        } else {
-          console.log("Not sending email - same user or booking not found");
-          toast.success("Comment added successfully");
-        }
+        toast.success("Comment added successfully");
       } else {
         throw new Error("Failed to get comment ID");
       }
