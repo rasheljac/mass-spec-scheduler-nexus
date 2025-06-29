@@ -3,13 +3,13 @@ import React, { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import Navbar from "./Navbar";
 import { useAuth } from "../../contexts/AuthContext";
-import { useBooking } from "../../contexts/BookingContext";
+import { useOptimizedBooking } from "../../contexts/OptimizedBookingContext";
 import Footer from "./Footer";
 import { Loader2 } from "lucide-react";
 
 const AppLayout: React.FC = () => {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
-  const { isLoading: bookingLoading } = useBooking();
+  const { isLoading: bookingLoading } = useOptimizedBooking();
   const location = useLocation();
   const navigate = useNavigate();
   const [lastActivity, setLastActivity] = useState<number>(Date.now());

@@ -2,7 +2,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "./contexts/AuthContext";
 import { OptimizedBookingProvider } from "./contexts/OptimizedBookingContext";
@@ -34,27 +34,25 @@ function App() {
       <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
         <TooltipProvider>
           <Toaster />
-          <BrowserRouter>
-            <AuthProvider>
-              <OptimizedBookingProvider>
-                <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/" element={<AppLayout />}>
-                    <Route index element={<Index />} />
-                    <Route path="dashboard" element={<Dashboard />} />
-                    <Route path="calendar" element={<CalendarPage />} />
-                    <Route path="instruments" element={<InstrumentsPage />} />
-                    <Route path="my-bookings" element={<MyBookingsPage />} />
-                    <Route path="admin" element={<AdminPage />} />
-                    <Route path="analytics" element={<AnalyticsPage />} />
-                    <Route path="profile" element={<ProfilePage />} />
-                    <Route path="settings" element={<SettingsPage />} />
-                  </Route>
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </OptimizedBookingProvider>
-            </AuthProvider>
-          </BrowserRouter>
+          <AuthProvider>
+            <OptimizedBookingProvider>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/" element={<AppLayout />}>
+                  <Route index element={<Index />} />
+                  <Route path="dashboard" element={<Dashboard />} />
+                  <Route path="calendar" element={<CalendarPage />} />
+                  <Route path="instruments" element={<InstrumentsPage />} />
+                  <Route path="my-bookings" element={<MyBookingsPage />} />
+                  <Route path="admin" element={<AdminPage />} />
+                  <Route path="analytics" element={<AnalyticsPage />} />
+                  <Route path="profile" element={<ProfilePage />} />
+                  <Route path="settings" element={<SettingsPage />} />
+                </Route>
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </OptimizedBookingProvider>
+          </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
