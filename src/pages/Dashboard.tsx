@@ -37,14 +37,14 @@ const Dashboard: React.FC = () => {
 
   // Ensure data is refreshed when dashboard loads
   useEffect(() => {
-    if (user && isInitialized && !isLoading) {
-      console.log('Dashboard: Ensuring data is fresh...');
+    if (user && !isInitialized && !isLoading) {
+      console.log('Dashboard: Data not initialized, refreshing...');
       refreshData();
     }
   }, [user, isInitialized, isLoading, refreshData]);
   
   // Show loading only if data is not initialized yet
-  if (isLoading && !isInitialized) {
+  if (!isInitialized && isLoading) {
     return (
       <div className="container mx-auto px-4 py-6 max-w-7xl flex items-center justify-center min-h-[60vh]">
         <Loader2 className="h-10 w-10 animate-spin text-mslab-400" />

@@ -1,47 +1,69 @@
 
 import React, { useEffect } from "react";
-import { format, isToday, isTomorrow, startOfDay } from "date-fns";
+import { format, isToday, isTomorrow } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { useOptimizedBooking } from "../../contexts/OptimizedBookingContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { Loader2 } from "lucide-react";
 
 const UpcomingBookings: React.FC = () => {
-  const { bookings, isLoading, refreshData } = useOptimizedBooking();
+  const { bookings, isLoading, refreshData, isInitialized } = useOptimizedBooking();
   const { user } = useAuth();
 
-  // Refresh data when component mounts if no bookings are loaded
+  // Refresh data when component mounts if not initialized
   useEffect(() => {
-    if (!isLoading && bookings.length === 0) {
-      console.log("No bookings loaded, refreshing data...");
+    if (!isInitialized && !isLoading) {
+      console.log("UpcomingBookings: Data not initialized, refreshing...");
       refreshData();
     }
-  }, [bookings.length, isLoading, refreshData]);
+  }, [isInitialized, isLoading, refreshData]);
 
-  console.log("UpcomingBookings - Total bookings:", bookings.length);
-  console.log("UpcomingBookings - Current user:", user?.id, user?.role);
-  console.log("UpcomingBookings - Loading state:", isLoading);
+  console.log("UpcomingBookings - Debug info:", {
+    totalBookings: bookings.length,
+    currentUser: user?.id,
+    userRole: user?.role,
+    isLoading,
+    isInitialized,
+    bookingsData: bookings.map(b => ({
+      id: b.id,
+      start: b.start,
+      status: b.status,
+      userId: b.userId,
+      instrumentName: b.instrumentName
+    }))
+  });
 
-  // Get the next 5 bookings for the current user or all bookings if admin
+  // Get upcoming bookings for the current user or all bookings if admin
   const now = new Date();
   
   const upcoming = bookings
     .filter(booking => {
       const bookingStart = new Date(booking.start);
       
-      // Include future bookings that haven't started yet
+      // Must be a future booking
       const isFuture = bookingStart > now;
+      // Must be confirmed
       const isConfirmed = booking.status === "confirmed";
-      const isUserBooking = user?.role === "admin" || booking.userId === user?.id;
+      // User must own the booking or be admin
+      const hasAccess = user?.role === "admin" || booking.userId === user?.id;
       
-      console.log(`Booking ${booking.id}: start=${bookingStart.toISOString()}, now=${now.toISOString()}, isFuture=${isFuture}, isConfirmed=${isConfirmed}, isUserBooking=${isUserBooking}`);
+      console.log(`Booking ${booking.id} filter check:`, {
+        start: bookingStart.toISOString(),
+        now: now.toISOString(),
+        isFuture,
+        isConfirmed,
+        hasAccess,
+        status: booking.status,
+        userId: booking.userId,
+        currentUserId: user?.id
+      });
       
-      return isFuture && isConfirmed && isUserBooking;
+      return isFuture && isConfirmed && hasAccess;
     })
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
     .slice(0, 5);
 
-  console.log("UpcomingBookings - Filtered upcoming bookings:", upcoming);
+  console.log("UpcomingBookings - Filtered upcoming bookings:", upcoming.length);
 
   // Format the date string nicely
   const formatDateDisplay = (dateStr: string | Date): string => {
@@ -62,7 +84,7 @@ const UpcomingBookings: React.FC = () => {
         <CardTitle className="text-lg font-medium">Upcoming Bookings</CardTitle>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
+        {isLoading && !isInitialized ? (
           <div className="flex items-center justify-center py-4">
             <Loader2 className="h-4 w-4 animate-spin mr-2" />
             <span className="text-sm text-muted-foreground">Loading bookings...</span>
@@ -70,7 +92,7 @@ const UpcomingBookings: React.FC = () => {
         ) : upcoming.length > 0 ? (
           <div className="space-y-4">
             {upcoming.map((booking) => (
-              <div key={booking.id} className="flex flex-col border-b pb-2">
+              <div key={booking.id} className="flex flex-col border-b pb-2 last:border-b-0">
                 <div className="flex justify-between items-center">
                   <p className="font-medium">{booking.instrumentName}</p>
                   <span className="text-sm text-muted-foreground">
@@ -80,7 +102,9 @@ const UpcomingBookings: React.FC = () => {
                 <p className="text-sm text-muted-foreground">
                   Booked by: {booking.userName}
                 </p>
-                <p className="text-sm">{booking.purpose || booking.details}</p>
+                {booking.purpose && (
+                  <p className="text-sm">{booking.purpose}</p>
+                )}
               </div>
             ))}
           </div>
@@ -88,7 +112,12 @@ const UpcomingBookings: React.FC = () => {
           <div className="text-center text-muted-foreground py-4">
             <p>No upcoming bookings</p>
             <p className="text-xs mt-1">
-              {bookings.length === 0 ? "No bookings found" : `Found ${bookings.length} total bookings`}
+              {!isInitialized 
+                ? "Loading..." 
+                : bookings.length === 0 
+                  ? "No bookings found" 
+                  : `Found ${bookings.length} total bookings, none upcoming`
+              }
             </p>
           </div>
         )}
