@@ -12,7 +12,7 @@ import { Loader2 } from "lucide-react";
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
-  const { isLoading, isInitialized } = useOptimizedBooking();
+  const { isLoading, isInitialized, refreshData } = useOptimizedBooking();
   
   useEffect(() => {
     // Check Supabase connection when dashboard loads
@@ -34,6 +34,14 @@ const Dashboard: React.FC = () => {
       checkConnection();
     }
   }, [user, isInitialized]);
+
+  // Ensure data is refreshed when dashboard loads
+  useEffect(() => {
+    if (user && isInitialized && !isLoading) {
+      console.log('Dashboard: Ensuring data is fresh...');
+      refreshData();
+    }
+  }, [user, isInitialized, isLoading, refreshData]);
   
   // Show loading only if data is not initialized yet
   if (isLoading && !isInitialized) {

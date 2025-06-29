@@ -1,8 +1,10 @@
+
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from "react";
 import { Instrument, Booking, BookingStatistics, Comment } from "../types";
 import { useAuth } from "./AuthContext";
 import { toast } from "sonner";
 import { supabase } from "../integrations/supabase/client";
+import { sendEmail, createBookingNotification, createStatusUpdateNotification, createCommentNotification } from "../utils/emailNotifications";
 
 interface OptimizedBookingContextType {
   bookings: Booking[];
@@ -33,6 +35,27 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [lastFetch, setLastFetch] = useState<number>(0);
+
+  // Helper function to get user email by userId
+  const getUserEmailById = useCallback(async (userId: string): Promise<string> => {
+    try {
+      const { data: userData, error } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error("Error fetching user email:", error);
+        return "";
+      }
+      
+      return userData?.email || "";
+    } catch (error) {
+      console.error("Error in getUserEmailById:", error);
+      return "";
+    }
+  }, []);
 
   // Memoized status color function
   const getStatusColor = useCallback((status: string) => {
@@ -254,15 +277,36 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
       };
 
       setBookings(prev => [...prev, newBooking]);
+
+      // Send email notification for new booking
+      try {
+        const userEmail = await getUserEmailById(bookingData.userId);
+        if (userEmail) {
+          const notification = createBookingNotification(
+            userEmail,
+            bookingData.userName,
+            bookingData.instrumentName,
+            newBooking
+          );
+          await sendEmail(notification);
+          console.log("New booking email notification sent");
+        }
+      } catch (emailError) {
+        console.error("Failed to send new booking email:", emailError);
+      }
+
       return data;
     } catch (error) {
       console.error('Error creating booking:', error);
       throw error;
     }
-  }, []);
+  }, [getUserEmailById]);
 
   const updateBooking = useCallback(async (bookingData: Booking) => {
     try {
+      // Get original booking for comparison
+      const originalBooking = bookings.find(b => b.id === bookingData.id);
+      
       const { error } = await supabase
         .from('bookings')
         .update({
@@ -280,11 +324,30 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
       setBookings(prev => prev.map(booking => 
         booking.id === bookingData.id ? bookingData : booking
       ));
+
+      // Send email notification if status changed
+      if (originalBooking && originalBooking.status !== bookingData.status) {
+        try {
+          const userEmail = await getUserEmailById(bookingData.userId);
+          if (userEmail) {
+            const notification = createStatusUpdateNotification(
+              userEmail,
+              bookingData.userName,
+              bookingData.instrumentName,
+              bookingData.status
+            );
+            await sendEmail(notification);
+            console.log("Status update email notification sent");
+          }
+        } catch (emailError) {
+          console.error("Failed to send status update email:", emailError);
+        }
+      }
     } catch (error) {
       console.error('Error updating booking:', error);
       throw error;
     }
-  }, []);
+  }, [bookings, getUserEmailById]);
 
   const deleteBooking = useCallback(async (bookingId: string) => {
     try {
@@ -414,12 +477,33 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
           : booking
       ));
 
+      // Send email notification for new comment
+      try {
+        const booking = bookings.find(b => b.id === bookingId);
+        if (booking) {
+          const userEmail = await getUserEmailById(booking.userId);
+          if (userEmail && booking.userId !== comment.userId) { // Don't notify the commenter
+            const notification = createCommentNotification(
+              userEmail,
+              booking.userName,
+              comment.userName,
+              booking.instrumentName,
+              comment.content
+            );
+            await sendEmail(notification);
+            console.log("Comment email notification sent");
+          }
+        }
+      } catch (emailError) {
+        console.error("Failed to send comment email:", emailError);
+      }
+
       return data.id;
     } catch (error) {
       console.error('Error adding comment:', error);
       throw error;
     }
-  }, []);
+  }, [bookings, getUserEmailById]);
 
   const deleteCommentFromBooking = useCallback(async (bookingId: string, commentId: string) => {
     try {

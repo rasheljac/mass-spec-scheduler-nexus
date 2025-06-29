@@ -24,18 +24,19 @@ const UpcomingBookings: React.FC = () => {
 
   // Get the next 5 bookings for the current user or all bookings if admin
   const now = new Date();
-  const today = startOfDay(now);
   
   const upcoming = bookings
     .filter(booking => {
-      const bookingEnd = new Date(booking.end);
+      const bookingStart = new Date(booking.start);
       
-      // Include bookings that haven't ended yet (including ongoing ones)
-      const isNotEnded = bookingEnd >= now; // Changed from today to now for more accurate filtering
+      // Include future bookings that haven't started yet
+      const isFuture = bookingStart > now;
       const isConfirmed = booking.status === "confirmed";
       const isUserBooking = user?.role === "admin" || booking.userId === user?.id;
       
-      return isNotEnded && isConfirmed && isUserBooking;
+      console.log(`Booking ${booking.id}: start=${bookingStart.toISOString()}, now=${now.toISOString()}, isFuture=${isFuture}, isConfirmed=${isConfirmed}, isUserBooking=${isUserBooking}`);
+      
+      return isFuture && isConfirmed && isUserBooking;
     })
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
     .slice(0, 5);

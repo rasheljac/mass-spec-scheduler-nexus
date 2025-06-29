@@ -85,6 +85,7 @@ const MyBookingsPage: React.FC = () => {
       setCommentContent(prev => ({ ...prev, [bookingId]: "" }));
       toast.success("Comment added successfully");
     } catch (error) {
+      console.error("Error adding comment:", error);
       toast.error("Failed to add comment");
     } finally {
       setAddingComment(prev => ({ ...prev, [bookingId]: false }));
@@ -98,6 +99,7 @@ const MyBookingsPage: React.FC = () => {
       await deleteCommentFromBooking(bookingId, commentId);
       toast.success("Comment deleted successfully");
     } catch (error) {
+      console.error("Error deleting comment:", error);
       toast.error("Failed to delete comment");
     } finally {
       setDeletingComment(prev => ({ ...prev, [commentId]: false }));
@@ -111,6 +113,7 @@ const MyBookingsPage: React.FC = () => {
       await deleteBooking(bookingId);
       toast.success("Booking deleted successfully");
     } catch (error) {
+      console.error("Error deleting booking:", error);
       toast.error("Failed to delete booking");
     } finally {
       setDeletingBooking(prev => ({ ...prev, [bookingId]: false }));
