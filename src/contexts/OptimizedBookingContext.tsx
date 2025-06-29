@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from "react";
 import { Instrument, Booking, BookingStatistics, Comment } from "../types";
 import { useAuth } from "./AuthContext";
@@ -286,7 +285,8 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
             userEmail,
             bookingData.userName,
             bookingData.instrumentName,
-            newBooking
+            newBooking.start,
+            newBooking.end,
           );
           await sendEmail(notification);
           console.log("New booking email notification sent");
@@ -488,7 +488,8 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
               booking.userName,
               comment.userName,
               booking.instrumentName,
-              comment.content
+              comment.content,
+              new Date(booking.start).toLocaleString()
             );
             await sendEmail(notification);
             console.log("Comment email notification sent");
