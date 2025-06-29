@@ -24,7 +24,7 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
   onCommentsChange
 }) => {
   const { user } = useAuth();
-  const { addCommentToBooking, deleteCommentFromBooking, bookings } = useOptimizedBooking();
+  const { addCommentToBooking, deleteCommentFromBooking } = useOptimizedBooking();
   const [newComment, setNewComment] = useState("");
   const [isAddingComment, setIsAddingComment] = useState(false);
   const [deletingComments, setDeletingComments] = useState<Set<string>>(new Set());
@@ -38,7 +38,7 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
 
     try {
       setIsAddingComment(true);
-      console.log("Adding comment:", commentContent);
+      console.log("Adding comment via calendar:", commentContent);
       
       const commentData = {
         userId: user.id,
@@ -47,6 +47,8 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
         createdAt: new Date().toISOString()
       };
 
+      console.log("Comment data being sent:", commentData);
+      
       const commentId = await addCommentToBooking(bookingId, commentData);
       
       if (commentId) {
@@ -58,13 +60,12 @@ const BookingComments: React.FC<BookingCommentsProps> = ({
         // Update the comments list immediately
         onCommentsChange([...comments, newCommentObj]);
         setNewComment("");
-        console.log("Comment added successfully with ID:", commentId);
-        toast.success("Comment added successfully");
+        console.log("Comment added successfully via calendar with ID:", commentId);
       } else {
         throw new Error("Failed to get comment ID");
       }
     } catch (error) {
-      console.error("Error adding comment:", error);
+      console.error("Error adding comment via calendar:", error);
       toast.error("Failed to add comment");
     } finally {
       setIsAddingComment(false);

@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "../ui/button";
 import { useAuth } from "../../contexts/AuthContext";
@@ -30,6 +30,13 @@ const Navbar: React.FC = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
+  // Memoize the avatar URL to prevent flashing
+  const avatarImageUrl = useMemo(() => {
+    return user?.profileImage 
+      ? `${user.profileImage}${user.profileImage.includes('?') ? '&' : '?'}t=${user.profileImage}`
+      : undefined;
+  }, [user?.profileImage]);
+
   const navItems = [
     { path: "/", label: "Home", icon: Home },
     { path: "/dashboard", label: "Dashboard", icon: BarChart3 },
@@ -46,11 +53,6 @@ const Navbar: React.FC = () => {
   if (!user) {
     return null;
   }
-
-  // Create a unique URL for the avatar image to prevent caching issues
-  const avatarImageUrl = user.profileImage 
-    ? `${user.profileImage}${user.profileImage.includes('?') ? '&' : '?'}t=${Date.now()}`
-    : undefined;
 
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -115,7 +117,6 @@ const Navbar: React.FC = () => {
                     <AvatarImage 
                       src={avatarImageUrl} 
                       alt={user.name}
-                      key={user.profileImage} // Force re-render when image changes
                     />
                     <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
                   </Avatar>
