@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { format, addDays, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay, parseISO, startOfMonth, endOfMonth, addMonths, subMonths, eachDayOfInterval } from "date-fns";
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Pencil } from "lucide-react";
@@ -27,6 +28,11 @@ const CalendarView: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
+  // Helper function to safely convert booking date to Date object
+  const getBookingDate = useCallback((dateValue: string | Date): Date => {
+    return typeof dateValue === 'string' ? parseISO(dateValue) : dateValue;
+  }, []);
+
   // Memoized filtered bookings
   const visibleBookings = useMemo(() => {
     let filteredBookings = bookings.filter(b => b.status !== "cancelled");
@@ -39,7 +45,7 @@ const CalendarView: React.FC = () => {
 
     if (viewMode === "day") {
       return filteredBookings.filter(booking => {
-        const bookingDate = parseISO(typeof booking.start === 'string' ? booking.start : booking.start.toISOString());
+        const bookingDate = getBookingDate(booking.start);
         return isSameDay(bookingDate, selectedDate);
       });
     } else if (viewMode === "week") {
@@ -47,7 +53,7 @@ const CalendarView: React.FC = () => {
       const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 0 });
       
       return filteredBookings.filter(booking => {
-        const bookingDate = parseISO(typeof booking.start === 'string' ? booking.start : booking.start.toISOString());
+        const bookingDate = getBookingDate(booking.start);
         return bookingDate >= weekStart && bookingDate <= weekEnd;
       });
     } else if (viewMode === "month") {
@@ -55,30 +61,30 @@ const CalendarView: React.FC = () => {
       const monthEnd = endOfMonth(selectedDate);
       
       return filteredBookings.filter(booking => {
-        const bookingDate = parseISO(typeof booking.start === 'string' ? booking.start : booking.start.toISOString());
+        const bookingDate = getBookingDate(booking.start);
         return bookingDate >= monthStart && bookingDate <= monthEnd;
       });
     }
     return filteredBookings;
-  }, [bookings, selectedInstrument, viewMode, selectedDate]);
+  }, [bookings, selectedInstrument, viewMode, selectedDate, getBookingDate]);
 
   // Format time for display
   const formatTime = useCallback((dateStr: string | Date) => {
-    const date = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr;
+    const date = getBookingDate(dateStr);
     return format(date, "h:mm a");
-  }, []);
+  }, [getBookingDate]);
 
   // Format date range for display
   const formatDateRange = useCallback((start: string | Date, end: string | Date) => {
-    const startDate = typeof start === 'string' ? parseISO(start) : start;
-    const endDate = typeof end === 'string' ? parseISO(end) : end;
+    const startDate = getBookingDate(start);
+    const endDate = getBookingDate(end);
     
     if (isSameDay(startDate, endDate)) {
       return `${formatTime(start)} - ${formatTime(end)}`;
     } else {
       return `${format(startDate, "MMM d")} ${formatTime(startDate)} - ${format(endDate, "MMM d")} ${formatTime(end)}`;
     }
-  }, [formatTime]);
+  }, [formatTime, getBookingDate]);
 
   const handleEditBooking = useCallback((booking: Booking) => {
     setSelectedBooking(booking);
@@ -144,8 +150,7 @@ const CalendarView: React.FC = () => {
   // Generate time slots for day view (9am to 5pm)
   const renderDayView = () => {
     const dayBookings = visibleBookings.sort((a, b) => 
-      parseISO(typeof a.start === 'string' ? a.start : a.start.toISOString()).getTime() - 
-      parseISO(typeof b.start === 'string' ? b.start : b.start.toISOString()).getTime()
+      getBookingDate(a.start).getTime() - getBookingDate(b.start).getTime()
     );
 
     return (
@@ -227,7 +232,7 @@ const CalendarView: React.FC = () => {
         <div className="space-y-2">
           {days.map((day) => {
             const dayBookings = visibleBookings.filter(booking => {
-              const bookingDate = parseISO(typeof booking.start === 'string' ? booking.start : booking.start.toISOString());
+              const bookingDate = getBookingDate(booking.start);
               return isSameDay(bookingDate, day);
             });
             
@@ -336,7 +341,7 @@ const CalendarView: React.FC = () => {
                 {week.map((day) => {
                   const isCurrentMonth = day.getMonth() === selectedDate.getMonth();
                   const dayBookings = visibleBookings.filter(booking => {
-                    const bookingDate = parseISO(typeof booking.start === 'string' ? booking.start : booking.start.toISOString());
+                    const bookingDate = getBookingDate(booking.start);
                     return isSameDay(bookingDate, day);
                   });
 

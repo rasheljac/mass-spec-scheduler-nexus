@@ -79,7 +79,6 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
         type: item.type,
         model: item.model,
         calibrationDue: item.calibration_due,
-        createdAt: item.created_at,
         // Ensure status matches the expected type
         status: (item.status as "available" | "in_use" | "maintenance" | "offline") || "available"
       }));
@@ -285,7 +284,6 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
         type: data.type,
         model: data.model,
         calibrationDue: data.calibration_due,
-        createdAt: data.created_at,
         status: data.status as "available" | "in_use" | "maintenance" | "offline"
       };
 
