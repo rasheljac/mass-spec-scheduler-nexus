@@ -2,11 +2,11 @@
 import React, { useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
-import { useBooking } from "../../contexts/BookingContext";
+import { useOptimizedBooking } from "../../contexts/OptimizedBookingContext";
 import { Loader2 } from "lucide-react";
 
 const InstrumentStatus: React.FC = () => {
-  const { instruments, isLoading, refreshData } = useBooking();
+  const { instruments, isLoading, refreshData } = useOptimizedBooking();
 
   // Refresh data when component mounts if no instruments are loaded
   useEffect(() => {
