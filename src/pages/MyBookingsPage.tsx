@@ -1,4 +1,5 @@
-import React, { useMemo } from "react";
+
+import React, { useMemo, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useOptimizedBooking } from "../contexts/OptimizedBookingContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
@@ -62,6 +63,10 @@ const MyBookingsPage: React.FC = () => {
 
     return { upcoming, current, past };
   }, [userBookings]);
+
+  const handleCommentContentChange = useCallback((bookingId: string, value: string) => {
+    setCommentContent(prev => ({ ...prev, [bookingId]: value }));
+  }, []);
 
   const handleAddComment = async (bookingId: string) => {
     const content = commentContent[bookingId]?.trim();
@@ -271,7 +276,7 @@ const MyBookingsPage: React.FC = () => {
             <Textarea
               placeholder="Add a comment..."
               value={commentContent[booking.id] || ""}
-              onChange={(e) => setCommentContent(prev => ({ ...prev, [booking.id]: e.target.value }))}
+              onChange={(e) => handleCommentContentChange(booking.id, e.target.value)}
               className="min-h-[60px]"
             />
             <Button

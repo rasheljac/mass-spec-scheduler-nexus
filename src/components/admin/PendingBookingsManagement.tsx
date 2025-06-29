@@ -28,6 +28,7 @@ import { format } from "date-fns";
 import { Clock, User, FileText, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { sendEmail, createStatusUpdateNotification } from "../../utils/emailNotifications";
+import { supabase } from "../../integrations/supabase/client";
 
 const PendingBookingsManagement: React.FC = () => {
   const { bookings, updateBooking } = useOptimizedBooking();
@@ -46,6 +47,27 @@ const PendingBookingsManagement: React.FC = () => {
     return filtered;
   }, [bookings]);
 
+  // Helper function to get user email by userId
+  const getUserEmailById = async (userId: string): Promise<string> => {
+    try {
+      const { data: userData, error } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error("Error fetching user email:", error);
+        return "";
+      }
+      
+      return userData?.email || "";
+    } catch (error) {
+      console.error("Error in getUserEmailById:", error);
+      return "";
+    }
+  };
+
   const handleApproveBooking = async (booking: any) => {
     setProcessingBooking(prev => ({ ...prev, [booking.id]: true }));
     
@@ -57,22 +79,27 @@ const PendingBookingsManagement: React.FC = () => {
 
       // Send approval email notification
       try {
-        const approvalNotification = createStatusUpdateNotification(
-          booking.userId, // This should be the user's email, but we'll use the ID for now
-          booking.userName,
-          booking.instrumentName,
-          "confirmed"
-        );
-        
-        // Get user email from the booking context or user data
-        const userProfile = await fetch(`/api/users/${booking.userId}`).catch(() => null);
-        if (userProfile) {
-          const userData = await userProfile.json();
-          approvalNotification.to = userData.email;
+        const userEmail = await getUserEmailById(booking.userId);
+        if (userEmail) {
+          console.log("Sending approval email to:", userEmail);
+          
+          const approvalNotification = createStatusUpdateNotification(
+            userEmail,
+            booking.userName,
+            booking.instrumentName,
+            "confirmed"
+          );
+          
+          const emailSent = await sendEmail(approvalNotification);
+          
+          if (emailSent) {
+            console.log("Approval email sent successfully");
+          } else {
+            console.error("Failed to send approval email");
+          }
+        } else {
+          console.warn("No email found for user:", booking.userId);
         }
-        
-        await sendEmail(approvalNotification);
-        console.log("Approval email sent successfully");
       } catch (emailError) {
         console.error("Failed to send approval email:", emailError);
       }
@@ -97,22 +124,27 @@ const PendingBookingsManagement: React.FC = () => {
 
       // Send denial email notification
       try {
-        const denialNotification = createStatusUpdateNotification(
-          booking.userId, // This should be the user's email, but we'll use the ID for now
-          booking.userName,
-          booking.instrumentName,
-          "cancelled"
-        );
-        
-        // Get user email from the booking context or user data
-        const userProfile = await fetch(`/api/users/${booking.userId}`).catch(() => null);
-        if (userProfile) {
-          const userData = await userProfile.json();
-          denialNotification.to = userData.email;
+        const userEmail = await getUserEmailById(booking.userId);
+        if (userEmail) {
+          console.log("Sending denial email to:", userEmail);
+          
+          const denialNotification = createStatusUpdateNotification(
+            userEmail,
+            booking.userName,
+            booking.instrumentName,
+            "cancelled"
+          );
+          
+          const emailSent = await sendEmail(denialNotification);
+          
+          if (emailSent) {
+            console.log("Denial email sent successfully");
+          } else {
+            console.error("Failed to send denial email");
+          }
+        } else {
+          console.warn("No email found for user:", booking.userId);
         }
-        
-        await sendEmail(denialNotification);
-        console.log("Denial email sent successfully");
       } catch (emailError) {
         console.error("Failed to send denial email:", emailError);
       }

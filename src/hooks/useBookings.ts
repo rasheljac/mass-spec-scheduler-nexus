@@ -9,9 +9,31 @@ export const useBookings = (users: User[]) => {
   const [bookings, setBookings] = useState<Booking[]>([]);
 
   // Helper function to find user email by userId
-  const getUserEmailById = (userId: string): string => {
-    const user = users.find(u => u.id === userId);
-    return user?.email || "";
+  const getUserEmailById = async (userId: string): Promise<string> => {
+    try {
+      // First try to get from users array (if available)
+      const user = users.find(u => u.id === userId);
+      if (user?.email) {
+        return user.email;
+      }
+      
+      // Fallback to database query
+      const { data: userData, error } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error("Error fetching user email:", error);
+        return "";
+      }
+      
+      return userData?.email || "";
+    } catch (error) {
+      console.error("Error in getUserEmailById:", error);
+      return "";
+    }
   };
 
   // Helper function to find user name by userId
@@ -149,7 +171,7 @@ export const useBookings = (users: User[]) => {
         
         // Send email notification for new booking
         try {
-          const userEmail = getUserEmailById(bookingData.userId);
+          const userEmail = await getUserEmailById(bookingData.userId);
           if (userEmail) {
             console.log("Sending booking confirmation email to:", userEmail);
             
@@ -236,7 +258,7 @@ export const useBookings = (users: User[]) => {
       // Send status update notification only if booking fields have changed (not comments)
       if (bookingFieldsChanged) {
         try {
-          const userEmail = getUserEmailById(bookingData.userId);
+          const userEmail = await getUserEmailById(bookingData.userId);
           if (userEmail) {
             console.log("Sending booking update email to:", userEmail);
             
@@ -331,7 +353,7 @@ export const useBookings = (users: User[]) => {
         // Send email notification for new comment if commenter is not the booking owner
         if (comment.userId !== booking.userId) {
           try {
-            const userEmail = getUserEmailById(booking.userId);
+            const userEmail = await getUserEmailById(booking.userId);
             const commentAuthor = comment.userName || getUserNameById(comment.userId);
             
             if (userEmail) {
@@ -438,18 +460,22 @@ export const useBookings = (users: User[]) => {
       await loadBookings();
       
       // Send delay notifications to affected users
-      affectedBookingsData.forEach(booking => {
-        const userEmail = getUserEmailById(booking.userId);
-        if (userEmail) {
-          const notification = createDelayNotification(
-            userEmail,
-            booking.userName,
-            booking.instrumentName,
-            delayMinutes
-          );
-          sendEmail(notification).catch(error => console.error("Failed to send delay notification:", error));
+      for (const booking of affectedBookingsData) {
+        try {
+          const userEmail = await getUserEmailById(booking.userId);
+          if (userEmail) {
+            const notification = createDelayNotification(
+              userEmail,
+              booking.userName,
+              booking.instrumentName,
+              delayMinutes
+            );
+            await sendEmail(notification);
+          }
+        } catch (error) {
+          console.error("Failed to send delay notification:", error);
         }
-      });
+      }
       
       toast.success(`Successfully applied ${delayMinutes} minute delay to ${affectedBookingsData.length} bookings`);
     } catch (error) {
