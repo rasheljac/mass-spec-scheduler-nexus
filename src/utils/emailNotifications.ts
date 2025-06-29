@@ -1,3 +1,4 @@
+
 import { supabase } from "../integrations/supabase/client";
 import { shouldSendEmail } from "./emailPreferences";
 
@@ -11,7 +12,7 @@ export interface EmailNotification {
 }
 
 export const sendEmail = async (notification: EmailNotification & { emailType?: 'notification' | 'reminder' }): Promise<boolean> => {
-  // Check if user has opted in for this type of email
+  // Check if user has opted in for this type of email - default to true if no emailType specified
   if (notification.emailType && !shouldSendEmail(notification.emailType)) {
     console.log(`Email sending skipped - user has opted out of ${notification.emailType} emails`);
     return false;

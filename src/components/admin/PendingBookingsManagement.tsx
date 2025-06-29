@@ -90,7 +90,8 @@ const PendingBookingsManagement: React.FC = () => {
             "confirmed"
           );
           
-          const emailSent = await sendEmail(approvalNotification);
+          // Add emailType parameter for proper email preference checking
+          const emailSent = await sendEmail({ ...approvalNotification, emailType: 'notification' });
           
           if (emailSent) {
             console.log("Approval email sent successfully");
@@ -135,7 +136,8 @@ const PendingBookingsManagement: React.FC = () => {
             "cancelled"
           );
           
-          const emailSent = await sendEmail(denialNotification);
+          // Add emailType parameter for proper email preference checking
+          const emailSent = await sendEmail({ ...denialNotification, emailType: 'notification' });
           
           if (emailSent) {
             console.log("Denial email sent successfully");

@@ -281,6 +281,7 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
       try {
         const userEmail = await getUserEmailById(bookingData.userId);
         if (userEmail) {
+          console.log("Sending new booking email to:", userEmail);
           const notification = createBookingNotification(
             userEmail,
             bookingData.userName,
@@ -288,8 +289,17 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
             newBooking.start,
             newBooking.end,
           );
-          await sendEmail(notification);
-          console.log("New booking email notification sent");
+          
+          // Add emailType parameter for proper email preference checking
+          const emailSent = await sendEmail({ ...notification, emailType: 'notification' });
+          
+          if (emailSent) {
+            console.log("New booking email notification sent successfully");
+          } else {
+            console.error("Failed to send new booking email");
+          }
+        } else {
+          console.warn("No email found for user:", bookingData.userId);
         }
       } catch (emailError) {
         console.error("Failed to send new booking email:", emailError);
@@ -330,14 +340,24 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
         try {
           const userEmail = await getUserEmailById(bookingData.userId);
           if (userEmail) {
+            console.log("Sending status update email to:", userEmail);
             const notification = createStatusUpdateNotification(
               userEmail,
               bookingData.userName,
               bookingData.instrumentName,
               bookingData.status
             );
-            await sendEmail(notification);
-            console.log("Status update email notification sent");
+            
+            // Add emailType parameter for proper email preference checking
+            const emailSent = await sendEmail({ ...notification, emailType: 'notification' });
+            
+            if (emailSent) {
+              console.log("Status update email notification sent successfully");
+            } else {
+              console.error("Failed to send status update email");
+            }
+          } else {
+            console.warn("No email found for user:", bookingData.userId);
           }
         } catch (emailError) {
           console.error("Failed to send status update email:", emailError);
@@ -483,16 +503,28 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
         if (booking) {
           const userEmail = await getUserEmailById(booking.userId);
           if (userEmail && booking.userId !== comment.userId) { // Don't notify the commenter
+            console.log("Sending comment email to:", userEmail);
+            
+            // Fix parameter order: userEmail, userName, instrumentName, commentBy, commentContent, bookingDate
             const notification = createCommentNotification(
               userEmail,
               booking.userName,
-              comment.userName,
               booking.instrumentName,
+              comment.userName,
               comment.content,
               new Date(booking.start).toLocaleString()
             );
-            await sendEmail(notification);
-            console.log("Comment email notification sent");
+            
+            // Add emailType parameter for proper email preference checking
+            const emailSent = await sendEmail({ ...notification, emailType: 'notification' });
+            
+            if (emailSent) {
+              console.log("Comment email notification sent successfully");
+            } else {
+              console.error("Failed to send comment email");
+            }
+          } else {
+            console.log("Skipping comment email - same user or no email found");
           }
         }
       } catch (emailError) {

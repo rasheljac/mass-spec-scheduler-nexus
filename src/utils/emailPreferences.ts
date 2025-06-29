@@ -27,6 +27,6 @@ export const shouldSendEmail = (emailType: 'notification' | 'reminder'): boolean
     case 'reminder':
       return preferences.bookingReminders;
     default:
-      return false;
+      return true; // Default to true for unknown types
   }
 };
