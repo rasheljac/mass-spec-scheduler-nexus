@@ -16,11 +16,11 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
-import { useBooking } from "../contexts/BookingContext";
+import { useOptimizedBooking } from "../contexts/OptimizedBookingContext";
 import { exportAnalyticsToPDF } from "../utils/pdfExport";
 
 const AnalyticsPage: React.FC = () => {
-  const { statistics } = useBooking();
+  const { statistics } = useOptimizedBooking();
 
   // Colors for the charts
   const COLORS = ["#9b87f5", "#7E69AB", "#6E59A5", "#D6BCFA", "#E5DEFF"];

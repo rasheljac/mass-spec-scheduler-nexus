@@ -2,7 +2,7 @@
 import React, { useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { useAuth } from "../contexts/AuthContext";
-import { useBooking } from "../contexts/BookingContext";
+import { useOptimizedBooking } from "../contexts/OptimizedBookingContext";
 import UserManagement from "../components/admin/UserManagement";
 import InstrumentManagement from "../components/admin/InstrumentManagement";
 import DelaySchedule from "../components/admin/DelaySchedule";
@@ -15,7 +15,7 @@ import { Loader2 } from "lucide-react";
 
 const AdminPage: React.FC = () => {
   const { user } = useAuth();
-  const { isLoading } = useBooking();
+  const { isLoading } = useOptimizedBooking();
   const [activeTab, setActiveTab] = useState("pending-bookings");
 
   // Redirect if user is not admin

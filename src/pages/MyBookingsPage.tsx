@@ -1,7 +1,6 @@
-
 import React, { useMemo } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { useBooking } from "../contexts/BookingContext";
+import { useOptimizedBooking } from "../contexts/OptimizedBookingContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Badge } from "../components/ui/badge";
@@ -25,7 +24,7 @@ import {
 
 const MyBookingsPage: React.FC = () => {
   const { user } = useAuth();
-  const { bookings, isLoading, addCommentToBooking, deleteBooking } = useBooking();
+  const { bookings, isLoading, addCommentToBooking, deleteBooking } = useOptimizedBooking();
   const [commentContent, setCommentContent] = useState<{ [key: string]: string }>({});
   const [addingComment, setAddingComment] = useState<{ [key: string]: boolean }>({});
   const [deletingBooking, setDeletingBooking] = useState<{ [key: string]: boolean }>({});
