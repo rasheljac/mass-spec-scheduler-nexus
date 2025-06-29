@@ -37,7 +37,10 @@ const MyBookingsPage: React.FC = () => {
       filtered = userBookings.filter(booking => 
         booking.purpose?.toLowerCase().includes(searchLower) ||
         booking.details?.toLowerCase().includes(searchLower) ||
-        booking.instrumentName?.toLowerCase().includes(searchLower)
+        booking.instrumentName?.toLowerCase().includes(searchLower) ||
+        booking.comments?.some(comment => 
+          comment.content?.toLowerCase().includes(searchLower)
+        )
       );
     }
 
