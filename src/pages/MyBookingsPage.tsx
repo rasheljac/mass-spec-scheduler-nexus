@@ -232,33 +232,31 @@ const MyBookingsPage: React.FC = () => {
           </div>
         )}
 
-        {/* Add comment section for active bookings */}
-        {(booking.status === "confirmed" || booking.status === "In-Progress") && (
-          <div className="border-t pt-3">
-            <div className="space-y-2">
-              <Textarea
-                placeholder="Add a comment..."
-                value={commentContent[booking.id] || ""}
-                onChange={(e) => setCommentContent(prev => ({ ...prev, [booking.id]: e.target.value }))}
-                className="min-h-[60px]"
-              />
-              <Button
-                size="sm"
-                onClick={() => handleAddComment(booking.id)}
-                disabled={!commentContent[booking.id]?.trim() || addingComment[booking.id]}
-              >
-                {addingComment[booking.id] ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Adding...
-                  </>
-                ) : (
-                  "Add Comment"
-                )}
-              </Button>
-            </div>
+        {/* Add comment section - now available for all bookings */}
+        <div className="border-t pt-3">
+          <div className="space-y-2">
+            <Textarea
+              placeholder="Add a comment..."
+              value={commentContent[booking.id] || ""}
+              onChange={(e) => setCommentContent(prev => ({ ...prev, [booking.id]: e.target.value }))}
+              className="min-h-[60px]"
+            />
+            <Button
+              size="sm"
+              onClick={() => handleAddComment(booking.id)}
+              disabled={!commentContent[booking.id]?.trim() || addingComment[booking.id]}
+            >
+              {addingComment[booking.id] ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add Comment"
+              )}
+            </Button>
           </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );
