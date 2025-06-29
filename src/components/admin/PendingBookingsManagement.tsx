@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from "react";
-import { useBooking } from "../../contexts/BookingContext";
+import { useOptimizedBooking } from "../../contexts/OptimizedBookingContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
@@ -27,16 +27,23 @@ import {
 import { format } from "date-fns";
 import { Clock, User, FileText, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { sendEmail, createStatusUpdateNotification } from "../../utils/emailNotifications";
 
 const PendingBookingsManagement: React.FC = () => {
-  const { bookings, updateBooking } = useBooking();
+  const { bookings, updateBooking } = useOptimizedBooking();
   const { user } = useAuth();
   const [processingBooking, setProcessingBooking] = useState<{ [key: string]: boolean }>({});
 
-  // Filter pending bookings
+  // Filter pending bookings - check for both "pending" and any status that needs approval
   const pendingBookings = useMemo(() => {
-    return bookings.filter(booking => booking.status === "pending")
-      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    console.log("All bookings:", bookings);
+    const filtered = bookings.filter(booking => {
+      console.log(`Booking ${booking.id} status: ${booking.status}`);
+      return booking.status === "pending" || booking.status === "Pending";
+    }).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    
+    console.log("Filtered pending bookings:", filtered);
+    return filtered;
   }, [bookings]);
 
   const handleApproveBooking = async (booking: any) => {
@@ -47,8 +54,32 @@ const PendingBookingsManagement: React.FC = () => {
         ...booking,
         status: "confirmed"
       });
+
+      // Send approval email notification
+      try {
+        const approvalNotification = createStatusUpdateNotification(
+          booking.userId, // This should be the user's email, but we'll use the ID for now
+          booking.userName,
+          booking.instrumentName,
+          "confirmed"
+        );
+        
+        // Get user email from the booking context or user data
+        const userProfile = await fetch(`/api/users/${booking.userId}`).catch(() => null);
+        if (userProfile) {
+          const userData = await userProfile.json();
+          approvalNotification.to = userData.email;
+        }
+        
+        await sendEmail(approvalNotification);
+        console.log("Approval email sent successfully");
+      } catch (emailError) {
+        console.error("Failed to send approval email:", emailError);
+      }
+
       toast.success(`Booking for ${booking.instrumentName} approved`);
     } catch (error) {
+      console.error("Failed to approve booking:", error);
       toast.error("Failed to approve booking");
     } finally {
       setProcessingBooking(prev => ({ ...prev, [booking.id]: false }));
@@ -63,8 +94,32 @@ const PendingBookingsManagement: React.FC = () => {
         ...booking,
         status: "cancelled"
       });
+
+      // Send denial email notification
+      try {
+        const denialNotification = createStatusUpdateNotification(
+          booking.userId, // This should be the user's email, but we'll use the ID for now
+          booking.userName,
+          booking.instrumentName,
+          "cancelled"
+        );
+        
+        // Get user email from the booking context or user data
+        const userProfile = await fetch(`/api/users/${booking.userId}`).catch(() => null);
+        if (userProfile) {
+          const userData = await userProfile.json();
+          denialNotification.to = userData.email;
+        }
+        
+        await sendEmail(denialNotification);
+        console.log("Denial email sent successfully");
+      } catch (emailError) {
+        console.error("Failed to send denial email:", emailError);
+      }
+
       toast.success(`Booking for ${booking.instrumentName} denied`);
     } catch (error) {
+      console.error("Failed to deny booking:", error);
       toast.error("Failed to deny booking");
     } finally {
       setProcessingBooking(prev => ({ ...prev, [booking.id]: false }));
@@ -74,6 +129,8 @@ const PendingBookingsManagement: React.FC = () => {
   if (user?.role !== "admin") {
     return null;
   }
+
+  console.log("Rendering PendingBookingsManagement with", pendingBookings.length, "pending bookings");
 
   return (
     <Card>
@@ -93,6 +150,9 @@ const PendingBookingsManagement: React.FC = () => {
             <h3 className="text-lg font-medium mb-2">No pending bookings</h3>
             <p className="text-muted-foreground">
               All booking requests have been processed.
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Total bookings in system: {bookings.length}
             </p>
           </div>
         ) : (
@@ -158,7 +218,7 @@ const PendingBookingsManagement: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary">
-                          Pending Approval
+                          {booking.status === "pending" ? "Pending Approval" : booking.status}
                         </Badge>
                       </TableCell>
                       <TableCell>

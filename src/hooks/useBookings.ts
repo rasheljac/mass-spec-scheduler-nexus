@@ -3,7 +3,7 @@ import { useState, useCallback } from "react";
 import { Booking, Comment, User } from "../types";
 import { supabase } from "../integrations/supabase/client";
 import { toast } from "sonner";
-import { createDelayNotification, sendEmail } from "../utils/emailNotifications";
+import { createDelayNotification, createBookingNotification, createStatusUpdateNotification, createCommentNotification, sendEmail } from "../utils/emailNotifications";
 
 export const useBookings = (users: User[]) => {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -153,41 +153,22 @@ export const useBookings = (users: User[]) => {
           if (userEmail) {
             console.log("Sending booking confirmation email to:", userEmail);
             
-            const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
-              body: {
-                to: userEmail,
-                subject: `Booking Confirmation: ${bookingData.instrumentName}`,
-                templateType: 'booking_confirmation',
-                htmlContent: `
-                  <h2>Booking Confirmation</h2>
-                  <p>Dear ${bookingData.userName},</p>
-                  <p>Your booking for <strong>${bookingData.instrumentName}</strong> has been created.</p>
-                  <p><strong>Details:</strong></p>
-                  <ul>
-                    <li>Start: ${new Date(bookingData.start).toLocaleString()}</li>
-                    <li>End: ${new Date(bookingData.end).toLocaleString()}</li>
-                    <li>Status: ${bookingData.status}</li>
-                    <li>Purpose: ${bookingData.purpose}</li>
-                  </ul>
-                  <p>Thank you for using the Lab Management System.</p>
-                `,
-                variables: {
-                  userName: bookingData.userName || "User",
-                  instrumentName: bookingData.instrumentName || "Instrument",
-                  startDate: new Date(bookingData.start).toLocaleString(),
-                  endDate: new Date(bookingData.end).toLocaleString(),
-                  status: bookingData.status || "pending",
-                  purpose: bookingData.purpose || ""
-                }
-              }
-            });
+            const bookingNotification = createBookingNotification(
+              userEmail,
+              bookingData.userName,
+              bookingData.instrumentName,
+              bookingData.start,
+              bookingData.end
+            );
             
-            if (emailError) {
-              console.error("Email sending error:", emailError);
-              toast.success("Booking created but email notification failed");
-            } else {
-              console.log("Booking confirmation email sent successfully:", emailData);
+            const emailSent = await sendEmail(bookingNotification);
+            
+            if (emailSent) {
+              console.log("Booking confirmation email sent successfully");
               toast.success("Booking created and confirmation email sent");
+            } else {
+              console.error("Failed to send booking confirmation email");
+              toast.success("Booking created but email notification failed");
             }
           } else {
             console.warn("No email found for user:", bookingData.userId);
@@ -259,38 +240,19 @@ export const useBookings = (users: User[]) => {
           if (userEmail) {
             console.log("Sending booking update email to:", userEmail);
             
-            const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
-              body: {
-                to: userEmail,
-                subject: `Booking Update: ${bookingData.instrumentName}`,
-                templateType: 'booking_update',
-                htmlContent: `
-                  <h2>Booking Update</h2>
-                  <p>Dear ${bookingData.userName},</p>
-                  <p>Your booking for <strong>${bookingData.instrumentName}</strong> has been updated.</p>
-                  <p><strong>Updated Details:</strong></p>
-                  <ul>
-                    <li>Start: ${new Date(bookingData.start).toLocaleString()}</li>
-                    <li>End: ${new Date(bookingData.end).toLocaleString()}</li>
-                    <li>Status: ${bookingData.status}</li>
-                    <li>Purpose: ${bookingData.purpose}</li>
-                  </ul>
-                  <p>Thank you for using the Lab Management System.</p>
-                `,
-                variables: {
-                  userName: bookingData.userName || "User",
-                  instrumentName: bookingData.instrumentName || "Instrument",
-                  startDate: new Date(bookingData.start).toLocaleString(),
-                  endDate: new Date(bookingData.end).toLocaleString(),
-                  status: bookingData.status || "pending"
-                }
-              }
-            });
+            const statusNotification = createStatusUpdateNotification(
+              userEmail,
+              bookingData.userName,
+              bookingData.instrumentName,
+              bookingData.status
+            );
             
-            if (emailError) {
-              console.error("Email update error:", emailError);
+            const emailSent = await sendEmail(statusNotification);
+            
+            if (emailSent) {
+              console.log("Booking update email sent successfully");
             } else {
-              console.log("Booking update email sent successfully:", emailData);
+              console.error("Failed to send booking update email");
             }
           }
         } catch (emailError) {
@@ -375,46 +337,23 @@ export const useBookings = (users: User[]) => {
             if (userEmail) {
               console.log("Sending comment notification email to:", userEmail);
               
-              const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
-                body: {
-                  to: userEmail,
-                  subject: `New Comment on Your Booking: ${booking.instrumentName}`,
-                  templateType: 'comment_added',
-                  htmlContent: `
-                    <h2>New Comment Added</h2>
-                    <p>Dear ${booking.userName},</p>
-                    <p>A new comment has been added to your booking for <strong>${booking.instrumentName}</strong>.</p>
-                    <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #007bff; margin: 20px 0;">
-                      <p><strong>Comment by ${commentAuthor}:</strong></p>
-                      <p style="margin: 10px 0;">${comment.content}</p>
-                      <p style="color: #666; font-size: 14px;">Time: ${new Date().toLocaleString()}</p>
-                    </div>
-                    <p><strong>Booking Details:</strong></p>
-                    <ul>
-                      <li>Instrument: ${booking.instrumentName}</li>
-                      <li>Start: ${new Date(booking.start).toLocaleString()}</li>
-                      <li>End: ${new Date(booking.end).toLocaleString()}</li>
-                    </ul>
-                    <p>Thank you for using the Lab Management System.</p>
-                  `,
-                  variables: {
-                    userName: booking.userName || "User",
-                    instrumentName: booking.instrumentName || "Instrument",
-                    startDate: new Date(booking.start).toLocaleString(),
-                    endDate: new Date(booking.end).toLocaleString(),
-                    commentAuthor: commentAuthor || "Someone",
-                    commentContent: comment.content || "",
-                    commentTime: new Date().toLocaleString()
-                  }
-                }
-              });
+              const commentNotification = createCommentNotification(
+                userEmail,
+                booking.userName,
+                booking.instrumentName,
+                commentAuthor,
+                comment.content,
+                new Date(booking.start).toLocaleString()
+              );
               
-              if (emailError) {
-                console.error("Comment notification email error:", emailError);
-                toast.success("Comment added (email notification failed)");
-              } else {
-                console.log("Comment notification email sent successfully:", emailData);
+              const emailSent = await sendEmail(commentNotification);
+              
+              if (emailSent) {
+                console.log("Comment notification email sent successfully");
                 toast.success("Comment added and notification sent");
+              } else {
+                console.error("Failed to send comment notification email");
+                toast.success("Comment added (email notification failed)");
               }
             } else {
               toast.success("Comment added successfully");
