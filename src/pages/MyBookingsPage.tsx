@@ -1,4 +1,3 @@
-
 import React, { useMemo, useCallback } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useOptimizedBooking } from "../contexts/OptimizedBookingContext";
@@ -8,6 +7,9 @@ import { Calendar, Clock, FileText, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { BookingCard } from "../components/bookings/BookingCard";
+import { BookingSearch } from "../components/bookings/BookingSearch";
+import { BookingSortDropdown, SortOption } from "../components/bookings/BookingSortDropdown";
+import { Booking } from "../types";
 
 const MyBookingsPage: React.FC = () => {
   const { user } = useAuth();
@@ -16,6 +18,8 @@ const MyBookingsPage: React.FC = () => {
   const [addingComment, setAddingComment] = useState<{ [key: string]: boolean }>({});
   const [deletingBooking, setDeletingBooking] = useState<{ [key: string]: boolean }>({});
   const [deletingComment, setDeletingComment] = useState<{ [key: string]: boolean }>({});
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<SortOption>("newest-first");
 
   // Filter bookings for the current user
   const userBookings = useMemo(() => {
@@ -23,30 +27,67 @@ const MyBookingsPage: React.FC = () => {
     return bookings.filter(booking => booking.userId === user.id);
   }, [bookings, user]);
 
-  // Categorize bookings
+  // Search and sort bookings
+  const filteredAndSortedBookings = useMemo(() => {
+    let filtered = userBookings;
+
+    // Apply search filter
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = userBookings.filter(booking => 
+        booking.purpose?.toLowerCase().includes(searchLower) ||
+        booking.details?.toLowerCase().includes(searchLower) ||
+        booking.instrumentName?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Apply sorting
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case "newest-first":
+          return new Date(b.start).getTime() - new Date(a.start).getTime();
+        case "oldest-first":
+          return new Date(a.start).getTime() - new Date(b.start).getTime();
+        case "title-asc":
+          return (a.purpose || "").localeCompare(b.purpose || "");
+        case "title-desc":
+          return (b.purpose || "").localeCompare(a.purpose || "");
+        case "instrument-asc":
+          return (a.instrumentName || "").localeCompare(b.instrumentName || "");
+        case "instrument-desc":
+          return (b.instrumentName || "").localeCompare(a.instrumentName || "");
+        default:
+          return new Date(b.start).getTime() - new Date(a.start).getTime();
+      }
+    });
+
+    return sorted;
+  }, [userBookings, searchTerm, sortBy]);
+
+  // Categorize filtered and sorted bookings
   const categorizedBookings = useMemo(() => {
     const now = new Date();
     
-    const upcoming = userBookings.filter(booking => {
+    const upcoming = filteredAndSortedBookings.filter(booking => {
       const startTime = new Date(booking.start);
       return startTime > now && booking.status !== "Completed" && booking.status !== "cancelled";
     });
 
-    const current = userBookings.filter(booking => {
+    const current = filteredAndSortedBookings.filter(booking => {
       const startTime = new Date(booking.start);
       const endTime = new Date(booking.end);
       return (startTime <= now && endTime >= now && booking.status === "In-Progress") || 
              booking.status === "Delayed";
     });
 
-    const past = userBookings.filter(booking => {
+    const past = filteredAndSortedBookings.filter(booking => {
       const endTime = new Date(booking.end);
       return (endTime < now || booking.status === "Completed" || booking.status === "cancelled") && 
              booking.status !== "Delayed";
     });
 
     return { upcoming, current, past };
-  }, [userBookings]);
+  }, [filteredAndSortedBookings]);
 
   const handleCommentContentChange = useCallback((bookingId: string, value: string) => {
     setCommentContent(prev => ({ ...prev, [bookingId]: value }));
@@ -130,6 +171,20 @@ const MyBookingsPage: React.FC = () => {
         </p>
       </div>
 
+      {/* Search and Sort Controls */}
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="flex-1 max-w-md">
+          <BookingSearch
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+          />
+        </div>
+        <BookingSortDropdown
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+        />
+      </div>
+
       <Tabs defaultValue="upcoming" className="space-y-4">
         <TabsList>
           <TabsTrigger value="upcoming">
@@ -148,9 +203,14 @@ const MyBookingsPage: React.FC = () => {
             <Card>
               <CardContent className="py-8 text-center">
                 <Calendar className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-medium mb-2">No upcoming bookings</h3>
+                <h3 className="text-lg font-medium mb-2">
+                  {searchTerm ? "No matching upcoming bookings" : "No upcoming bookings"}
+                </h3>
                 <p className="text-muted-foreground">
-                  You don't have any upcoming instrument bookings scheduled.
+                  {searchTerm 
+                    ? "Try adjusting your search term to find bookings." 
+                    : "You don't have any upcoming instrument bookings scheduled."
+                  }
                 </p>
               </CardContent>
             </Card>
@@ -178,9 +238,14 @@ const MyBookingsPage: React.FC = () => {
             <Card>
               <CardContent className="py-8 text-center">
                 <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-medium mb-2">No current bookings</h3>
+                <h3 className="text-lg font-medium mb-2">
+                  {searchTerm ? "No matching current bookings" : "No current bookings"}
+                </h3>
                 <p className="text-muted-foreground">
-                  You don't have any instruments currently in use.
+                  {searchTerm 
+                    ? "Try adjusting your search term to find bookings." 
+                    : "You don't have any instruments currently in use."
+                  }
                 </p>
               </CardContent>
             </Card>
@@ -208,9 +273,14 @@ const MyBookingsPage: React.FC = () => {
             <Card>
               <CardContent className="py-8 text-center">
                 <FileText className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="text-lg font-medium mb-2">No past bookings</h3>
+                <h3 className="text-lg font-medium mb-2">
+                  {searchTerm ? "No matching past bookings" : "No past bookings"}
+                </h3>
                 <p className="text-muted-foreground">
-                  Your completed bookings will appear here.
+                  {searchTerm 
+                    ? "Try adjusting your search term to find bookings." 
+                    : "Your completed bookings will appear here."
+                  }
                 </p>
               </CardContent>
             </Card>
