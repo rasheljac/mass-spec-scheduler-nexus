@@ -47,8 +47,18 @@ export class UserDeletionService {
       }
       console.log(`Deleted ${profileCount || 0} profile records`);
 
-      // Step 4: Verify deletion
-      console.log('Step 4: Verifying deletion...');
+      // Step 4: Delete from auth.users using admin API
+      console.log('Step 4: Deleting auth user...');
+      const { error: authError } = await supabase.auth.admin.deleteUser(user.id);
+      
+      if (authError) {
+        console.error('Error deleting auth user:', authError);
+        throw new Error(`Failed to delete auth user: ${authError.message}`);
+      }
+      console.log('Auth user deleted successfully');
+
+      // Step 5: Verify deletion
+      console.log('Step 5: Verifying deletion...');
       const { data: remainingProfile, error: verifyError } = await supabase
         .from('profiles')
         .select('id')

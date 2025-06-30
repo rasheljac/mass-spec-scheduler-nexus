@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Card } from "../../ui/card";
 import { Button } from "../../ui/button";
@@ -81,13 +80,18 @@ const UserManagementContainer: React.FC = () => {
     setIsDeleting(true);
     
     try {
+      console.log('Starting complete user deletion for:', userToDelete.email);
+      
       // Use the new deletion service
       await UserDeletionService.deleteUserCompletely(userToDelete);
       
-      // Update local state immediately
+      console.log('User deletion completed, updating local state...');
+      
+      // Update local state immediately to remove from UI
       deleteUser(userToDelete.id);
       
-      // Force refresh the users list from the database
+      // Force refresh the users list from the database to ensure consistency
+      console.log('Forcing refresh of users list...');
       if (refreshUsers) {
         await refreshUsers();
       }
@@ -101,8 +105,15 @@ const UserManagementContainer: React.FC = () => {
         description: `User ${userToDelete.name} and all associated data have been permanently deleted.`
       });
       
+      console.log('User deletion process completed successfully');
+      
     } catch (error) {
       console.error('User deletion failed:', error);
+      
+      // If deletion failed, refresh users list to ensure UI is consistent with database
+      if (refreshUsers) {
+        await refreshUsers();
+      }
       
       toast({
         title: "Delete failed",
