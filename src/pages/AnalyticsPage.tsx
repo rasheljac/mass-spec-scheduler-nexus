@@ -133,8 +133,8 @@ const AnalyticsPage: React.FC = () => {
                       {statistics.instrumentUsage.length > 0 && (
                         <div>
                           <p className="text-xl font-semibold">{statistics.instrumentUsage[0].instrumentName}</p>
-                          <p className="text-sm">{statistics.instrumentUsage[0].bookingCount} bookings</p>
-                          <p className="text-sm">{statistics.instrumentUsage[0].totalHours.toFixed(1)} hours</p>
+                          <p className="text-sm text-green-600 font-medium">{statistics.instrumentUsage[0].totalHours.toFixed(1)} total hours</p>
+                          <p className="text-sm text-muted-foreground">{statistics.instrumentUsage[0].bookingCount} bookings</p>
                         </div>
                       )}
                     </div>
