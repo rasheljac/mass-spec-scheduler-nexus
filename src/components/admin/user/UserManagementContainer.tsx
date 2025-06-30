@@ -82,7 +82,7 @@ const UserManagementContainer: React.FC = () => {
     try {
       console.log('Starting complete user deletion for:', userToDelete.email);
       
-      // Use the new deletion service
+      // Use the deletion service to clean up database records
       await UserDeletionService.deleteUserCompletely(userToDelete);
       
       console.log('User deletion completed, updating local state...');
@@ -102,7 +102,7 @@ const UserManagementContainer: React.FC = () => {
       
       toast({
         title: "User deleted successfully",
-        description: `User ${userToDelete.name} and all associated data have been permanently deleted.`
+        description: `User ${userToDelete.name} and all associated data have been permanently deleted from the database.`
       });
       
       console.log('User deletion process completed successfully');
