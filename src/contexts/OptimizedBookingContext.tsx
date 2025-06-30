@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from "react";
 import { Instrument, Booking, BookingStatistics, Comment } from "../types";
 import { useAuth } from "./AuthContext";
@@ -640,7 +639,7 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
         bookingCount: instrumentBookings.length,
         totalHours: Math.round(totalHours * 100) / 100
       };
-    });
+    }).sort((a, b) => b.totalHours - a.totalHours); // Ensure proper sorting by totalHours descending
 
     const userBookings = users.map(user => {
       const userBookingList = bookings.filter(b => b.userId === user.id);
@@ -656,7 +655,7 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
         bookingCount: userBookingList.length,
         totalHours: Math.round(totalHours * 100) / 100
       };
-    });
+    }).sort((a, b) => b.totalHours - a.totalHours); // Sort by totalHours descending
 
     const weeklyUsage = Array.from({ length: 7 }, (_, i) => {
       const date = new Date();
@@ -670,6 +669,8 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
         bookingCount: dayBookings.length
       };
     }).reverse();
+
+    console.log('Statistics calculated - instrumentUsage:', instrumentUsage.map(i => ({ name: i.instrumentName, hours: i.totalHours, bookings: i.bookingCount })));
 
     return {
       totalBookings,
