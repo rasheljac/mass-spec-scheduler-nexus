@@ -75,7 +75,8 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   useEffect(() => {
     if (booking && user) {
       console.log("Initializing edit form with booking:", booking);
-      
+      setSequenceFileOverride(null);
+
       const startDate = new Date(booking.start);
       const endDate = new Date(booking.end);
       const startTime = format(startDate, "HH:mm");
