@@ -6,7 +6,7 @@ import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
 import { Loader2, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "../../integrations/supabase/client";
+import { supabase, SUPABASE_FUNCTIONS_URL } from "../../integrations/supabase/client";
 import { useAppSettings } from "../../hooks/useAppSettings";
 
 const S3SettingsManagement: React.FC = () => {

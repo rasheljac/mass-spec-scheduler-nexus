@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button } from "../ui/button";
 import { Paperclip, Download, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "../../integrations/supabase/client";
+import { supabase, SUPABASE_FUNCTIONS_URL } from "../../integrations/supabase/client";
 import SequenceFileEditor from "./SequenceFileEditor";
 
 interface SequenceFileLinkProps {

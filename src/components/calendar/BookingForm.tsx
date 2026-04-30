@@ -16,7 +16,7 @@ import { cn } from "../../lib/utils";
 import { findBookingConflict, describeConflict } from "../../utils/bookingOverlap";
 import { useAppSettings } from "../../hooks/useAppSettings";
 import SequenceFileUpload from "./SequenceFileUpload";
-import { supabase } from "../../integrations/supabase/client";
+import { supabase, SUPABASE_FUNCTIONS_URL } from "../../integrations/supabase/client";
 
 interface BookingFormProps {
   open: boolean;

@@ -3,7 +3,7 @@ import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Loader2, Paperclip, X, Download, Pencil, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "../../integrations/supabase/client";
+import { supabase, SUPABASE_FUNCTIONS_URL } from "../../integrations/supabase/client";
 import { useAuth } from "../../contexts/AuthContext";
 import SequenceFileEditor from "./SequenceFileEditor";
 
