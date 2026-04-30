@@ -38,7 +38,7 @@ deploy_local() {
     echo "🏠 Deploying locally..."
     docker-compose up -d --build
     echo "✅ Application deployed locally"
-    echo "🌐 Access your application at: http://localhost:8080"
+    echo "🌐 Access your application at: http://localhost:41783"
 }
 
 deploy_production() {
