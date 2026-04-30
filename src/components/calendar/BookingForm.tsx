@@ -442,6 +442,14 @@ const BookingForm: React.FC<BookingFormProps> = ({
             />
           </div>
 
+          {appSettings?.s3_uploads_enabled && (
+            <SequenceFileUpload
+              bookingId={null}
+              onLocalFilePicked={setPendingFile}
+              disabled={isSubmitting}
+            />
+          )}
+
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-800">
               <strong>Note:</strong> Your booking will be submitted for admin approval and will be pending until confirmed.
