@@ -204,7 +204,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
           const { data: sess } = await supabase.auth.getSession();
           const token = sess.session?.access_token;
           const resp = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/s3-upload-sequence`,
+            `${SUPABASE_FUNCTIONS_URL}/s3-upload-sequence`,
             { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form }
           );
           const json = await resp.json();

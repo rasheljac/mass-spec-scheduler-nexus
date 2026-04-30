@@ -27,7 +27,7 @@ const SequenceFileLink: React.FC<SequenceFileLinkProps> = ({
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
       const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/s3-download-sequence?bookingId=${bookingId}`,
+        `${SUPABASE_FUNCTIONS_URL}/s3-download-sequence?bookingId=${bookingId}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!resp.ok) {
