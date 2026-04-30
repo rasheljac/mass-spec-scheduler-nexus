@@ -38,6 +38,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const validateFile = (file: File): string | null => {
     if (file.size > MAX_SIZE) return `File too large (max ${MAX_SIZE / 1024 / 1024} MB)`;
