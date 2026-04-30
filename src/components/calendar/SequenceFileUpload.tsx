@@ -194,6 +194,18 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
               <Pencil className="h-4 w-4" />
             </Button>
           )}
+          {bookingId && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => inputRef.current?.click()}
+              disabled={busy || disabled}
+              title="Replace"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             type="button"
             variant="ghost"
