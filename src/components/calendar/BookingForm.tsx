@@ -14,6 +14,9 @@ import { format } from "date-fns";
 import { Loader2, CalendarIcon, Clock } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { findBookingConflict, describeConflict } from "../../utils/bookingOverlap";
+import { useAppSettings } from "../../hooks/useAppSettings";
+import SequenceFileUpload from "./SequenceFileUpload";
+import { supabase } from "../../integrations/supabase/client";
 
 interface BookingFormProps {
   open: boolean;
@@ -32,7 +35,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
 }) => {
   const { createBooking, instruments, bookings } = useOptimizedBooking();
   const { user } = useAuth();
+  const { settings: appSettings } = useAppSettings();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     selectedInstrument: instrumentId || "",
     selectedDate: selectedDate || new Date(),
