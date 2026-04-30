@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
-import { Loader2, Paperclip, X, Download, Pencil } from "lucide-react";
+import { Loader2, Paperclip, X, Download, Pencil, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../integrations/supabase/client";
 import SequenceFileEditor from "./SequenceFileEditor";
