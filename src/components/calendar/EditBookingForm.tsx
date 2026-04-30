@@ -15,6 +15,7 @@ import { Loader2, CalendarIcon, Clock } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Booking, Comment } from "../../types";
 import BookingComments from "./BookingComments";
+import { findBookingConflict, describeConflict } from "../../utils/bookingOverlap";
 
 interface EditBookingFormProps {
   booking: Booking | null;
@@ -33,7 +34,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   onCancel,
   isSubmitting = false,
 }) => {
-  const { instruments, updateBooking } = useOptimizedBooking();
+  const { instruments, updateBooking, bookings } = useOptimizedBooking();
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [formData, setFormData] = useState({
@@ -183,6 +184,22 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
       
       const endDate = calculateEndDateTime();
 
+      // Frontend overlap check (skip if this booking is being cancelled/denied)
+      const newStatus = (formData.status || "").toLowerCase();
+      if (newStatus !== "cancelled" && newStatus !== "denied") {
+        const conflict = findBookingConflict({
+          bookings,
+          instrumentId: formData.instrumentId,
+          start: startDate,
+          end: endDate,
+          excludeBookingId: booking.id,
+        });
+        if (conflict) {
+          toast.error(describeConflict(conflict));
+          return;
+        }
+      }
+
       // Build details with sample information
       let detailsText = formData.details.replace(/\n\nSample Information:[\s\S]*$/, '');
       if (formData.sampleNumber && formData.sampleRunTime) {
@@ -221,7 +238,10 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
       onOpenChange(false);
     } catch (error) {
       console.error("Error saving booking:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to save changes";
+      const rawMessage = error instanceof Error ? error.message : "Failed to save changes";
+      const errorMessage = rawMessage.toLowerCase().includes("booking conflict")
+        ? "This instrument is already booked during the selected time window."
+        : rawMessage;
       toast.error(errorMessage);
     }
   };

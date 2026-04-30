@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Loader2, CalendarIcon, Clock } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { findBookingConflict, describeConflict } from "../../utils/bookingOverlap";
 
 interface BookingFormProps {
   open: boolean;
@@ -29,7 +30,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
   selectedTime = "09:00",
   instrumentId
 }) => {
-  const { createBooking, instruments } = useOptimizedBooking();
+  const { createBooking, instruments, bookings } = useOptimizedBooking();
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -136,6 +137,19 @@ const BookingForm: React.FC<BookingFormProps> = ({
       
       const endDate = calculateEndDateTime();
 
+      // Frontend overlap check for immediate feedback
+      const conflict = findBookingConflict({
+        bookings,
+        instrumentId: selectedInstrument.id,
+        start: startDate,
+        end: endDate,
+      });
+      if (conflict) {
+        toast.error(describeConflict(conflict));
+        setIsSubmitting(false);
+        return;
+      }
+
       // Always set status as pending for new bookings
       const initialStatus = "pending";
 
@@ -190,9 +204,14 @@ const BookingForm: React.FC<BookingFormProps> = ({
         sampleNumber: "",
         sampleRunTime: ""
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating booking:", error);
-      toast.error("Failed to create booking. Please try again.");
+      const msg = (error?.message || "").toString();
+      if (msg.toLowerCase().includes("booking conflict")) {
+        toast.error("This instrument is already booked during the selected time window.");
+      } else {
+        toast.error("Failed to create booking. Please try again.");
+      }
     } finally {
       setIsSubmitting(false);
     }
