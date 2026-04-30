@@ -40,6 +40,13 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   const { user } = useAuth();
   const { settings: appSettings } = useAppSettings();
   const [comments, setComments] = useState<Comment[]>([]);
+  // Local override for the sequence file display so the UI updates
+  // immediately after upload/remove without waiting for refreshData() to
+  // propagate a new booking prop.
+  const [sequenceFileOverride, setSequenceFileOverride] = useState<{
+    name: string | null;
+    size: number | null;
+  } | null>(null);
   const [formData, setFormData] = useState({
     instrumentId: "",
     instrumentName: "",
@@ -68,7 +75,8 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   useEffect(() => {
     if (booking && user) {
       console.log("Initializing edit form with booking:", booking);
-      
+      setSequenceFileOverride(null);
+
       const startDate = new Date(booking.start);
       const endDate = new Date(booking.end);
       const startTime = format(startDate, "HH:mm");
@@ -487,10 +495,24 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
             <SequenceFileUpload
               bookingId={booking.id}
               bookingOwnerId={booking.userId}
-              existingFileName={booking.sequenceFileName}
-              existingFileSize={booking.sequenceFileSize}
-              onUploaded={() => refreshData()}
-              onRemoved={() => refreshData()}
+              existingFileName={
+                sequenceFileOverride
+                  ? sequenceFileOverride.name
+                  : booking.sequenceFileName
+              }
+              existingFileSize={
+                sequenceFileOverride
+                  ? sequenceFileOverride.size
+                  : booking.sequenceFileSize
+              }
+              onUploaded={(info) => {
+                setSequenceFileOverride({ name: info.name, size: info.size });
+                refreshData();
+              }}
+              onRemoved={() => {
+                setSequenceFileOverride({ name: null, size: null });
+                refreshData();
+              }}
               disabled={isSubmitting}
             />
           )}
