@@ -362,23 +362,25 @@ const CalendarView: React.FC = () => {
                       </div>
                       
                       <div className="mt-6 space-y-1 text-xs">
-                        {dayBookings.slice(0, 2).map((booking) => (
+                        {dayBookings.slice(0, 3).map((booking) => (
                           <div 
                             key={booking.id}
-                            className="p-1 rounded truncate cursor-pointer flex items-center justify-between"
+                            className="p-1 rounded truncate cursor-pointer"
                             style={{ backgroundColor: `${getStatusColor(booking.status)}20`, borderLeft: `3px solid ${getStatusColor(booking.status)}` }}
                             onClick={() => handleEditBooking(booking)}
-                            title={`${booking.instrumentName} - ${booking.userName} - ${booking.status}`}
+                            title={`${booking.instrumentName}\nBooked by ${booking.userName}\n${formatDateRange(booking.start, booking.end)}\nStatus: ${booking.status}`}
                           >
-                            <span className="truncate">
-                              {formatTime(booking.start)} {booking.instrumentName}
-                            </span>
-                            <StatusBadge status={booking.status} className="ml-1 text-[10px] px-1" />
+                            <div className="truncate font-medium leading-tight">
+                              {formatTime(booking.start)}–{formatTime(booking.end)} · {booking.instrumentName}
+                            </div>
+                            <div className="truncate text-[10px] text-muted-foreground">
+                              {booking.userName}
+                            </div>
                           </div>
                         ))}
-                        {dayBookings.length > 2 && (
+                        {dayBookings.length > 3 && (
                           <div className="text-xs text-muted-foreground">
-                            +{dayBookings.length - 2} more
+                            +{dayBookings.length - 3} more
                           </div>
                         )}
                       </div>
