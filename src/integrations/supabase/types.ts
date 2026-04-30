@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_settings: {
+        Row: {
+          id: string
+          s3_bucket_display: string | null
+          s3_endpoint_display: string | null
+          s3_path_prefix: string
+          s3_uploads_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          s3_bucket_display?: string | null
+          s3_endpoint_display?: string | null
+          s3_path_prefix?: string
+          s3_uploads_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          s3_bucket_display?: string | null
+          s3_endpoint_display?: string | null
+          s3_path_prefix?: string
+          s3_uploads_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bookings: {
         Row: {
           created_at: string
@@ -22,6 +49,10 @@ export type Database = {
           id: string
           instrument_id: string
           purpose: string
+          sequence_file_key: string | null
+          sequence_file_name: string | null
+          sequence_file_size: number | null
+          sequence_file_uploaded_at: string | null
           start_time: string
           status: string
           user_id: string
@@ -33,6 +64,10 @@ export type Database = {
           id?: string
           instrument_id: string
           purpose: string
+          sequence_file_key?: string | null
+          sequence_file_name?: string | null
+          sequence_file_size?: number | null
+          sequence_file_uploaded_at?: string | null
           start_time: string
           status: string
           user_id: string
@@ -44,6 +79,10 @@ export type Database = {
           id?: string
           instrument_id?: string
           purpose?: string
+          sequence_file_key?: string | null
+          sequence_file_name?: string | null
+          sequence_file_size?: number | null
+          sequence_file_uploaded_at?: string | null
           start_time?: string
           status?: string
           user_id?: string
