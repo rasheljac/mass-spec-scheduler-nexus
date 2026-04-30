@@ -358,7 +358,7 @@ const CalendarView: React.FC = () => {
                     <div 
                       key={day.toString()}
                       className={cn(
-                        "p-1 min-h-[100px] relative",
+                        "p-1 min-h-[140px] relative",
                         !isCurrentMonth && "bg-muted/20 text-muted-foreground",
                         isToday(day) && "bg-accent/40",
                       )}
