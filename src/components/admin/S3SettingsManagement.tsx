@@ -152,9 +152,9 @@ const S3SettingsManagement: React.FC = () => {
                     <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
                     <div>
                       <div className="font-medium">Connection failed</div>
-                      <div className="text-xs mt-1 break-all">{testResult.error}</div>
-                      {(testResult as any).status && (
-                        <div className="text-xs">HTTP {(testResult as any).status}</div>
+                      <div className="text-xs mt-1 break-all">{(testResult as { ok: false; error: string; status?: number }).error}</div>
+                      {(testResult as { ok: false; error: string; status?: number }).status && (
+                        <div className="text-xs">HTTP {(testResult as { ok: false; error: string; status?: number }).status}</div>
                       )}
                     </div>
                   </div>
