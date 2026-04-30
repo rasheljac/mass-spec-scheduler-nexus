@@ -340,10 +340,19 @@ const CalendarView: React.FC = () => {
               <div key={weekIndex} className="grid grid-cols-7 divide-x">
                 {week.map((day) => {
                   const isCurrentMonth = day.getMonth() === selectedDate.getMonth();
+                  const dayStart = new Date(day); dayStart.setHours(0,0,0,0);
+                  const dayEnd = new Date(day); dayEnd.setHours(23,59,59,999);
                   const dayBookings = visibleBookings.filter(booking => {
-                    const bookingDate = getBookingDate(booking.start);
-                    return isSameDay(bookingDate, day);
+                    const s = getBookingDate(booking.start);
+                    const e = getBookingDate(booking.end);
+                    return s <= dayEnd && e >= dayStart;
                   });
+
+                  const formatHours = (start: string | Date, end: string | Date) => {
+                    const ms = getBookingDate(end).getTime() - getBookingDate(start).getTime();
+                    const h = ms / 3600000;
+                    return h >= 1 ? `${h % 1 === 0 ? h : h.toFixed(1)}h` : `${Math.round(h * 60)}m`;
+                  };
 
                   return (
                     <div 
@@ -362,22 +371,39 @@ const CalendarView: React.FC = () => {
                       </div>
                       
                       <div className="mt-6 space-y-1 text-xs">
-                        {dayBookings.slice(0, 3).map((booking) => (
-                          <div 
-                            key={booking.id}
-                            className="p-1 rounded truncate cursor-pointer"
-                            style={{ backgroundColor: `${getStatusColor(booking.status)}20`, borderLeft: `3px solid ${getStatusColor(booking.status)}` }}
-                            onClick={() => handleEditBooking(booking)}
-                            title={`${booking.instrumentName}\nBooked by ${booking.userName}\n${formatDateRange(booking.start, booking.end)}\nStatus: ${booking.status}`}
-                          >
-                            <div className="truncate font-medium leading-tight">
-                              {formatTime(booking.start)}–{formatTime(booking.end)} · {booking.instrumentName}
+                        {dayBookings.slice(0, 3).map((booking) => {
+                          const s = getBookingDate(booking.start);
+                          const e = getBookingDate(booking.end);
+                          const continuesFromPrev = s < dayStart;
+                          const continuesToNext = e > dayEnd;
+                          return (
+                            <div 
+                              key={booking.id}
+                              className={cn(
+                                "p-1 truncate cursor-pointer",
+                                continuesFromPrev ? "rounded-l-none -ml-1 pl-2" : "rounded-l",
+                                continuesToNext ? "rounded-r-none -mr-1 pr-2" : "rounded-r",
+                              )}
+                              style={{ 
+                                backgroundColor: `${getStatusColor(booking.status)}20`, 
+                                borderLeft: continuesFromPrev ? 'none' : `3px solid ${getStatusColor(booking.status)}`,
+                                borderRight: continuesToNext ? `3px solid ${getStatusColor(booking.status)}` : 'none',
+                              }}
+                              onClick={() => handleEditBooking(booking)}
+                              title={`${booking.instrumentName}\nBooked by ${booking.userName}\n${formatDateRange(booking.start, booking.end)} (${formatHours(booking.start, booking.end)})\nStatus: ${booking.status}`}
+                            >
+                              <div className="truncate font-medium leading-tight">
+                                {continuesFromPrev ? "↞ " : formatTime(booking.start)}
+                                {!continuesFromPrev && !continuesToNext && `–${formatTime(booking.end)}`}
+                                {continuesToNext && !continuesFromPrev && ` ↠`}
+                                {` · ${booking.instrumentName}`}
+                              </div>
+                              <div className="truncate text-[10px] text-muted-foreground">
+                                {booking.userName} · {formatHours(booking.start, booking.end)}
+                              </div>
                             </div>
-                            <div className="truncate text-[10px] text-muted-foreground">
-                              {booking.userName}
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                         {dayBookings.length > 3 && (
                           <div className="text-xs text-muted-foreground">
                             +{dayBookings.length - 3} more
