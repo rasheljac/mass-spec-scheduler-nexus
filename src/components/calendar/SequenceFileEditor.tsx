@@ -160,14 +160,13 @@ const SequenceFileEditor: React.FC<SequenceFileEditorProps> = ({
         const arrayBuffer = await resp.arrayBuffer();
 
         // 2. Dynamic import — keep Univer & SheetJS out of the main bundle
-        const [{ createUniver, LocaleType, merge }, { UniverSheetsCorePreset }, sheetsCoreLocale, XLSXmod, _css1, _css2] =
+        const [{ createUniver, LocaleType, merge }, { UniverSheetsCorePreset }, sheetsCoreLocale, XLSXmod] =
           await Promise.all([
             import("@univerjs/presets"),
             import("@univerjs/presets/preset-sheets-core"),
             import("@univerjs/presets/preset-sheets-core/locales/en-US"),
             import("xlsx"),
             import("@univerjs/presets/lib/styles/preset-sheets-core.css"),
-            import("./univer-overrides.css").catch(() => null),
           ]);
 
         if (cancelled) return;
