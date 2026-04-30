@@ -486,6 +486,7 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
           {appSettings?.s3_uploads_enabled && (
             <SequenceFileUpload
               bookingId={booking.id}
+              bookingOwnerId={booking.userId}
               existingFileName={booking.sequenceFileName}
               existingFileSize={booking.sequenceFileSize}
               onUploaded={() => refreshData()}
