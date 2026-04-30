@@ -401,7 +401,7 @@ const CalendarView: React.FC = () => {
                               <div className="truncate text-[10px] text-muted-foreground mt-0.5">
                                 {booking.userName} · {formatHours(booking.start, booking.end)}
                               </div>
-                              <div className="mt-1">
+                              <div className="mt-1 flex justify-center">
                                 <StatusBadge status={booking.status} className="text-[10px] px-1.5 py-0" />
                               </div>
                             </div>
