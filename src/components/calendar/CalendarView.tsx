@@ -393,8 +393,8 @@ const CalendarView: React.FC = () => {
                               title={`${booking.instrumentName}\nBooked by ${booking.userName}\n${formatDateRange(booking.start, booking.end)} (${formatHours(booking.start, booking.end)})\nStatus: ${booking.status}`}
                             >
                               <div className="truncate font-medium leading-tight">
-                                {continuesFromPrev ? "↞" : formatTime(booking.start)}
-                                {`–`}
+                                {continuesFromPrev ? "↞ " : formatTime(booking.start)}
+                                {` – `}
                                 {continuesToNext ? `${formatTime(booking.end)} ↠` : formatTime(booking.end)}
                                 {` · ${booking.instrumentName}`}
                               </div>
