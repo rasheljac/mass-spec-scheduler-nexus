@@ -14,6 +14,9 @@ import { format } from "date-fns";
 import { Loader2, CalendarIcon, Clock } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { findBookingConflict, describeConflict } from "../../utils/bookingOverlap";
+import { useAppSettings } from "../../hooks/useAppSettings";
+import SequenceFileUpload from "./SequenceFileUpload";
+import { supabase } from "../../integrations/supabase/client";
 
 interface BookingFormProps {
   open: boolean;
@@ -32,7 +35,9 @@ const BookingForm: React.FC<BookingFormProps> = ({
 }) => {
   const { createBooking, instruments, bookings } = useOptimizedBooking();
   const { user } = useAuth();
+  const { settings: appSettings } = useAppSettings();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     selectedInstrument: instrumentId || "",
     selectedDate: selectedDate || new Date(),
@@ -177,7 +182,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
         comments: []
       });
 
-      await createBooking({
+      const created = await createBooking({
         userId: user.id,
         userName: user.name,
         instrumentId: selectedInstrument.id,
@@ -190,10 +195,35 @@ const BookingForm: React.FC<BookingFormProps> = ({
         comments: []
       });
 
-      toast.success("Booking request submitted for admin approval");
-      
+      // Upload sequence file if one was picked
+      if (pendingFile && created?.id) {
+        try {
+          const form = new FormData();
+          form.append("file", pendingFile);
+          form.append("bookingId", created.id);
+          const { data: sess } = await supabase.auth.getSession();
+          const token = sess.session?.access_token;
+          const resp = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/s3-upload-sequence`,
+            { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form }
+          );
+          const json = await resp.json();
+          if (!resp.ok) throw new Error(json.error || "Upload failed");
+          toast.success("Booking submitted and sequence file uploaded");
+        } catch (uploadErr) {
+          console.error("Sequence upload failed", uploadErr);
+          toast.error(
+            "Booking created, but sequence file upload failed: " +
+              (uploadErr instanceof Error ? uploadErr.message : "unknown error")
+          );
+        }
+      } else {
+        toast.success("Booking request submitted for admin approval");
+      }
+
       onOpenChange(false);
       // Reset form
+      setPendingFile(null);
       setFormData({
         selectedInstrument: "",
         selectedDate: new Date(),
@@ -411,6 +441,14 @@ const BookingForm: React.FC<BookingFormProps> = ({
               className="min-h-[80px]"
             />
           </div>
+
+          {appSettings?.s3_uploads_enabled && (
+            <SequenceFileUpload
+              bookingId={null}
+              onLocalFilePicked={setPendingFile}
+              disabled={isSubmitting}
+            />
+          )}
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-800">

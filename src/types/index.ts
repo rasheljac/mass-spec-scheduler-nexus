@@ -40,6 +40,10 @@ export interface Booking {
   userName: string;
   comments: Comment[];
   createdAt?: string;
+  sequenceFileKey?: string | null;
+  sequenceFileName?: string | null;
+  sequenceFileSize?: number | null;
+  sequenceFileUploadedAt?: string | null;
 }
 
 export interface Instrument {
