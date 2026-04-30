@@ -259,6 +259,21 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
       <p className="text-xs text-muted-foreground">
         Optional — attach your LCMS sequence file. Max 25 MB.
       </p>
+      {bookingId && existingFileName && editorOpen && (
+        <SequenceFileEditor
+          open={editorOpen}
+          onOpenChange={setEditorOpen}
+          bookingId={bookingId}
+          fileName={existingFileName}
+          onSaved={(info) => {
+            onUploaded?.({
+              key: "",
+              name: existingFileName,
+              size: info.size,
+            });
+          }}
+        />
+      )}
     </div>
   );
 };
