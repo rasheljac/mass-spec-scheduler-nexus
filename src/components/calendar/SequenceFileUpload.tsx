@@ -182,6 +182,18 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
           >
             <Download className="h-4 w-4" />
           </Button>
+          {bookingId && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setEditorOpen(true)}
+              disabled={busy || disabled}
+              title="Edit in browser"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             type="button"
             variant="ghost"
