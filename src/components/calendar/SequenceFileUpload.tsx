@@ -1,10 +1,10 @@
-import React, { useRef, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Loader2, Paperclip, X, Download, Pencil, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase, SUPABASE_FUNCTIONS_URL } from "../../integrations/supabase/client";
-import { useAuth } from "../../contexts/AuthContext";
+import { AuthContext } from "../../contexts/AuthContext";
 import SequenceFileEditor from "./SequenceFileEditor";
 
 interface SequenceFileUploadProps {
@@ -57,7 +57,10 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
   const [busy, setBusy] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
-  const { user } = useAuth();
+  // Read context directly so this component can be rendered outside AuthProvider
+  // (e.g. inside auth modals) without throwing.
+  const auth = useContext(AuthContext);
+  const user = auth?.user ?? null;
 
   // Permission: only the booking's owner or an admin may edit/replace/remove the file.
   // When creating a new booking (bookingId == null) the current user is implicitly the owner.
