@@ -4,10 +4,13 @@ import { Label } from "../ui/label";
 import { Loader2, Paperclip, X, Download, Pencil, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../integrations/supabase/client";
+import { useAuth } from "../../contexts/AuthContext";
 import SequenceFileEditor from "./SequenceFileEditor";
 
 interface SequenceFileUploadProps {
   bookingId: string | null; // null when creating — upload deferred until after submit
+  /** Owner of the booking (user_id). Used to gate edit/replace/remove to admin or owner. */
+  bookingOwnerId?: string | null;
   existingFileName?: string | null;
   existingFileSize?: number | null;
   onUploaded?: (info: { key: string; name: string; size: number }) => void;
@@ -26,8 +29,23 @@ const formatSize = (bytes: number) => {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 };
 
+/** Safely parse a Response that should be JSON; returns a clear error if it's HTML/text. */
+const parseJsonOrThrow = async (resp: Response, fallbackMsg: string) => {
+  const text = await resp.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    // Server returned HTML (e.g. 404 page from the platform when the function isn't deployed)
+    const snippet = text.slice(0, 80).replace(/\s+/g, " ");
+    throw new Error(
+      `${fallbackMsg} (server returned non-JSON ${resp.status}: ${snippet}…)`,
+    );
+  }
+};
+
 const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
   bookingId,
+  bookingOwnerId,
   existingFileName,
   existingFileSize,
   onUploaded,
@@ -39,6 +57,13 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
   const [busy, setBusy] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const { user } = useAuth();
+
+  // Permission: only the booking's owner or an admin may edit/replace/remove the file.
+  // When creating a new booking (bookingId == null) the current user is implicitly the owner.
+  const isAdmin = user?.role === "admin";
+  const isOwner = !bookingOwnerId || (user?.id && user.id === bookingOwnerId);
+  const canModify = !!user && (isAdmin || isOwner);
 
   const validateFile = (file: File): string | null => {
     if (file.size > MAX_SIZE) return `File too large (max ${MAX_SIZE / 1024 / 1024} MB)`;
@@ -66,6 +91,12 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
       return;
     }
 
+    if (!canModify) {
+      toast.error("You don't have permission to modify this booking's sequence file.");
+      e.target.value = "";
+      return;
+    }
+
     // Edit flow — upload immediately
     setBusy(true);
     try {
@@ -82,7 +113,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
           body: form,
         },
       );
-      const json = await resp.json();
+      const json = await parseJsonOrThrow(resp, "Upload failed");
       if (!resp.ok) throw new Error(json.error || "Upload failed");
       toast.success("Sequence file uploaded");
       onUploaded?.({ key: json.key, name: json.name, size: json.size });
@@ -102,6 +133,10 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
       return;
     }
     if (!bookingId) return;
+    if (!canModify) {
+      toast.error("You don't have permission to remove this booking's sequence file.");
+      return;
+    }
     if (!confirm("Remove the uploaded sequence file?")) return;
     setBusy(true);
     try {
@@ -118,7 +153,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
           body: JSON.stringify({ bookingId }),
         },
       );
-      const json = await resp.json();
+      const json = await parseJsonOrThrow(resp, "Delete failed");
       if (!resp.ok) throw new Error(json.error || "Delete failed");
       toast.success("Sequence file removed");
       onRemoved?.();
@@ -140,7 +175,9 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!resp.ok) {
-        const err = await resp.json().catch(() => ({}));
+        const err = await parseJsonOrThrow(resp, "Download failed").catch(
+          (e) => ({ error: e instanceof Error ? e.message : "Download failed" }),
+        );
         throw new Error(err.error || "Download failed");
       }
       const blob = await resp.blob();
@@ -183,7 +220,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
             >
               <Download className="h-4 w-4" />
             </Button>
-            {bookingId && (
+            {bookingId && canModify && (
               <Button
                 type="button"
                 variant="ghost"
@@ -195,7 +232,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
                 <Pencil className="h-4 w-4" />
               </Button>
             )}
-            {bookingId && (
+            {bookingId && canModify && (
               <Button
                 type="button"
                 variant="ghost"
@@ -207,16 +244,18 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
                 <RefreshCw className="h-4 w-4" />
               </Button>
             )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={handleRemove}
-              disabled={busy || disabled}
-              title="Remove"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            {canModify && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={handleRemove}
+                disabled={busy || disabled}
+                title="Remove"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       )}
@@ -262,7 +301,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
         onChange={handlePick}
         disabled={busy || disabled}
       />
-      {!hasExisting && !hasPending && (
+      {!hasExisting && !hasPending && canModify && (
         <Button
           type="button"
           variant="outline"
@@ -281,10 +320,15 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
           )}
         </Button>
       )}
+      {!hasExisting && !hasPending && !canModify && (
+        <p className="text-xs text-muted-foreground">
+          Only the booking owner or an admin can attach a sequence file.
+        </p>
+      )}
       <p className="text-xs text-muted-foreground">
         Optional — attach your LCMS sequence file. Max 25 MB.
       </p>
-      {bookingId && existingFileName && editorOpen && (
+      {bookingId && existingFileName && editorOpen && canModify && (
         <SequenceFileEditor
           open={editorOpen}
           onOpenChange={setEditorOpen}
