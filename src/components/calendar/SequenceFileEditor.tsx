@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Loader2, Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "../../integrations/supabase/client";
+import { supabase, SUPABASE_FUNCTIONS_URL } from "../../integrations/supabase/client";
 
 interface SequenceFileEditorProps {
   open: boolean;
@@ -150,7 +150,7 @@ const SequenceFileEditor: React.FC<SequenceFileEditorProps> = ({
         const { data: sess } = await supabase.auth.getSession();
         const token = sess.session?.access_token;
         const resp = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/s3-download-sequence?bookingId=${bookingId}`,
+          `${SUPABASE_FUNCTIONS_URL}/s3-download-sequence?bookingId=${bookingId}`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
         if (!resp.ok) {
@@ -238,7 +238,7 @@ const SequenceFileEditor: React.FC<SequenceFileEditorProps> = ({
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
       const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/s3-replace-sequence`,
+        `${SUPABASE_FUNCTIONS_URL}/s3-replace-sequence`,
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },

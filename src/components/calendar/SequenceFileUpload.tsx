@@ -3,7 +3,7 @@ import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Loader2, Paperclip, X, Download, Pencil, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "../../integrations/supabase/client";
+import { supabase, SUPABASE_FUNCTIONS_URL } from "../../integrations/supabase/client";
 import { useAuth } from "../../contexts/AuthContext";
 import SequenceFileEditor from "./SequenceFileEditor";
 
@@ -106,7 +106,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
       const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/s3-upload-sequence`,
+        `${SUPABASE_FUNCTIONS_URL}/s3-upload-sequence`,
         {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
@@ -143,7 +143,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
       const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/s3-delete-sequence`,
+        `${SUPABASE_FUNCTIONS_URL}/s3-delete-sequence`,
         {
           method: "POST",
           headers: {
@@ -171,7 +171,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
       const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/s3-download-sequence?bookingId=${bookingId}`,
+        `${SUPABASE_FUNCTIONS_URL}/s3-download-sequence?bookingId=${bookingId}`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!resp.ok) {

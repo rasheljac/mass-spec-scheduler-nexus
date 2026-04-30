@@ -16,7 +16,7 @@ import { cn } from "../../lib/utils";
 import { findBookingConflict, describeConflict } from "../../utils/bookingOverlap";
 import { useAppSettings } from "../../hooks/useAppSettings";
 import SequenceFileUpload from "./SequenceFileUpload";
-import { supabase } from "../../integrations/supabase/client";
+import { supabase, SUPABASE_FUNCTIONS_URL } from "../../integrations/supabase/client";
 
 interface BookingFormProps {
   open: boolean;
@@ -204,7 +204,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
           const { data: sess } = await supabase.auth.getSession();
           const token = sess.session?.access_token;
           const resp = await fetch(
-            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/s3-upload-sequence`,
+            `${SUPABASE_FUNCTIONS_URL}/s3-upload-sequence`,
             { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form }
           );
           const json = await resp.json();

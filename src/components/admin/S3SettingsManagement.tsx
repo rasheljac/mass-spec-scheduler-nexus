@@ -6,7 +6,7 @@ import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
 import { Loader2, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "../../integrations/supabase/client";
+import { supabase, SUPABASE_FUNCTIONS_URL } from "../../integrations/supabase/client";
 import { useAppSettings } from "../../hooks/useAppSettings";
 
 const S3SettingsManagement: React.FC = () => {
@@ -61,7 +61,7 @@ const S3SettingsManagement: React.FC = () => {
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token;
       const resp = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/s3-test-connection`,
+        `${SUPABASE_FUNCTIONS_URL}/s3-test-connection`,
         { method: "POST", headers: { Authorization: `Bearer ${token}` } },
       );
       const json = await resp.json();
