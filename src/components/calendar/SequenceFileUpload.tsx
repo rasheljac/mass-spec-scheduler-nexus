@@ -164,89 +164,93 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
     <div className="space-y-2">
       <Label>Sequence File (Optional)</Label>
       {hasExisting && (
-        <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-2 text-sm">
+        <div className="flex w-full min-w-0 items-center gap-2 rounded-md border bg-muted/40 p-2 text-sm">
           <Paperclip className="h-4 w-4 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="truncate font-medium">{existingFileName}</div>
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <div className="block w-full truncate font-medium">{existingFileName}</div>
             {existingFileSize ? (
               <div className="text-xs text-muted-foreground">{formatSize(existingFileSize)}</div>
             ) : null}
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={handleDownload}
-            disabled={busy || disabled}
-            title="Download"
-          >
-            <Download className="h-4 w-4" />
-          </Button>
-          {bookingId && (
+          <div className="flex shrink-0 items-center gap-1">
             <Button
               type="button"
               variant="ghost"
               size="icon"
-              onClick={() => setEditorOpen(true)}
+              onClick={handleDownload}
               disabled={busy || disabled}
-              title="Edit in browser"
+              title="Download"
             >
-              <Pencil className="h-4 w-4" />
+              <Download className="h-4 w-4" />
             </Button>
-          )}
-          {bookingId && (
+            {bookingId && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setEditorOpen(true)}
+                disabled={busy || disabled}
+                title="Edit in browser"
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
+            {bookingId && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => inputRef.current?.click()}
+                disabled={busy || disabled}
+                title="Replace"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={handleRemove}
+              disabled={busy || disabled}
+              title="Remove"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+      {hasPending && (
+        <div className="flex w-full min-w-0 items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-sm">
+          <Paperclip className="h-4 w-4 shrink-0 text-primary" />
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <div className="block w-full truncate font-medium">{pendingFile!.name}</div>
+            <div className="truncate text-xs text-muted-foreground">
+              {formatSize(pendingFile!.size)} · will upload after booking is created
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1">
             <Button
               type="button"
               variant="ghost"
               size="icon"
               onClick={() => inputRef.current?.click()}
-              disabled={busy || disabled}
+              disabled={disabled}
               title="Replace"
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
-          )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={handleRemove}
-            disabled={busy || disabled}
-            title="Remove"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
-      {hasPending && (
-        <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-sm">
-          <Paperclip className="h-4 w-4 shrink-0 text-primary" />
-          <div className="flex-1 min-w-0">
-            <div className="truncate font-medium">{pendingFile!.name}</div>
-            <div className="text-xs text-muted-foreground">
-              {formatSize(pendingFile!.size)} · will upload after booking is created
-            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={handleRemove}
+              disabled={disabled}
+              title="Remove"
+            >
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => inputRef.current?.click()}
-            disabled={disabled}
-            title="Replace"
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={handleRemove}
-            disabled={disabled}
-            title="Remove"
-          >
-            <X className="h-4 w-4" />
-          </Button>
         </div>
       )}
       {/* Always render the hidden input so Replace works from any state */}
