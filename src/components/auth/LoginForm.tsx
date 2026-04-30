@@ -32,13 +32,6 @@ const LoginForm: React.FC = () => {
     },
   });
   
-  // Pre-fill form for development/testing purposes
-  React.useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      form.setValue('email', 'eddy@kapelczak.com');
-      form.setValue('password', 'Eddie#12');
-    }
-  }, [form]);
 
   const onSubmit = async (values: FormValues) => {
     try {
