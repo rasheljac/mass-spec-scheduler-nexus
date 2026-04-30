@@ -495,10 +495,24 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
             <SequenceFileUpload
               bookingId={booking.id}
               bookingOwnerId={booking.userId}
-              existingFileName={booking.sequenceFileName}
-              existingFileSize={booking.sequenceFileSize}
-              onUploaded={() => refreshData()}
-              onRemoved={() => refreshData()}
+              existingFileName={
+                sequenceFileOverride
+                  ? sequenceFileOverride.name
+                  : booking.sequenceFileName
+              }
+              existingFileSize={
+                sequenceFileOverride
+                  ? sequenceFileOverride.size
+                  : booking.sequenceFileSize
+              }
+              onUploaded={(info) => {
+                setSequenceFileOverride({ name: info.name, size: info.size });
+                refreshData();
+              }}
+              onRemoved={() => {
+                setSequenceFileOverride({ name: null, size: null });
+                refreshData();
+              }}
               disabled={isSubmitting}
             />
           )}
