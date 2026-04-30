@@ -146,6 +146,10 @@ export const OptimizedBookingProvider: React.FC<{ children: React.ReactNode }> =
         details: booking.details,
         status: booking.status,
         createdAt: booking.created_at,
+        sequenceFileKey: (booking as any).sequence_file_key ?? null,
+        sequenceFileName: (booking as any).sequence_file_name ?? null,
+        sequenceFileSize: (booking as any).sequence_file_size ?? null,
+        sequenceFileUploadedAt: (booking as any).sequence_file_uploaded_at ?? null,
         comments: (booking.comments || []).map((comment: any) => ({
           id: comment.id,
           content: comment.content,
