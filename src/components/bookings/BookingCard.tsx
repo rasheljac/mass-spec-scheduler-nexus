@@ -152,7 +152,11 @@ export const BookingCard: React.FC<BookingCardProps> = ({
       {booking.sequenceFileKey && booking.sequenceFileName && (
         <div className="flex items-center gap-2 text-sm">
           <strong>Sequence:</strong>
-          <SequenceFileLink bookingId={booking.id} fileName={booking.sequenceFileName} />
+          <SequenceFileLink
+            bookingId={booking.id}
+            fileName={booking.sequenceFileName}
+            canEdit={!!user && (user.id === booking.userId || user.role === "admin")}
+          />
         </div>
       )}
 

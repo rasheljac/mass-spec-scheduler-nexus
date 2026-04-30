@@ -1,9 +1,10 @@
 import React, { useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
-import { Loader2, Paperclip, X, Download } from "lucide-react";
+import { Loader2, Paperclip, X, Download, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../integrations/supabase/client";
+import SequenceFileEditor from "./SequenceFileEditor";
 
 interface SequenceFileUploadProps {
   bookingId: string | null; // null when creating — upload deferred until after submit
@@ -37,6 +38,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const validateFile = (file: File): string | null => {
     if (file.size > MAX_SIZE) return `File too large (max ${MAX_SIZE / 1024 / 1024} MB)`;
@@ -180,6 +182,18 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
           >
             <Download className="h-4 w-4" />
           </Button>
+          {bookingId && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => setEditorOpen(true)}
+              disabled={busy || disabled}
+              title="Edit in browser"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             type="button"
             variant="ghost"
@@ -245,6 +259,21 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
       <p className="text-xs text-muted-foreground">
         Optional — attach your LCMS sequence file. Max 25 MB.
       </p>
+      {bookingId && existingFileName && editorOpen && (
+        <SequenceFileEditor
+          open={editorOpen}
+          onOpenChange={setEditorOpen}
+          bookingId={bookingId}
+          fileName={existingFileName}
+          onSaved={(info) => {
+            onUploaded?.({
+              key: "",
+              name: existingFileName,
+              size: info.size,
+            });
+          }}
+        />
+      )}
     </div>
   );
 };
