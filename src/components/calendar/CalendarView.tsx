@@ -358,7 +358,7 @@ const CalendarView: React.FC = () => {
                     <div 
                       key={day.toString()}
                       className={cn(
-                        "p-1 min-h-[100px] relative",
+                        "p-1 min-h-[140px] relative",
                         !isCurrentMonth && "bg-muted/20 text-muted-foreground",
                         isToday(day) && "bg-accent/40",
                       )}
@@ -380,7 +380,7 @@ const CalendarView: React.FC = () => {
                             <div 
                               key={booking.id}
                               className={cn(
-                                "p-1 truncate cursor-pointer",
+                                "p-1.5 truncate cursor-pointer",
                                 continuesFromPrev ? "rounded-l-none -ml-1 pl-2" : "rounded-l",
                                 continuesToNext ? "rounded-r-none -mr-1 pr-2" : "rounded-r",
                               )}
@@ -398,8 +398,11 @@ const CalendarView: React.FC = () => {
                                 {continuesToNext ? `${formatTime(booking.end)} ↠` : formatTime(booking.end)}
                                 {` · ${booking.instrumentName}`}
                               </div>
-                              <div className="truncate text-[10px] text-muted-foreground">
+                              <div className="truncate text-[10px] text-muted-foreground mt-0.5">
                                 {booking.userName} · {formatHours(booking.start, booking.end)}
+                              </div>
+                              <div className="mt-1">
+                                <StatusBadge status={booking.status} className="text-[10px] px-1.5 py-0" />
                               </div>
                             </div>
                           );
