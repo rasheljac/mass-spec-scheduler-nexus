@@ -16,3 +16,8 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage
   }
 });
+
+// Hardcoded base URL for direct fetch() calls to edge functions.
+// Use this instead of import.meta.env.VITE_SUPABASE_URL so production
+// builds (Docker/EasyPanel) work even when env vars aren't baked in.
+export const SUPABASE_FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
