@@ -249,7 +249,7 @@ const BookingForm: React.FC<BookingFormProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <DialogContent className="w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>Create New Booking</DialogTitle>
         </DialogHeader>
