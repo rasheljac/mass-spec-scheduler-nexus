@@ -40,6 +40,13 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   const { user } = useAuth();
   const { settings: appSettings } = useAppSettings();
   const [comments, setComments] = useState<Comment[]>([]);
+  // Local override for the sequence file display so the UI updates
+  // immediately after upload/remove without waiting for refreshData() to
+  // propagate a new booking prop.
+  const [sequenceFileOverride, setSequenceFileOverride] = useState<{
+    name: string | null;
+    size: number | null;
+  } | null>(null);
   const [formData, setFormData] = useState({
     instrumentId: "",
     instrumentName: "",
