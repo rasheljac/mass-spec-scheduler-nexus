@@ -36,8 +36,9 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
   onCancel,
   isSubmitting = false,
 }) => {
-  const { instruments, updateBooking, bookings } = useOptimizedBooking();
+  const { instruments, updateBooking, bookings, refreshData } = useOptimizedBooking();
   const { user } = useAuth();
+  const { settings: appSettings } = useAppSettings();
   const [comments, setComments] = useState<Comment[]>([]);
   const [formData, setFormData] = useState({
     instrumentId: "",
@@ -481,6 +482,17 @@ const EditBookingForm: React.FC<EditBookingFormProps> = ({
               </SelectContent>
             </Select>
           </div>
+
+          {appSettings?.s3_uploads_enabled && (
+            <SequenceFileUpload
+              bookingId={booking.id}
+              existingFileName={booking.sequenceFileName}
+              existingFileSize={booking.sequenceFileSize}
+              onUploaded={() => refreshData()}
+              onRemoved={() => refreshData()}
+              disabled={isSubmitting}
+            />
+          )}
 
           <BookingComments
             bookingId={booking.id}

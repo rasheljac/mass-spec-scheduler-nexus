@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../ui/alert-dialog";
+import SequenceFileLink from "../calendar/SequenceFileLink";
 
 interface BookingCardProps {
   booking: any;
@@ -145,6 +146,13 @@ export const BookingCard: React.FC<BookingCardProps> = ({
       {booking.details && (
         <div className="text-sm">
           <strong>Details:</strong> {booking.details}
+        </div>
+      )}
+
+      {booking.sequenceFileKey && booking.sequenceFileName && (
+        <div className="flex items-center gap-2 text-sm">
+          <strong>Sequence:</strong>
+          <SequenceFileLink bookingId={booking.id} fileName={booking.sequenceFileName} />
         </div>
       )}
 
