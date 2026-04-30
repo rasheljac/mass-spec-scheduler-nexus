@@ -11,6 +11,7 @@ import SmtpSettings from "../components/admin/SmtpSettings";
 import EmailTemplatesManagement from "../components/admin/EmailTemplatesManagement";
 import PendingBookingsManagement from "../components/admin/PendingBookingsManagement";
 import BookingHistoryManagement from "../components/admin/BookingHistoryManagement";
+import S3SettingsManagement from "../components/admin/S3SettingsManagement";
 import { Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
@@ -43,7 +44,7 @@ const AdminPage: React.FC = () => {
       )}
       
       <Tabs value={activeTab} onValueChange={handleTabChange}>
-        <TabsList className="grid grid-cols-8 w-full max-w-5xl">
+        <TabsList className="grid grid-cols-9 w-full max-w-6xl">
           <TabsTrigger value="pending-bookings" className="px-2 py-2 text-sm">Pending</TabsTrigger>
           <TabsTrigger value="booking-history" className="px-2 py-2 text-sm">History</TabsTrigger>
           <TabsTrigger value="users" className="px-2 py-2 text-sm">Users</TabsTrigger>
@@ -52,6 +53,7 @@ const AdminPage: React.FC = () => {
           <TabsTrigger value="status-colors" className="px-2 py-2 text-sm">Colors</TabsTrigger>
           <TabsTrigger value="smtp" className="px-2 py-2 text-sm">SMTP</TabsTrigger>
           <TabsTrigger value="email-templates" className="px-2 py-2 text-sm">Templates</TabsTrigger>
+          <TabsTrigger value="storage" className="px-2 py-2 text-sm">Storage</TabsTrigger>
         </TabsList>
         
         <TabsContent value="pending-bookings" className="mt-6">
@@ -84,6 +86,10 @@ const AdminPage: React.FC = () => {
         
         <TabsContent value="email-templates" className="mt-6">
           {activeTab === "email-templates" && <EmailTemplatesManagement />}
+        </TabsContent>
+
+        <TabsContent value="storage" className="mt-6">
+          {activeTab === "storage" && <S3SettingsManagement />}
         </TabsContent>
       </Tabs>
     </div>
