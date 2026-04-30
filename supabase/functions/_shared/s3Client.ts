@@ -28,8 +28,14 @@ export function loadS3Config(): S3Config {
     throw new Error(`Missing S3 secrets: ${missing.join(", ")}`);
   }
 
+  // Auto-prefix scheme if missing (e.g. user stored "host.com" instead of "https://host.com")
+  let normalizedEndpoint = endpoint!.trim().replace(/\/+$/, "");
+  if (!/^https?:\/\//i.test(normalizedEndpoint)) {
+    normalizedEndpoint = `https://${normalizedEndpoint}`;
+  }
+
   return {
-    endpoint: endpoint!.replace(/\/+$/, ""),
+    endpoint: normalizedEndpoint,
     region,
     bucket: bucket!,
     accessKeyId: accessKeyId!,
