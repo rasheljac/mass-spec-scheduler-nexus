@@ -18,7 +18,6 @@ import BookingComments from "./BookingComments";
 import { findBookingConflict, describeConflict } from "../../utils/bookingOverlap";
 import { useAppSettings } from "../../hooks/useAppSettings";
 import SequenceFileUpload from "./SequenceFileUpload";
-import { useOptimizedBooking as _useOptimizedBookingForRefresh } from "../../contexts/OptimizedBookingContext";
 
 interface EditBookingFormProps {
   booking: Booking | null;
