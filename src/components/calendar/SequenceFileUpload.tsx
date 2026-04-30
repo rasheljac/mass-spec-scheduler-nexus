@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Button } from "../ui/button";
 import { Label } from "../ui/label";
-import { Loader2, Paperclip, X, Download, Pencil } from "lucide-react";
+import { Loader2, Paperclip, X, Download, Pencil, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "../../integrations/supabase/client";
 import SequenceFileEditor from "./SequenceFileEditor";
@@ -194,6 +194,18 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
               <Pencil className="h-4 w-4" />
             </Button>
           )}
+          {bookingId && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => inputRef.current?.click()}
+              disabled={busy || disabled}
+              title="Replace"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          )}
           <Button
             type="button"
             variant="ghost"
@@ -207,14 +219,24 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
         </div>
       )}
       {hasPending && (
-        <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-2 text-sm">
-          <Paperclip className="h-4 w-4 shrink-0" />
+        <div className="flex items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-sm">
+          <Paperclip className="h-4 w-4 shrink-0 text-primary" />
           <div className="flex-1 min-w-0">
             <div className="truncate font-medium">{pendingFile!.name}</div>
             <div className="text-xs text-muted-foreground">
               {formatSize(pendingFile!.size)} · will upload after booking is created
             </div>
           </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={() => inputRef.current?.click()}
+            disabled={disabled}
+            title="Replace"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
           <Button
             type="button"
             variant="ghost"
@@ -227,34 +249,33 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
           </Button>
         </div>
       )}
+      {/* Always render the hidden input so Replace works from any state */}
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".xlsx,.xls,.csv"
+        className="hidden"
+        onChange={handlePick}
+        disabled={busy || disabled}
+      />
       {!hasExisting && !hasPending && (
-        <>
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".xlsx,.xls,.csv"
-            className="hidden"
-            onChange={handlePick}
-            disabled={busy || disabled}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => inputRef.current?.click()}
-            disabled={busy || disabled}
-          >
-            {busy ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Uploading...
-              </>
-            ) : (
-              <>
-                <Paperclip className="h-4 w-4 mr-2" /> Upload LCMS Sequence (.xlsx, .xls, .csv)
-              </>
-            )}
-          </Button>
-        </>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => inputRef.current?.click()}
+          disabled={busy || disabled}
+        >
+          {busy ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Uploading...
+            </>
+          ) : (
+            <>
+              <Paperclip className="h-4 w-4 mr-2" /> Upload LCMS Sequence (.xlsx, .xls, .csv)
+            </>
+          )}
+        </Button>
       )}
       <p className="text-xs text-muted-foreground">
         Optional — attach your LCMS sequence file. Max 25 MB.
