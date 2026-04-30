@@ -11,8 +11,8 @@ This guide covers deploying the Lab Management System using Docker across differ
 # Build and run locally
 docker-compose up --build
 
-# Access the application
-open http://localhost:8080
+# Access the application (host port randomized to avoid conflicts)
+open http://localhost:41783
 ```
 
 ### Production Deployment
