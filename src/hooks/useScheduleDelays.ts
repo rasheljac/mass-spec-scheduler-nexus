@@ -49,10 +49,12 @@ export const useScheduleDelays = () => {
   const [delays, setDelays] = useState<ScheduleDelay[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isWorking, setIsWorking] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadDelays = useCallback(async () => {
     try {
       setIsLoading(true);
+      setLoadError(null);
       const { data, error } = await supabase
         .from("schedule_delays")
         .select("*")
@@ -62,6 +64,7 @@ export const useScheduleDelays = () => {
       setDelays((data || []).map(mapDelay));
     } catch (error) {
       console.error("useScheduleDelays: failed to load delays", error);
+      setLoadError(error instanceof Error ? error.message : "Unable to load delay history.");
     } finally {
       setIsLoading(false);
     }
@@ -153,13 +156,17 @@ export const useScheduleDelays = () => {
           );
           if (recordError) {
             console.error("Failed to record delayed bookings", recordError);
+            throw new Error(`Bookings moved, but reversal history could not be saved: ${recordError.message}`);
           }
         }
 
-        await supabase
+        const { error: countError } = await supabase
           .from("schedule_delays")
           .update({ affected_count: moved.length })
           .eq("id", delayRow.id);
+        if (countError) {
+          throw new Error(`Delay applied, but its history count could not be updated: ${countError.message}`);
+        }
 
         // Resolve instrument names once for the notification emails.
         const instrumentIds = Array.from(
@@ -280,10 +287,13 @@ export const useScheduleDelays = () => {
           restored.push({ record, current });
         }
 
-        await supabase
+        const { error: reverseStatusError } = await supabase
           .from("schedule_delays")
           .update({ status: "reversed", reversed_at: new Date().toISOString() })
           .eq("id", delayId);
+        if (reverseStatusError) {
+          throw new Error(`Bookings restored, but delay history could not be marked reversed: ${reverseStatusError.message}`);
+        }
 
         // Notify restored users.
         const instrumentIds = Array.from(
@@ -331,5 +341,5 @@ export const useScheduleDelays = () => {
     [loadDelays]
   );
 
-  return { delays, isLoading, isWorking, loadDelays, applyDelay, reverseDelay };
+  return { delays, isLoading, isWorking, loadError, loadDelays, applyDelay, reverseDelay };
 };
