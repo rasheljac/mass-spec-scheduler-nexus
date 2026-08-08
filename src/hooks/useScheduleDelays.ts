@@ -44,18 +44,6 @@ const mapDelay = (row: any): ScheduleDelay => ({
   createdAt: row.created_at,
 });
 
-const getUserEmail = async (userId: string): Promise<string> => {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("email")
-    .eq("id", userId)
-    .maybeSingle();
-  if (error) {
-    console.error("useScheduleDelays: failed to load user email", error);
-    return "";
-  }
-  return data?.email || "";
-};
 
 export const useScheduleDelays = () => {
   const [delays, setDelays] = useState<ScheduleDelay[]>([]);
