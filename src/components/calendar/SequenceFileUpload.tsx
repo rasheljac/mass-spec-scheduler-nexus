@@ -204,10 +204,12 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
     <div className="space-y-2">
       <Label>Sequence File (Optional)</Label>
       {hasExisting && (
-        <div className="flex w-full min-w-0 items-center gap-2 rounded-md border bg-muted/40 p-2 text-sm">
+        <div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-2 rounded-md border bg-muted/40 p-2 text-sm">
           <Paperclip className="h-4 w-4 shrink-0" />
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <div className="block w-full truncate font-medium">{existingFileName}</div>
+          <div className="min-w-0 overflow-hidden">
+            <div className="truncate font-medium" title={existingFileName || undefined}>
+              {existingFileName}
+            </div>
             {existingFileSize ? (
               <div className="text-xs text-muted-foreground">{formatSize(existingFileSize)}</div>
             ) : null}
@@ -217,6 +219,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
               type="button"
               variant="ghost"
               size="icon"
+              className="shrink-0"
               onClick={handleDownload}
               disabled={busy || disabled}
               title="Download"
@@ -228,6 +231,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
                 type="button"
                 variant="ghost"
                 size="icon"
+                className="shrink-0"
                 onClick={() => setEditorOpen(true)}
                 disabled={busy || disabled}
                 title="Edit in browser"
@@ -240,6 +244,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
                 type="button"
                 variant="ghost"
                 size="icon"
+                className="shrink-0"
                 onClick={() => inputRef.current?.click()}
                 disabled={busy || disabled}
                 title="Replace"
@@ -252,6 +257,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
                 type="button"
                 variant="ghost"
                 size="icon"
+                className="shrink-0"
                 onClick={handleRemove}
                 disabled={busy || disabled}
                 title="Remove"
@@ -263,10 +269,12 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
         </div>
       )}
       {hasPending && (
-        <div className="flex w-full min-w-0 items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-sm">
+        <div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-sm">
           <Paperclip className="h-4 w-4 shrink-0 text-primary" />
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <div className="block w-full truncate font-medium">{pendingFile!.name}</div>
+          <div className="min-w-0 overflow-hidden">
+            <div className="truncate font-medium" title={pendingFile!.name}>
+              {pendingFile!.name}
+            </div>
             <div className="truncate text-xs text-muted-foreground">
               {formatSize(pendingFile!.size)} · will upload after booking is created
             </div>
@@ -276,6 +284,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
               type="button"
               variant="ghost"
               size="icon"
+              className="shrink-0"
               onClick={() => inputRef.current?.click()}
               disabled={disabled}
               title="Replace"
@@ -286,6 +295,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
               type="button"
               variant="ghost"
               size="icon"
+              className="shrink-0"
               onClick={handleRemove}
               disabled={disabled}
               title="Remove"
