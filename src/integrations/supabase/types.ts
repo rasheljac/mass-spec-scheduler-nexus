@@ -257,6 +257,100 @@ export type Database = {
         }
         Relationships: []
       }
+      schedule_delay_bookings: {
+        Row: {
+          booking_id: string
+          created_at: string
+          delay_id: string
+          id: string
+          new_end: string
+          new_start: string
+          original_end: string
+          original_start: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          delay_id: string
+          id?: string
+          new_end: string
+          new_start: string
+          original_end: string
+          original_start: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          delay_id?: string
+          id?: string
+          new_end?: string
+          new_start?: string
+          original_end?: string
+          original_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_delay_bookings_delay_id_fkey"
+            columns: ["delay_id"]
+            isOneToOne: false
+            referencedRelation: "schedule_delays"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      schedule_delays: {
+        Row: {
+          affected_count: number
+          applied_by: string | null
+          applied_by_name: string | null
+          created_at: string
+          cutoff_time: string
+          delay_minutes: number
+          id: string
+          instrument_id: string | null
+          reason: string
+          reversed_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          affected_count?: number
+          applied_by?: string | null
+          applied_by_name?: string | null
+          created_at?: string
+          cutoff_time: string
+          delay_minutes: number
+          id?: string
+          instrument_id?: string | null
+          reason?: string
+          reversed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          affected_count?: number
+          applied_by?: string | null
+          applied_by_name?: string | null
+          created_at?: string
+          cutoff_time?: string
+          delay_minutes?: number
+          id?: string
+          instrument_id?: string | null
+          reason?: string
+          reversed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schedule_delays_instrument_id_fkey"
+            columns: ["instrument_id"]
+            isOneToOne: false
+            referencedRelation: "instruments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       smtp_settings: {
         Row: {
           created_at: string
