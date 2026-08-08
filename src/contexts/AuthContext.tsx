@@ -270,10 +270,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         options: {
           data: {
             name: userData.name,
-            role: userData.role,
             department: userData.department
           }
         }
+
       });
 
       if (authError) {
