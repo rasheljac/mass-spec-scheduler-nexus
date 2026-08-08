@@ -1,51 +1,31 @@
-## Problem
+# Schedule Delays: auto-push bookings, notify users, and undo
 
-The current `docker-compose.yml` has duplicate/conflicting host port mappings, which is what EasyPanel is complaining about:
+Make the admin "Delays" tab actually shift bookings, email every affected user their new start time, and keep a history of applied delays so any one of them can be reversed later.
 
-- `lab-management` publishes `8080:80`
-- `traefik` publishes `80:80`, `443:443`, **and `8080:8080`** (dashboard) — same host port `8080` as the app
-- On EasyPanel, ports `80`, `443`, and `8080` are almost always already taken by EasyPanel's own reverse proxy
+## How it works for the admin
 
-EasyPanel handles routing/SSL itself, so the container does not need to publish to common host ports at all — it just needs to expose its internal port so EasyPanel can proxy to it.
+1. In Administration -> Delays, the admin picks a date, a start time (cutoff), a delay duration in minutes, an optional instrument filter (default: all instruments), and a reason.
+2. On submit, every booking whose start time is at or after the cutoff — excluding completed, cancelled, and denied bookings — is pushed forward by the delay amount.
+3. Each affected user gets an email naming the instrument, the delay length, the reason, and the new start and end time of their booking.
+4. Below the form, a "Delay history" list shows each delay that has been applied: when, by whom, cutoff, minutes, instrument scope, reason, how many bookings moved, and its status (applied or reversed).
+5. Each applied entry has a "Reverse" button. Reversing restores each booking to its exact original start/end time as recorded when the delay was applied, and emails those users again telling them their booking has been restored to the original time.
+6. Bookings that were deleted or independently rescheduled after the delay are skipped on reverse, and the admin sees a summary of how many were restored vs. skipped.
 
-## Fix
+## Database changes
 
-Randomize all host-side ports to high, unlikely-to-collide numbers, and remove the bundled Traefik service (EasyPanel replaces it). The container's internal port stays `80` (nginx) so EasyPanel's proxy can reach it.
+Two new tables:
 
-Chosen random high ports (in the 39000–49000 ephemeral-ish range, avoiding common defaults):
+- `schedule_delays` — one row per delay event: cutoff time, delay minutes, optional instrument id, reason, admin who applied it, affected booking count, status (`applied` / `reversed`), reversal timestamp.
+- `schedule_delay_bookings` — one row per shifted booking: delay id, booking id, original start, original end, new start, new end. This is what makes an exact reversal possible.
 
-| Service | Old host port | New host port | Container port |
-|---|---|---|---|
-| lab-management (app) | 8080 | **41783** | 80 |
-| traefik http | 80 | removed | — |
-| traefik https | 443 | removed | — |
-| traefik dashboard | 8080 | removed | — |
+Access rules: any signed-in user may read the delay history (the app already shows all bookings to all users); only admins can create delays or mark them reversed. Both tables get the required grants and row-level security policies.
 
-The Vite dev server port (`8080` in `vite.config.ts`) is local-dev only and does not affect EasyPanel deployment, but I'll bump it to **41784** for consistency so it never clashes with the container port either.
+## Technical notes
 
-## Files to change
-
-1. **`docker-compose.yml`**
-   - Change `lab-management` ports from `"8080:80"` to `"41783:80"`
-   - Remove the entire `traefik` service block and the `letsencrypt` volume (EasyPanel provides its own reverse proxy + SSL; keeping Traefik is what's causing the duplicate `8080` binding)
-   - Keep the Traefik/EasyPanel/CapRover labels on `lab-management` so other platforms still work
-
-2. **`docker-compose.prod.yml`** — no port changes needed (it only overrides env/replicas), leave as is.
-
-3. **`Dockerfile`** — keep `EXPOSE 80` and nginx listening on 80 internally. EasyPanel routes to the container's internal port, so this stays untouched.
-
-4. **`nginx.conf`** — keep `listen 80;` (internal only, no host conflict).
-
-5. **`vite.config.ts`** — change dev `server.port` from `8080` to `41784` (cosmetic / future-proofing for local dev only).
-
-6. **`scripts/deploy.sh`** — update the printed local URL from `http://localhost:8080` to `http://localhost:41783`.
-
-7. **`DEPLOYMENT.md`** — update the Quick Start URL reference from `8080` to `41783` so the docs match.
-
-## EasyPanel side (what you do after redeploy)
-
-In your EasyPanel service settings, set the **Proxy → Container Port** to `80` (the internal nginx port). Do **not** add a host port mapping there — EasyPanel handles 80/443 termination on the host and forwards to the container's internal port. With Traefik removed and the host port randomized to `41783`, there will be no more duplicate-port error.
-
-## Summary
-
-Removes the bundled Traefik (the actual source of the duplicate `8080`), randomizes the app's host port to `41783`, bumps the local Vite dev port to `41784`, and updates the deploy script + docs to match.
+- New hook `src/hooks/useScheduleDelays.ts` handles: `applyDelay(...)`, `reverseDelay(delayId)`, and `loadDelays()`, writing to the two new tables and updating `bookings`.
+- `src/components/admin/DelaySchedule.tsx` is rewritten to use `OptimizedBookingContext` (it currently imports the legacy `BookingContext`, which per project rules must not be used) plus the new hook, and gains the instrument dropdown and the history list.
+- `applyDelay` in `OptimizedBookingContext` is updated to delegate to the new hook logic so the two implementations don't diverge; the legacy `useBookings.applyDelay` is left alone.
+- Booking updates run sequentially in descending start-time order so the existing `prevent_booking_overlap` database trigger never sees a transient collision. On reverse, order is ascending. Any booking whose update is rejected by the trigger is reported to the admin rather than silently dropped.
+- Emails go through the existing `sendEmail` helper and `send-email` edge function. Two new template types are added: `booking_delayed` and `booking_delay_reversed`, with variables `userName`, `instrumentName`, `delayMinutes`, `reason`, `oldStartDate`, `newStartDate`, `newEndDate`. `createDelayNotification` in `src/utils/emailNotifications.ts` is extended to include the new times and reason, and a matching reversal notification is added.
+- The Email Templates admin tab gets tabs for the two new template types with default HTML matching the existing template styling.
+- Emails are sent after all database updates succeed, so a mail failure never leaves the schedule half-shifted; failures are logged and surfaced as a non-blocking warning.
