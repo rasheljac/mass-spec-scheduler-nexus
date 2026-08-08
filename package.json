@@ -92,13 +92,17 @@
   "overrides": {
     "@grpc/grpc-js": "^1.14.4",
     "protobufjs": "^7.6.5",
-    "@babel/runtime": "^7.29.2"
+    "@babel/runtime": "^7.29.2",
+    "@univerjs/core": {
+      "nanoid": "^5.1.16"
+    },
+    "postcss": {
+      "nanoid": "^3.3.18"
+    }
   },
   "resolutions": {
     "@grpc/grpc-js": "^1.14.4",
     "protobufjs": "^7.6.5",
-    "@babel/runtime": "^7.29.2",
-    "postcss/nanoid": "^3.3.18",
-    "@univerjs/core/nanoid": "^5.1.16"
+    "@babel/runtime": "^7.29.2"
   }
 }
