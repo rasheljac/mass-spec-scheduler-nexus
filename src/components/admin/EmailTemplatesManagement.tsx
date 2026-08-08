@@ -411,7 +411,12 @@ const EmailTemplatesManagement: React.FC = () => {
       "{{status}}": "confirmed",
       "{{commentAuthor}}": "Jane Smith",
       "{{commentContent}}": "This is a sample comment for testing purposes.",
-      "{{commentTime}}": new Date().toLocaleDateString()
+      "{{commentTime}}": new Date().toLocaleDateString(),
+      "{{delayMinutes}}": "45",
+      "{{reason}}": "Instrument maintenance ran long",
+      "{{oldStartDate}}": new Date().toLocaleString(),
+      "{{newStartDate}}": new Date(Date.now() + 45 * 60000).toLocaleString(),
+      "{{newEndDate}}": new Date(Date.now() + 165 * 60000).toLocaleString()
     };
 
     Object.entries(sampleData).forEach(([key, value]) => {
@@ -425,7 +430,9 @@ const EmailTemplatesManagement: React.FC = () => {
     welcome: ["{{userName}}"],
     booking_confirmation: ["{{userName}}", "{{instrumentName}}", "{{startDate}}", "{{endDate}}", "{{status}}"],
     booking_update: ["{{userName}}", "{{instrumentName}}", "{{startDate}}", "{{endDate}}", "{{status}}"],
-    comment_added: ["{{userName}}", "{{instrumentName}}", "{{startDate}}", "{{endDate}}", "{{commentAuthor}}", "{{commentContent}}", "{{commentTime}}"]
+    comment_added: ["{{userName}}", "{{instrumentName}}", "{{startDate}}", "{{endDate}}", "{{commentAuthor}}", "{{commentContent}}", "{{commentTime}}"],
+    booking_delayed: ["{{userName}}", "{{instrumentName}}", "{{delayMinutes}}", "{{reason}}", "{{oldStartDate}}", "{{newStartDate}}", "{{newEndDate}}"],
+    booking_delay_reversed: ["{{userName}}", "{{instrumentName}}", "{{delayMinutes}}", "{{oldStartDate}}", "{{newStartDate}}", "{{newEndDate}}"]
   };
 
   return (
@@ -439,12 +446,15 @@ const EmailTemplatesManagement: React.FC = () => {
         </div>
 
         <Tabs value={activeTemplate} onValueChange={setActiveTemplate}>
-          <TabsList>
+          <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="welcome">Welcome Email</TabsTrigger>
             <TabsTrigger value="booking_confirmation">Booking Confirmation</TabsTrigger>
             <TabsTrigger value="booking_update">Booking Update</TabsTrigger>
             <TabsTrigger value="comment_added">Comment Added</TabsTrigger>
+            <TabsTrigger value="booking_delayed">Booking Delayed</TabsTrigger>
+            <TabsTrigger value="booking_delay_reversed">Delay Reversed</TabsTrigger>
           </TabsList>
+
 
           <TabsContent value={activeTemplate} className="mt-6">
             <form onSubmit={handleSubmit} className="space-y-4">
