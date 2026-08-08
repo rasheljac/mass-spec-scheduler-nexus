@@ -269,10 +269,12 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
         </div>
       )}
       {hasPending && (
-        <div className="flex w-full min-w-0 items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-sm">
+        <div className="grid w-full grid-cols-[auto_1fr_auto] items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-sm">
           <Paperclip className="h-4 w-4 shrink-0 text-primary" />
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <div className="block w-full truncate font-medium">{pendingFile!.name}</div>
+          <div className="min-w-0 overflow-hidden">
+            <div className="truncate font-medium" title={pendingFile!.name}>
+              {pendingFile!.name}
+            </div>
             <div className="truncate text-xs text-muted-foreground">
               {formatSize(pendingFile!.size)} · will upload after booking is created
             </div>
@@ -282,6 +284,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
               type="button"
               variant="ghost"
               size="icon"
+              className="shrink-0"
               onClick={() => inputRef.current?.click()}
               disabled={disabled}
               title="Replace"
@@ -292,6 +295,7 @@ const SequenceFileUpload: React.FC<SequenceFileUploadProps> = ({
               type="button"
               variant="ghost"
               size="icon"
+              className="shrink-0"
               onClick={handleRemove}
               disabled={disabled}
               title="Remove"
