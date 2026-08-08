@@ -220,17 +220,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) throw error;
   };
 
-  const signup = async (email: string, password: string, name: string, role: 'admin' | 'user' = 'user'): Promise<void> => {
+  const signup = async (email: string, password: string, name: string, _role: 'admin' | 'user' = 'user'): Promise<void> => {
+    // NOTE: never send a role in signUp metadata — signUp is a public API and any
+    // client could request 'admin'. Roles are assigned server-side (default 'user')
+    // and can only be changed by an existing admin.
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          name: name,
-          role: role
+          name: name
         }
       }
     });
+
     
     if (error) throw error;
     
@@ -267,10 +270,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         options: {
           data: {
             name: userData.name,
-            role: userData.role,
             department: userData.department
           }
         }
+
       });
 
       if (authError) {
