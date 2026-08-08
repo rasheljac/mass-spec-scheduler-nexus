@@ -232,7 +232,93 @@ const EmailTemplatesManagement: React.FC = () => {
 </body>
 </html>`
         });
+      } else if (activeTemplate === "booking_delayed") {
+        setFormData({
+          subject: "Booking Delayed: {{instrumentName}}",
+          htmlContent: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Booking Delayed</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .header { background-color: #d97706; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; }
+    .booking-details { background-color: #fffbeb; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    .reason-box { background-color: #f3f4f6; padding: 15px; border-left: 4px solid #d97706; margin: 15px 0; }
+    .footer { background-color: #e5e7eb; padding: 15px; text-align: center; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Your Booking Has Been Delayed</h1>
+  </div>
+  <div class="content">
+    <p>Dear {{userName}},</p>
+    <p>Your booking has been pushed back by <strong>{{delayMinutes}} minutes</strong>.</p>
+    <div class="booking-details">
+      <h3>Updated Schedule</h3>
+      <ul>
+        <li><strong>Instrument:</strong> {{instrumentName}}</li>
+        <li><strong>Previous start:</strong> {{oldStartDate}}</li>
+        <li><strong>New start:</strong> {{newStartDate}}</li>
+        <li><strong>New end:</strong> {{newEndDate}}</li>
+      </ul>
+    </div>
+    <div class="reason-box">
+      <h4>Reason for the delay</h4>
+      <p>{{reason}}</p>
+    </div>
+    <p>Please adjust your schedule accordingly. Thank you for your understanding.</p>
+  </div>
+  <div class="footer">
+    <p>Lab Management System | Automated Email</p>
+  </div>
+</body>
+</html>`
+        });
+      } else if (activeTemplate === "booking_delay_reversed") {
+        setFormData({
+          subject: "Booking Delay Reversed: {{instrumentName}}",
+          htmlContent: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Booking Delay Reversed</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .header { background-color: #059669; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; }
+    .booking-details { background-color: #ecfdf5; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    .footer { background-color: #e5e7eb; padding: 15px; text-align: center; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Delay Reversed</h1>
+  </div>
+  <div class="content">
+    <p>Dear {{userName}},</p>
+    <p>The {{delayMinutes}} minute delay applied to your booking has been reversed.</p>
+    <div class="booking-details">
+      <h3>Restored Schedule</h3>
+      <ul>
+        <li><strong>Instrument:</strong> {{instrumentName}}</li>
+        <li><strong>Delayed start:</strong> {{oldStartDate}}</li>
+        <li><strong>Restored start:</strong> {{newStartDate}}</li>
+        <li><strong>Restored end:</strong> {{newEndDate}}</li>
+      </ul>
+    </div>
+    <p>Your booking is back to its original schedule.</p>
+  </div>
+  <div class="footer">
+    <p>Lab Management System | Automated Email</p>
+  </div>
+</body>
+</html>`
+        });
       }
+
       setHasChanges(false);
     }
   }, [emailTemplates, activeTemplate]);
@@ -325,7 +411,12 @@ const EmailTemplatesManagement: React.FC = () => {
       "{{status}}": "confirmed",
       "{{commentAuthor}}": "Jane Smith",
       "{{commentContent}}": "This is a sample comment for testing purposes.",
-      "{{commentTime}}": new Date().toLocaleDateString()
+      "{{commentTime}}": new Date().toLocaleDateString(),
+      "{{delayMinutes}}": "45",
+      "{{reason}}": "Instrument maintenance ran long",
+      "{{oldStartDate}}": new Date().toLocaleString(),
+      "{{newStartDate}}": new Date(Date.now() + 45 * 60000).toLocaleString(),
+      "{{newEndDate}}": new Date(Date.now() + 165 * 60000).toLocaleString()
     };
 
     Object.entries(sampleData).forEach(([key, value]) => {
@@ -339,7 +430,9 @@ const EmailTemplatesManagement: React.FC = () => {
     welcome: ["{{userName}}"],
     booking_confirmation: ["{{userName}}", "{{instrumentName}}", "{{startDate}}", "{{endDate}}", "{{status}}"],
     booking_update: ["{{userName}}", "{{instrumentName}}", "{{startDate}}", "{{endDate}}", "{{status}}"],
-    comment_added: ["{{userName}}", "{{instrumentName}}", "{{startDate}}", "{{endDate}}", "{{commentAuthor}}", "{{commentContent}}", "{{commentTime}}"]
+    comment_added: ["{{userName}}", "{{instrumentName}}", "{{startDate}}", "{{endDate}}", "{{commentAuthor}}", "{{commentContent}}", "{{commentTime}}"],
+    booking_delayed: ["{{userName}}", "{{instrumentName}}", "{{delayMinutes}}", "{{reason}}", "{{oldStartDate}}", "{{newStartDate}}", "{{newEndDate}}"],
+    booking_delay_reversed: ["{{userName}}", "{{instrumentName}}", "{{delayMinutes}}", "{{oldStartDate}}", "{{newStartDate}}", "{{newEndDate}}"]
   };
 
   return (
@@ -353,12 +446,15 @@ const EmailTemplatesManagement: React.FC = () => {
         </div>
 
         <Tabs value={activeTemplate} onValueChange={setActiveTemplate}>
-          <TabsList>
+          <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="welcome">Welcome Email</TabsTrigger>
             <TabsTrigger value="booking_confirmation">Booking Confirmation</TabsTrigger>
             <TabsTrigger value="booking_update">Booking Update</TabsTrigger>
             <TabsTrigger value="comment_added">Comment Added</TabsTrigger>
+            <TabsTrigger value="booking_delayed">Booking Delayed</TabsTrigger>
+            <TabsTrigger value="booking_delay_reversed">Delay Reversed</TabsTrigger>
           </TabsList>
+
 
           <TabsContent value={activeTemplate} className="mt-6">
             <form onSubmit={handleSubmit} className="space-y-4">

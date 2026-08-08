@@ -164,18 +164,34 @@ Lab Management Team
 };
 
 export const createDelayNotification = (
-  userEmail: string, 
+  userEmail: string,
   userName: string,
-  instrumentName: string, 
-  delayMinutes: number
+  instrumentName: string,
+  delayMinutes: number,
+  oldStart: string,
+  newStart: string,
+  newEnd: string,
+  reason?: string
 ): EmailNotification => {
+  const oldStartDate = new Date(oldStart).toLocaleString();
+  const newStartDate = new Date(newStart).toLocaleString();
+  const newEndDate = new Date(newEnd).toLocaleString();
+  const reasonText = reason && reason.trim().length > 0 ? reason.trim() : "Scheduling adjustment";
+
   return {
     to: userEmail,
-    subject: `Booking Delay Notification: ${instrumentName}`,
+    subject: `Booking Delayed: ${instrumentName}`,
     body: `
 Dear ${userName},
 
-Your booking for ${instrumentName} has been delayed by ${delayMinutes} minutes.
+Your booking for ${instrumentName} has been pushed back by ${delayMinutes} minutes.
+
+Reason: ${reasonText}
+
+Previous start: ${oldStartDate}
+New start: ${newStartDate}
+New end: ${newEndDate}
+
 Please adjust your schedule accordingly.
 
 Thank you for your understanding.
@@ -183,15 +199,66 @@ Thank you for your understanding.
 Best regards,
 Lab Management Team
     `,
+    templateType: "booking_delayed",
     variables: {
       userName: userName || "",
       instrumentName: instrumentName || "",
       delayMinutes: delayMinutes ? delayMinutes.toString() : "0",
-      startDate: new Date().toLocaleString(),
-      endDate: new Date().toLocaleString()
+      reason: reasonText,
+      oldStartDate,
+      newStartDate,
+      newEndDate,
+      startDate: newStartDate,
+      endDate: newEndDate
     }
   };
 };
+
+export const createDelayReversalNotification = (
+  userEmail: string,
+  userName: string,
+  instrumentName: string,
+  delayMinutes: number,
+  oldStart: string,
+  newStart: string,
+  newEnd: string
+): EmailNotification => {
+  const oldStartDate = new Date(oldStart).toLocaleString();
+  const newStartDate = new Date(newStart).toLocaleString();
+  const newEndDate = new Date(newEnd).toLocaleString();
+
+  return {
+    to: userEmail,
+    subject: `Booking Delay Reversed: ${instrumentName}`,
+    body: `
+Dear ${userName},
+
+The ${delayMinutes} minute delay applied to your booking for ${instrumentName} has been reversed.
+
+Delayed start: ${oldStartDate}
+Restored start: ${newStartDate}
+Restored end: ${newEndDate}
+
+Your booking is back to its original schedule.
+
+Best regards,
+Lab Management Team
+    `,
+    templateType: "booking_delay_reversed",
+    variables: {
+      userName: userName || "",
+      instrumentName: instrumentName || "",
+      delayMinutes: delayMinutes ? delayMinutes.toString() : "0",
+      reason: "",
+      oldStartDate,
+      newStartDate,
+      newEndDate,
+      startDate: newStartDate,
+      endDate: newEndDate
+    }
+  };
+};
+
 
 export const createCommentNotification = (
   userEmail: string,
