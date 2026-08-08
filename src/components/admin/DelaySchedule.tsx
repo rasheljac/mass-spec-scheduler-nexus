@@ -186,7 +186,9 @@ const DelaySchedule: React.FC = () => {
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
+                              type="button"
                               variant={"outline"}
+
                               className={cn(
                                 "pl-3 text-left font-normal",
                                 !field.value && "text-muted-foreground"
