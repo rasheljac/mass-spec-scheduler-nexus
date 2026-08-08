@@ -468,8 +468,12 @@ export const useBookings = (users: User[]) => {
               userEmail,
               booking.userName,
               booking.instrumentName,
-              delayMinutes
+              delayMinutes,
+              booking.start,
+              new Date(new Date(booking.start).getTime() + delayMinutes * 60 * 1000).toISOString(),
+              new Date(new Date(booking.end).getTime() + delayMinutes * 60 * 1000).toISOString()
             );
+
             await sendEmail(notification);
           }
         } catch (error) {
