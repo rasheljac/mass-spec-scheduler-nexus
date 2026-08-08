@@ -44,7 +44,7 @@ type FormValues = z.infer<typeof formSchema>;
 const DelaySchedule: React.FC = () => {
   const { bookings, instruments, refreshData } = useOptimizedBooking();
   const { user } = useAuth();
-  const { delays, isLoading, isWorking, loadDelays, applyDelay, reverseDelay } = useScheduleDelays();
+  const { delays, isLoading, isWorking, loadError, loadDelays, applyDelay, reverseDelay } = useScheduleDelays();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [reversingId, setReversingId] = useState<string | null>(null);
@@ -150,11 +150,11 @@ const DelaySchedule: React.FC = () => {
           result.skipped ? ` ${result.skipped} skipped (deleted or rescheduled since).` : ""
         }`,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to reverse delay", error);
       toast({
         title: "Failed to reverse delay",
-        description: "An error occurred while reversing the delay.",
+        description: error instanceof Error ? error.message : "An error occurred while reversing the delay.",
         variant: "destructive",
       });
     } finally {
@@ -319,7 +319,11 @@ const DelaySchedule: React.FC = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {isLoading && delays.length === 0 ? (
+          {loadError ? (
+            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+              Delay history could not be loaded: {loadError}
+            </div>
+          ) : isLoading && delays.length === 0 ? (
             <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> Loading delay history...
             </div>
