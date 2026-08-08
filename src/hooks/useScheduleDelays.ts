@@ -85,7 +85,7 @@ export const useScheduleDelays = () => {
    */
   const applyDelay = useCallback(
     async (params: {
-      bookings: Booking[];
+      bookings?: Booking[];
       delayMinutes: number;
       cutoff: Date;
       instrumentId?: string | null;
@@ -93,18 +93,24 @@ export const useScheduleDelays = () => {
       appliedBy?: string | null;
       appliedByName?: string | null;
     }): Promise<DelayResult> => {
-      const { bookings, delayMinutes, cutoff, instrumentId, reason } = params;
+      const { delayMinutes, cutoff, instrumentId, reason } = params;
       setIsWorking(true);
       try {
         const delayMs = delayMinutes * 60 * 1000;
 
-        // Descending start order: shifting the latest booking first keeps the
-        // prevent_booking_overlap trigger from seeing a transient collision.
-        const targets = bookings
-          .filter((b) => new Date(b.start).getTime() >= cutoff.getTime())
-          .filter((b) => isMovable(b.status))
-          .filter((b) => !instrumentId || b.instrumentId === instrumentId)
-          .sort((a, b) => new Date(b.start).getTime() - new Date(a.start).getTime());
+        // Read the affected bookings straight from the database so the delay is
+        // never limited by whatever subset the UI happens to have cached.
+        let query = supabase
+          .from("bookings")
+          .select("id, user_id, instrument_id, start_time, end_time, status")
+          .gte("start_time", cutoff.toISOString())
+          .order("start_time", { ascending: false });
+        if (instrumentId) query = query.eq("instrument_id", instrumentId);
+
+        const { data: rows, error: rowsError } = await query;
+        if (rowsError) throw rowsError;
+
+        const targets = (rows || []).filter((b: any) => isMovable(b.status));
 
         if (targets.length === 0) {
           return { affected: 0, skipped: 0 };
@@ -126,12 +132,14 @@ export const useScheduleDelays = () => {
           .single();
         if (delayError) throw delayError;
 
-        const moved: Array<{ booking: Booking; newStart: Date; newEnd: Date }> = [];
+        const moved: Array<{ booking: any; newStart: Date; newEnd: Date }> = [];
         const failed: string[] = [];
 
+        // Descending start order: shifting the latest booking first keeps the
+        // prevent_booking_overlap trigger from seeing a transient collision.
         for (const booking of targets) {
-          const newStart = new Date(new Date(booking.start).getTime() + delayMs);
-          const newEnd = new Date(new Date(booking.end).getTime() + delayMs);
+          const newStart = new Date(new Date(booking.start_time).getTime() + delayMs);
+          const newEnd = new Date(new Date(booking.end_time).getTime() + delayMs);
           const { error } = await supabase
             .from("bookings")
             .update({ start_time: newStart.toISOString(), end_time: newEnd.toISOString() })
@@ -149,8 +157,8 @@ export const useScheduleDelays = () => {
             moved.map(({ booking, newStart, newEnd }) => ({
               delay_id: delayRow.id,
               booking_id: booking.id,
-              original_start: new Date(booking.start).toISOString(),
-              original_end: new Date(booking.end).toISOString(),
+              original_start: new Date(booking.start_time).toISOString(),
+              original_end: new Date(booking.end_time).toISOString(),
               new_start: newStart.toISOString(),
               new_end: newEnd.toISOString(),
             }))
@@ -165,18 +173,35 @@ export const useScheduleDelays = () => {
           .update({ affected_count: moved.length })
           .eq("id", delayRow.id);
 
+        // Resolve instrument names once for the notification emails.
+        const instrumentIds = Array.from(
+          new Set(moved.map(({ booking }) => booking.instrument_id).filter(Boolean))
+        );
+        const instrumentNames = new Map<string, string>();
+        if (instrumentIds.length) {
+          const { data: instrumentRows } = await supabase
+            .from("instruments")
+            .select("id, name")
+            .in("id", instrumentIds);
+          (instrumentRows || []).forEach((i: any) => instrumentNames.set(i.id, i.name));
+        }
+
         // Notify affected users after all database work has settled.
         for (const { booking, newStart, newEnd } of moved) {
           try {
-            const email = await getUserEmail(booking.userId);
-            if (!email) continue;
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("email, name")
+              .eq("id", booking.user_id)
+              .maybeSingle();
+            if (!profile?.email) continue;
             await sendEmail(
               createDelayNotification(
-                email,
-                booking.userName,
-                booking.instrumentName,
+                profile.email,
+                profile.name || "",
+                instrumentNames.get(booking.instrument_id) || "your instrument",
                 delayMinutes,
-                booking.start,
+                new Date(booking.start_time).toISOString(),
                 newStart.toISOString(),
                 newEnd.toISOString(),
                 reason
@@ -195,6 +220,7 @@ export const useScheduleDelays = () => {
     },
     [loadDelays]
   );
+
 
   /**
    * Restore each booking moved by a delay back to its recorded original times.
