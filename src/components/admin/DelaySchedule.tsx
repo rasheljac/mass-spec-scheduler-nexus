@@ -74,6 +74,17 @@ const DelaySchedule: React.FC = () => {
   const instrumentName = (id: string | null) =>
     id ? instruments.find((i) => i.id === id)?.name || "Unknown instrument" : "All instruments";
 
+  const onInvalid = (errors: any) => {
+    console.warn("DelaySchedule: form validation failed", errors);
+    const firstMessage =
+      (Object.values(errors)[0] as any)?.message || "Please complete all required fields.";
+    toast({
+      title: "Cannot apply delay",
+      description: String(firstMessage),
+      variant: "destructive",
+    });
+  };
+
   const onSubmit = async (values: FormValues) => {
     try {
       setIsSubmitting(true);
@@ -84,7 +95,6 @@ const DelaySchedule: React.FC = () => {
       cutoff.setHours(hours, minutes, 0, 0);
 
       const result = await applyDelay({
-        bookings,
         delayMinutes: delayMin,
         cutoff,
         instrumentId: values.instrumentId === ALL_INSTRUMENTS ? null : values.instrumentId,
@@ -116,17 +126,18 @@ const DelaySchedule: React.FC = () => {
         instrumentId: ALL_INSTRUMENTS,
         reason: "",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to apply delay", error);
       toast({
         title: "Failed to apply delay",
-        description: "An error occurred while applying the delay.",
+        description: error?.message || "An error occurred while applying the delay.",
         variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
     }
   };
+
 
   const handleReverse = async (delayId: string) => {
     try {
@@ -163,7 +174,7 @@ const DelaySchedule: React.FC = () => {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
                 <FormField
                   control={form.control}
@@ -175,7 +186,9 @@ const DelaySchedule: React.FC = () => {
                         <PopoverTrigger asChild>
                           <FormControl>
                             <Button
+                              type="button"
                               variant={"outline"}
+
                               className={cn(
                                 "pl-3 text-left font-normal",
                                 !field.value && "text-muted-foreground"
