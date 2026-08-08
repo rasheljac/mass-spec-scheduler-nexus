@@ -168,12 +168,70 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // --- Authentication: only signed-in users may trigger emails ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const anonClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    );
+    const token = authHeader.replace("Bearer ", "");
+    const { data: userData, error: userError } = await anonClient.auth.getUser(token);
+    if (userError || !userData?.user) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
     const { to, subject, htmlContent, templateType, variables }: EmailRequest = await req.json();
+
+    // --- Authorization: users may only email themselves or lab members;
+    // arbitrary external recipients are restricted to admins ---
+    const { data: callerProfile } = await supabase
+      .from("profiles")
+      .select("role, email")
+      .eq("id", userData.user.id)
+      .maybeSingle();
+
+    const isAdmin = callerProfile?.role === "admin";
+    if (!isAdmin) {
+      const isSelf =
+        typeof to === "string" &&
+        to.toLowerCase() === (userData.user.email ?? "").toLowerCase();
+
+      let isLabMember = false;
+      if (!isSelf && typeof to === "string") {
+        const { data: recipient } = await supabase
+          .from("profiles")
+          .select("id")
+          .ilike("email", to)
+          .maybeSingle();
+        isLabMember = !!recipient;
+      }
+
+      if (!isSelf && !isLabMember) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: "Forbidden: you may only send email to registered lab members",
+          }),
+          { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+    }
+
 
     console.log("Email request received:", { 
       to, 
