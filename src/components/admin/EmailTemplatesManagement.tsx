@@ -232,7 +232,93 @@ const EmailTemplatesManagement: React.FC = () => {
 </body>
 </html>`
         });
+      } else if (activeTemplate === "booking_delayed") {
+        setFormData({
+          subject: "Booking Delayed: {{instrumentName}}",
+          htmlContent: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Booking Delayed</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .header { background-color: #d97706; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; }
+    .booking-details { background-color: #fffbeb; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    .reason-box { background-color: #f3f4f6; padding: 15px; border-left: 4px solid #d97706; margin: 15px 0; }
+    .footer { background-color: #e5e7eb; padding: 15px; text-align: center; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Your Booking Has Been Delayed</h1>
+  </div>
+  <div class="content">
+    <p>Dear {{userName}},</p>
+    <p>Your booking has been pushed back by <strong>{{delayMinutes}} minutes</strong>.</p>
+    <div class="booking-details">
+      <h3>Updated Schedule</h3>
+      <ul>
+        <li><strong>Instrument:</strong> {{instrumentName}}</li>
+        <li><strong>Previous start:</strong> {{oldStartDate}}</li>
+        <li><strong>New start:</strong> {{newStartDate}}</li>
+        <li><strong>New end:</strong> {{newEndDate}}</li>
+      </ul>
+    </div>
+    <div class="reason-box">
+      <h4>Reason for the delay</h4>
+      <p>{{reason}}</p>
+    </div>
+    <p>Please adjust your schedule accordingly. Thank you for your understanding.</p>
+  </div>
+  <div class="footer">
+    <p>Lab Management System | Automated Email</p>
+  </div>
+</body>
+</html>`
+        });
+      } else if (activeTemplate === "booking_delay_reversed") {
+        setFormData({
+          subject: "Booking Delay Reversed: {{instrumentName}}",
+          htmlContent: `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Booking Delay Reversed</title>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .header { background-color: #059669; color: white; padding: 20px; text-align: center; }
+    .content { padding: 20px; }
+    .booking-details { background-color: #ecfdf5; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    .footer { background-color: #e5e7eb; padding: 15px; text-align: center; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Delay Reversed</h1>
+  </div>
+  <div class="content">
+    <p>Dear {{userName}},</p>
+    <p>The {{delayMinutes}} minute delay applied to your booking has been reversed.</p>
+    <div class="booking-details">
+      <h3>Restored Schedule</h3>
+      <ul>
+        <li><strong>Instrument:</strong> {{instrumentName}}</li>
+        <li><strong>Delayed start:</strong> {{oldStartDate}}</li>
+        <li><strong>Restored start:</strong> {{newStartDate}}</li>
+        <li><strong>Restored end:</strong> {{newEndDate}}</li>
+      </ul>
+    </div>
+    <p>Your booking is back to its original schedule.</p>
+  </div>
+  <div class="footer">
+    <p>Lab Management System | Automated Email</p>
+  </div>
+</body>
+</html>`
+        });
       }
+
       setHasChanges(false);
     }
   }, [emailTemplates, activeTemplate]);
