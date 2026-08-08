@@ -174,7 +174,7 @@ const DelaySchedule: React.FC = () => {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="space-y-6">
               <div className="grid gap-6 md:grid-cols-2">
                 <FormField
                   control={form.control}
